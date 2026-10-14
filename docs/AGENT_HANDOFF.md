@@ -1,3 +1,68 @@
+# Devolutiva Claude → ChatGPT PO — F02.1: homologação real Veracode (2026-10-14)
+
+- **Fase / commits:** F02.1 / `main` / **`7c52d57`** (código + testes) + commit seguinte só com docs. Push feito (inclui `d3fa15f`/`57a4c25` da F02.1-prep, antes só locais). **F03 NÃO iniciada.**
+- **Ambiente:** tenant REAL de testes, região `commercial`, conta de API de teste. Somente GET (trava read-only em duas camadas ativa; nenhuma violação disparada). Flag `VERACODE_LIVE_TESTS_ENABLED=true` só no ambiente do processo; `.env` não foi alterado nem lido pelo agente (presença das variáveis checada só por nome/formato).
+- **Volume:** ≈ 160 GETs no total (2 execuções completas + diagnósticos); orçamento 25 req/coleta; 0 retries; nenhum 403/429/5xx.
+- Modelo: Opus 5.5. Nenhum subagente.
+
+## Autenticação — incidente diferenciado
+1ª credencial: 401 em todos os endpoints com `"API ID … is invalid for user …"` (servidor reconheceu o cabeçalho; região europeia: "API ID … is invalid"). Diagnóstico: formato ok (ID 32 hex, chave 128 hex, minúsculas), relógio ok, assinatura **idêntica 200/200** à implementação oficial da Veracode (`veracode/veracode-dast-action`, `src/api/veracode-hmac.ts`) ⇒ **não é defeito da integração**; credencial inválida/expirada/regenerada (BLOCKED_EXTERNAL naquele momento). O usuário substituiu a credencial no `.env` → 200.
+
+## Matriz por domínio
+| # | Domínio | Estado |
+|---|---|---|
+| 1 | Autenticação HMAC | VERIFIED_REAL |
+| 2 | Aplicações | VERIFIED_REAL |
+| 3 | Paginação | VERIFIED_REAL (Applications, várias páginas, tamanho padrão e forçado) · VERIFIED_MOCK_ONLY (Identity multipágina: coube em 1 página) |
+| 4 | Business Units | VERIFIED_REAL |
+| 5 | Teams | VERIFIED_REAL (`all_for_org` aceito; efeito indistinguível: mesma contagem com/sem) |
+| 6 | Usuários | VERIFIED_REAL |
+| 7 | Aplicação → BU | VERIFIED_REAL (100% por `guid`) |
+| 8 | Aplicação → Teams | VERIFIED_REAL (100% por `guid`) · app com vários Teams: VERIFIED_MOCK_ONLY |
+| 9 | Usuário → Teams | VERIFIED_REAL após correção (FAILED antes: papel ADMIN/MEMBER perdido) |
+| 10 | Sandboxes | VERIFIED_REAL (amostra de 3 aplicações) |
+| 11 | Metadados de filtro | VERIFIED_REAL |
+| — | 403 por papel, 429, 5xx, retry, regiões EU/US | VERIFIED_MOCK_ONLY (não ocorreram; não provocados) |
+Nenhum domínio BLOCKED_PERMISSION. Contagens agregadas: só no relatório ao PO (não versionadas — repo público).
+
+## Diferenças mock × API real
+| Item | Mock F02 / spec 1.5 | Real | Ação |
+|---|---|---|---|
+| `users[].relationship` (detalhe de Team) | string | objeto `{name, display_name}` | **corrigido** (`adapters._relationship`; string continua aceita) |
+| `user_count` em Team (lista e detalhe) | presente | ausente | fixture alinhado; conferência de contagem só quando presente (já era o comportamento) |
+| `account_type` em usuário (lista) | presente | ausente | fixture alinhado; removido de `DOMAIN_FILTERS.users` (não inventar filtro) |
+| `page` da Identity | camelCase | snake_case | fixture alinhado; camelCase segue aceito e testado |
+| `_embedded` de Teams/BUs | presumido | `teams` / `business_units` confirmados | — |
+| Campos reais extras não usados | — | `scim_team`, `member_only`, `deleted`, `features`, `saml_user`, `scim_user`, `team_count` | só documentados |
+
+## Arquivos
+- Alterados: `backend/app/veracode/{adapters,discovery,fixtures}.py`, `backend/tests_live/test_veracode_live.py` (6 → 16 testes), `docs/{VERACODE_INTEGRATION,STATUS,AGENT_HANDOFF}.md`.
+- Novo: `backend/tests/test_veracode_real_shape.py` (12 regressões sintéticas).
+
+## Testes (2026-10-14, Windows 11, Py 3.14.7)
+| Verificação | Resultado |
+|---|---|
+| `pytest backend/tests_live --run-veracode-live` (real) | 1ª credencial: **6 FAILED** (401, externo) · credencial nova, final: **PASS 16/16** |
+| `python -m pytest -q` (unitários, sem rede externa) | **PASS 213** (201 + 12; RED confirmado antes da correção: 6 falhas) |
+| E2E Playwright Chromium | **PASS 14/14** |
+| `npm ci` + `npm audit --omit=dev` + `npm run build` | PASS; 0 vulnerabilidades |
+| gitleaks: staged / histórico completo | 0 / 0 achados · `dir` com ignorados: 3 (só `.env` e 2 falsos positivos em `.venv`, todos gitignored) |
+| `check_repo.py`; `check_env_example.py` | OK; SEGURO |
+| GitHub Actions (run `38652635498`, SHA `7c52d57`) | **success** — Backend 3.11 (213 passed), Backend 3.14 (213 passed), Frontend typecheck+build, E2E Chromium (14 passed). `tests_live` fora do CI (por design) |
+
+## Riscos para a F03
+1. Sem `user_count`, a completude usuário↔Team depende só do sucesso de cada detalhe de Team; `team_count` por usuário permitiria reconciliação extra (não implementada).
+2. `account_type` e papéis do usuário exigem endpoint de detalhe (`/users/{id}`), fora da allowlist — filtros de usuários limitados a Teams/ativo.
+3. `all_for_org`: aceito, mas não foi possível provar que amplia a lista neste tenant (conta enxerga os mesmos Teams com/sem).
+4. Identity multipágina e 403/429 reais não exercitados (tenant pequeno; conta com permissão).
+5. UI: colunas "Usuários" (Teams) e "Tipo" (usuários) exibirão "?" com dados reais (campo ausente = desconhecido; correto, mas sem valor informativo) — decisão de UI para o PO.
+6. Teams sem BU no tenant real; aplicações sem Team — bucket `unclassified` da F03 será exercitado.
+
+## Prompt sugerido para a próxima fase (NÃO executado)
+"F03 — Engine de escopos por domínio, com base nos campos VERIFIED_REAL da F02.1: applications (BU, Teams, tags, custom fields, criticidade, políticas), users (Teams, ativo); scans/SCA só estrutura. AND/OR/NOT, explicação 'por que incluído', sobreposição entre subclientes, bucket `unclassified` (apps sem Team, Teams sem BU), consolidado por conjunto, regras versionadas, UI simples + avançada. Decidir antes: colunas 'Tipo'/'Usuários' na UI e se a reconciliação por `team_count` entra. Fixtures sintéticas no formato real. Não implementar métricas (F04)."
+
+---
+
 # Devolutiva Claude → ChatGPT PO — F02.1-prep: credenciais Veracode de TESTE via `.env` (2026-10-14)
 
 - **Fase / commit:** preparação da F02.1 / `main` / **`d3fa15f`** (implementação) + commit seguinte só com STATUS/handoff. **Homologação F02.1 NÃO iniciada; F03 NÃO iniciada. Nenhum teste real executado. Sem push.**

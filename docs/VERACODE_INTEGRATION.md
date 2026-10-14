@@ -1,7 +1,7 @@
 # Integração Veracode — F02 (descoberta, somente leitura)
 
 Código: `backend/app/veracode/` + `backend/app/api_veracode.py`; UI: `frontend/src/pages/VeracodePage.tsx`.
-Estado: **validada só com transporte simulado (tenant sintético)**. Integração real: **NOT_VERIFIED** (sem credenciais autorizadas nesta fase).
+Estado: **homologada contra tenant REAL de testes em 2026-10-14 (F02.1, somente GET)** — matriz em “Homologação real (F02.1) — resultado”.
 
 ## Autenticação (HMAC)
 - Esquema `VERACODE-HMAC-SHA-256`, implementado a partir da documentação oficial
@@ -23,23 +23,24 @@ Especificações oficiais: [Applications API 1.0](https://app.swaggerhub.com/api
 | Aplicações | `/appsec/v1/applications?page&size` | `applications` | `size` máx. 500. Perfil: `business_unit` (**uma** por aplicação), `teams[]`, `tags`, `custom_fields`, `business_criticality`, `policies` |
 | Sandboxes | `/appsec/v1/applications/{guid}/sandboxes?page&size` | `sandboxes` | sob demanda, por aplicação |
 | Business Units | `/api/authn/v2/business_units?page&size` | `business_units` | `teams[]` quando presente |
-| Teams | `/api/authn/v2/teams?all_for_org=true&page&size` | `teams` | sem `all_for_org` só vêm os Teams do chamador ([suporte Veracode](https://community.veracode.com/s/question/0D53n00007d4TivCAE/identity-api-teams-endpoint-only-returns-teams-that-caller-is-a-member-of-)); conta restrita recebe 403 → reportado, sem recair para lista parcial |
-| Detalhe do Team | `/api/authn/v2/teams/{team_id}` | — | `users[]` (UserTeam) → relação usuário↔Team; conferido com `user_count` |
-| Usuários | `/api/authn/v2/users?page&size` | `users` | parâmetros padrão da API (`deleted`/`inactive` = false) |
+| Teams | `/api/authn/v2/teams?all_for_org=true&page&size` | `teams` | **sem `user_count` na API real**; sem `all_for_org` só vêm os Teams do chamador ([suporte Veracode](https://community.veracode.com/s/question/0D53n00007d4TivCAE/identity-api-teams-endpoint-only-returns-teams-that-caller-is-a-member-of-)); conta restrita recebe 403 → reportado, sem recair para lista parcial |
+| Detalhe do Team | `/api/authn/v2/teams/{team_id}` | — | `users[]` (UserTeam) → relação usuário↔Team; `relationship` real = objeto `{name, display_name}` (spec: string; ambos aceitos); `user_count` ausente na API real ⇒ conferência só quando presente |
+| Usuários | `/api/authn/v2/users?page&size` | `users` | parâmetros padrão da API (`deleted`/`inactive` = false); **sem `account_type` na lista real** |
 | Teste de conexão | os 4 endpoints de lista com `size=1` | — | identifica permissão por domínio |
 
 Campos mantidos após normalização (minimização): aplicações (guid, id legado, nome, BU, Teams, tags, criticidade,
 custom fields, políticas, datas); usuários (user_id, user_name, nome, ativo, login habilitado, tipo de conta).
 **E-mail, telefone, IP e dados de login são descartados no backend.** Campo ausente = `null` ("desconhecido"), nunca zero/lista vazia presumidos.
 
-### Limitações conhecidas (NOT_VERIFIED contra tenant real)
-- `page` da Identity API: especificação declara camelCase (`totalElements`/`totalPages`); Applications usa snake_case. Ambos aceitos.
-- Chaves `_embedded` de Teams/BUs (`teams`, `business_units`) não aparecem na especificação 1.5; assumidas por padrão HAL. Chave inesperada ⇒ `invalid_response` (nunca lista vazia).
-- Correspondência perfil-da-aplicação ↔ Identity API: `teams[].guid` == `team_id` e `business_unit.guid` == `bu_id` (ou IDs legados). **Nunca por nome.** Sem correspondência ⇒ `identity_match=false`, exibido na UI.
-- `all_for_org` documentado só pelo suporte (não consta na especificação 1.5).
-- Papéis mínimos da conta de API para cada endpoint: a confirmar na homologação (o teste de conexão mostra o 403 por domínio).
+### Limitações conhecidas
+- `page`: real = snake_case nas duas APIs (Identity inclusive, embora a spec 1.5 declare camelCase); camelCase segue aceito.
+- Correspondência perfil-da-aplicação ↔ Identity API **somente por ID** (`teams[].guid` == `team_id`,
+  `business_unit.guid` == `bu_id`; ou IDs legados). Nunca por nome. Sem correspondência ⇒ `identity_match=false`.
+- `all_for_org` documentado só pelo suporte (não consta na especificação 1.5); aceito pela API real (sem 403).
 - Aplicação tem **uma** BU no perfil Veracode; "aplicação em várias BUs" só existe entre escopos (subclientes) — regra da F03.
 - Relação usuário↔Team exige 1 requisição por Team (concorrência limitada).
+- Sem `user_count` na API real, a completude da relação usuário↔Team depende só do sucesso de cada detalhe de Team
+  (o detalhe traz `team_count` por usuário — reconciliação adicional possível, não implementada).
 
 ## Cliente HTTP, paginação, retry e rate limit
 - `httpx.AsyncClient` por região (conexões reutilizadas), TLS validado, sem redirects, sem cookies, **somente GET** em host oficial e endpoint da allowlist (ver “Trava somente leitura”). Páginas calculadas localmente; `_links` não são seguidos.
@@ -64,7 +65,7 @@ Erros: 409 (conexão/credencial), 502 (401/403/404/429/5xx/resposta inválida da
 
 ## Modo fixture e testes
 `AFRIKA_VERACODE_MODE=fixture` usa `app/veracode/fixtures.py`: tenants **sintéticos** em processo (alpha: 120 apps/4 BUs/8 Teams/45 usuários; beta; denied = 403 na Identity) que validam a assinatura HMAC. Usado pelos testes e pelo E2E. Nunca é o padrão.
-Integração real opt-in (fora do CI): `backend/tests_live/` — instruções no cabeçalho do arquivo; imprime só contagens.
+Integração real opt-in (fora do CI): `backend/tests_live/` (16 testes) — instruções no cabeçalho do arquivo; imprime só contagens e nomes de chaves do schema.
 
 ## `.env` local e trava somente leitura (F02.1)
 - `app/env_loader.py` carrega `<raiz>/.env` (caminho absoluto derivado do código, independente do cwd) no
@@ -89,9 +90,34 @@ referência. Caso contrário, todos são *skipped* com motivo que cita só nomes
 ```powershell
 python -m pytest backend/tests_live -q -rs --run-veracode-live   # rodar SEPARADO da suíte unitária
 ```
-Escopo: 1 requisição de autenticação (`size=1`) + descoberta (applications, business_units, teams, users,
-membros de Team). **Nenhum finding.** Orçamento padrão de 25 requisições por coleta (ajustável por
+Escopo: autenticação (`size=1`), formato de `page`/`_embedded`, descoberta (applications, business_units, teams,
+users, membros de Team), paginação multipágina forçada, relações por ID, sandboxes de uma amostra de 3
+aplicações e metadados de filtro. **Nenhum finding.** Execução completa ≈ 75 GETs. Orçamento padrão de 25 requisições por coleta (ajustável por
 `AFRIKA_VERACODE_MAX_REQUESTS_PER_COLLECTION`). Região: `AFRIKA_VC_TEST_REGION` (padrão `commercial`).
+
+## Homologação real (F02.1) — resultado
+2026-10-14, região `commercial`, conta de API de TESTE; somente GET (trava read-only ativa); orçamento 25
+req/coleta; flag `VERACODE_LIVE_TESTS_ENABLED=true` só no ambiente do processo (o `.env` não foi alterado).
+Contagens do tenant **não** são versionadas (repo público): ficam no relatório ao PO.
+
+| # | Domínio | Estado | Evidência (formato/consistência, sem valores) |
+|---|---|---|---|
+| 1 | Autenticação HMAC | VERIFIED_REAL | 200 com a credencial atual; assinatura idêntica (200/200) à implementação oficial da Veracode (`veracode-dast-action`). A 1ª credencial foi rejeitada (401 “API ID … is invalid for user”) e substituída pelo usuário — causa externa |
+| 2 | Aplicações | VERIFIED_REAL | coleta completa; itens == `total_elements`; `_embedded.applications` |
+| 3 | Paginação | VERIFIED_REAL (Applications) / VERIFIED_MOCK_ONLY (Identity multipágina) | Applications em várias páginas (tamanho padrão e forçado), sem duplicatas; Identity coube em 1 página |
+| 4 | Business Units | VERIFIED_REAL | `_embedded.business_units`; `teams[]` presente |
+| 5 | Teams | VERIFIED_REAL | `_embedded.teams`; `all_for_org=true` aceito (mesma contagem com e sem — efeito não distinguível neste tenant); `user_count` ausente |
+| 6 | Usuários | VERIFIED_REAL | `_embedded.users`; `account_type` ausente; e-mail descartado na normalização |
+| 7 | Aplicação → BU | VERIFIED_REAL | 100% das BUs do perfil casam com a Identity por `guid` |
+| 8 | Aplicação → Teams | VERIFIED_REAL | 100% das referências casam por `guid`; aplicação com vários Teams: VERIFIED_MOCK_ONLY (inexistente no tenant) |
+| 9 | Usuário → Teams | VERIFIED_REAL (após correção) | coleta completa; 0 membros fora da lista de usuários; `relationship` objeto ⇒ corrigido |
+| 10 | Sandboxes | VERIFIED_REAL | amostra de 3 aplicações; `application_guid` confere em 100% |
+| 11 | Metadados de filtro | VERIFIED_REAL | custom fields, tags, criticidade e políticas presentes; `account_type` removido dos filtros de usuários |
+| — | 401/403/429/5xx, retry, região europeia/federal | VERIFIED_MOCK_ONLY | nenhum 403/429/5xx ocorreu; a europeia só recebeu 1 GET de diagnóstico (401, ID desconhecido) |
+
+Diferenças mock × real corrigidas (commit `7c52d57`): `relationship` objeto; Team sem `user_count`; usuário sem
+`account_type`; `page` snake_case na Identity. Campos reais não usados (não normalizados): `scim_team`,
+`member_only`, `deleted`, `features`, `saml_user`, `scim_user`, `team_count`.
 
 ## Fica para F03/F04
 - F03: regras de escopo por domínio (applications/users/scans/SCA), AND/OR/NOT, sobreposição entre subclientes, `unclassified`, uso dos metadados descobertos.
