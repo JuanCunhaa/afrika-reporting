@@ -5,6 +5,7 @@ Nada aqui chama `create_all()` nem apaga dados.
 """
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Iterator
 from pathlib import Path
@@ -37,7 +38,30 @@ def _enable_sqlite_foreign_keys(dbapi_conn, _record) -> None:
     cur.close()
 
 
+SQL_ENGINE_LOGGER = 'sqlalchemy.engine.Engine'
+
+
+class DropSqlResultRows(logging.Filter):
+    """Descarta registros DEBUG do engine SQLAlchemy.
+
+    Em DEBUG o SQLAlchemy loga LINHAS de resultado ("Row (...)"), com dados de clientes;
+    `hide_parameters` só oculta parâmetros. Este filtro fica no próprio logger (não no handler),
+    então vale para qualquer configuração de logging posterior (dictConfig, uvicorn --log-config).
+    SQL em INFO continua disponível, com parâmetros ocultos.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.levelno > logging.DEBUG
+
+
+def install_sql_log_guard() -> None:
+    logger = logging.getLogger(SQL_ENGINE_LOGGER)
+    if not any(isinstance(f, DropSqlResultRows) for f in logger.filters):
+        logger.addFilter(DropSqlResultRows())
+
+
 def make_engine(url: str, *, enforce_foreign_keys: bool = True) -> Engine:
+    install_sql_log_guard()
     is_sqlite = make_url(url).get_backend_name() == 'sqlite'
     # hide_parameters: valores enviados ao banco nunca aparecem em logs nem em mensagens de exceção.
     engine = create_engine(

@@ -27,3 +27,9 @@ private/
 # F01: banco SQLite local e bancos descartáveis do E2E
 data/
 .e2e-data/
+# F01.1: configurações locais pessoais e material de chave/certificado
+.claude/settings.local.json
+*.pem
+*.key
+*.p12
+*.pfx

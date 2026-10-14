@@ -8,10 +8,10 @@ Requisitos: Python 3.11+ (validado localmente em 3.14; 3.11 coberto pela matriz 
 
 ```powershell
 cd afrika-reporting-init
-Copy-Item .env.example .env
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }   # nunca sobrescreve um .env existente
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r backend/requirements-dev.txt
+pip install -r backend/requirements-dev.txt   # versões exatas via backend/constraints.txt
 python -m pytest -q                       # testes do backend (bancos temporários; não toca no banco local)
 
 cd backend
@@ -34,6 +34,7 @@ Acesse http://localhost:5173 (API http://localhost:8000/docs).
 - **Banco**: `data/afrika-reporting.sqlite3` (ignorado pelo Git). Outro caminho: `$env:AFRIKA_DATABASE_URL = "sqlite:///C:/caminho/banco.sqlite3"`.
 - O backend **recusa iniciar** se o banco não existir ou tiver migrations pendentes (mensagem indica `python -m app.cli migrate`). Não há `create_all()` nem seed automático.
 - **API local sem autenticação**: não exponha a porta 8000 em rede/pública. CORS só aceita `http://localhost:5173` (ajustável por `CORS_ORIGINS`).
+- **`.env.example`**: `python scripts/check_env_example.py` lista variáveis e classificação sem mostrar valores.
 - **Conexões Veracode**: só metadados + referência `env:NOME` da credencial. Nunca cole API ID/Key na interface. Nenhuma chamada à Veracode nesta fase.
 
 `pytest.ini` na raiz adiciona `backend/` ao `pythonpath`; `python -m pytest -q` funciona tanto da raiz quanto de `backend/`.
@@ -53,7 +54,7 @@ Opcional: `$env:PW_CHANNEL = "msedge"` usa o Edge instalado em vez do Chromium d
 
 ### CI
 
-`.github/workflows/ci.yml`: pytest (Python 3.11 e 3.14) + `tsc -b && vite build` (Node 24) + E2E Playwright com Chromium (Python 3.14). Actions pinadas por SHA de commit; `permissions: contents: read`.
+`.github/workflows/ci.yml`: backend (Python 3.11 e 3.14: `pip check`, checagem de `.env.example`, migrations em banco novo, pytest) + `tsc -b && vite build` (Node 24) + E2E Playwright com Chromium (Python 3.14). Actions pinadas por SHA de commit; `permissions: contents: read`.
 
 Para começar com Claude Code, abra a pasta raiz e envie integralmente **`prompts/F00_START.md`**. Em seguida, peça o relatório no formato `docs/AGENT_HANDOFF.md` e encaminhe-o ao PO (ChatGPT). **Uma fase por vez.**
 

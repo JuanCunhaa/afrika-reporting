@@ -4,6 +4,7 @@ Também captura stdout/stderr do servidor para comprovar ausência de segredos e
 """
 from __future__ import annotations
 
+import json
 import os
 import socket
 import subprocess
@@ -27,14 +28,14 @@ def _free_port() -> int:
 
 
 class Server:
-    def __init__(self, url: str, log_path: Path):
+    def __init__(self, url: str, log_path: Path, extra_args: tuple[str, ...] = ('--log-level', 'debug')):
         self.port = _free_port()
         self.base = f'http://127.0.0.1:{self.port}'
         env = {**os.environ, db.DATABASE_URL_ENV: url}
         self.log = open(log_path, 'ab')
         self.proc = subprocess.Popen(
             [sys.executable, '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', str(self.port),
-             '--log-level', 'debug'],
+             *extra_args],
             cwd=BACKEND, env=env, stdout=self.log, stderr=subprocess.STDOUT)
 
     def __enter__(self) -> httpx.Client:
@@ -87,3 +88,28 @@ def test_data_survives_backend_restart_and_logs_have_no_secrets(tmp_path):
     logs = log_path.read_text(encoding='utf-8', errors='replace')
     assert 'Application startup complete' in logs  # o log foi realmente capturado
     assert SENTINEL not in logs
+
+
+def test_accidental_sqlalchemy_debug_log_config_does_not_leak_rows(tmp_path):
+    """Servidor real iniciado com --log-config que liga sqlalchemy.engine em DEBUG (erro de operação)."""
+    url = sqlite_url(tmp_path / 'debuglog.sqlite3')
+    db.upgrade(url)
+    log_config = tmp_path / 'log.json'
+    log_config.write_text(json.dumps({
+        'version': 1, 'disable_existing_loggers': False,
+        'handlers': {'out': {'class': 'logging.StreamHandler', 'stream': 'ext://sys.stderr'}},
+        'root': {'level': 'DEBUG', 'handlers': ['out']},
+        'loggers': {'sqlalchemy.engine': {'level': 'DEBUG'}, 'sqlalchemy.engine.Engine': {'level': 'DEBUG'}},
+    }), encoding='utf-8')
+    log_path = tmp_path / 'server.log'
+    marker = 'Cliente-Marcador-Linha'
+
+    with Server(url, log_path, extra_args=('--log-config', str(log_config))) as http:
+        cid = http.post('/api/clients', json={'name': marker}).json()['id']
+        assert http.get(f'/api/clients/{cid}').json()['name'] == marker
+        assert http.get('/api/clients').json()['items'][0]['name'] == marker
+
+    logs = log_path.read_text(encoding='utf-8', errors='replace')
+    assert 'SELECT clients.id' in logs  # o SQL do engine foi de fato logado (config DEBUG ativa)
+    assert 'hidden due to hide_parameters' in logs
+    assert marker not in logs and marker.lower() not in logs

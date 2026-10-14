@@ -1,5 +1,6 @@
 """Nenhum segredo em respostas, erros ou logs."""
 import logging
+import logging.config
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,6 +27,7 @@ def debug_logs(caplog):
     logging.getLogger('sqlalchemy.engine').setLevel(logging.DEBUG)  # SQL + parâmetros, se houvesse vazamento
     yield caplog
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.NOTSET)
 
 
 def test_secret_values_never_echoed_or_logged(api, make_connection, make_client, make_subclient, debug_logs):
@@ -60,16 +62,33 @@ def test_secret_values_never_echoed_or_logged(api, make_connection, make_client,
         assert not keys & FORBIDDEN_KEYS, (path, keys & FORBIDDEN_KEYS)
 
 
-def test_sql_parameters_hidden_in_logs(api, debug_logs):
-    r = api.post('/api/clients', json={'name': 'Nome-Marcador-Log'})
-    assert r.status_code == 201
-    # INFO = SQL + parâmetros (ocultos). Em DEBUG o SQLAlchemy também loga LINHAS de resultado: por isso
-    # sqlalchemy.engine fica em WARNING por padrão e nunca deve ir a DEBUG com dados reais (docs/SECURITY.md).
-    sql_logs = '\n'.join(rec.getMessage() for rec in debug_logs.records
-                         if rec.name.startswith('sqlalchemy.engine') and rec.levelno == logging.INFO)
-    assert 'INSERT INTO clients' in sql_logs
-    assert 'Nome-Marcador-Log' not in sql_logs
+def test_sql_debug_logging_never_reveals_parameters_or_result_rows(api, debug_logs):
+    """Configuração acidental: sqlalchemy.engine em DEBUG via dictConfig (como faria um --log-config)."""
+    logging.config.dictConfig({'version': 1, 'disable_existing_loggers': False,
+                               'loggers': {'sqlalchemy.engine': {'level': 'DEBUG'},
+                                           'sqlalchemy.engine.Engine': {'level': 'DEBUG'}}})
+    assert logging.getLogger('sqlalchemy.engine.Engine').isEnabledFor(logging.DEBUG)
+
+    marker = 'Nome-Marcador-Log'
+    created = api.post('/api/clients', json={'name': marker, 'description': f'{marker} descrição'})
+    assert created.status_code == 201
+    assert api.get(f"/api/clients/{created.json()['id']}").json()['name'] == marker  # SELECT devolve o marcador
+    assert api.get('/api/clients', params={'q': 'marcador'}).json()['total'] == 1
+
+    sql_records = [rec for rec in debug_logs.records if rec.name.startswith('sqlalchemy')]
+    sql_logs = '\n'.join(rec.getMessage() for rec in sql_records)
+    assert 'INSERT INTO clients' in sql_logs and 'SELECT' in sql_logs  # SQL continua auditável (INFO)
     assert 'hidden due to hide_parameters' in sql_logs
+    assert marker not in sql_logs and marker.lower() not in sql_logs  # nem parâmetro nem linha de resultado
+    assert not any(rec.levelno == logging.DEBUG and rec.name == 'sqlalchemy.engine.Engine' for rec in sql_records)
+
+
+def test_sql_log_guard_installed_once_per_process(db_url):
+    from app import db
+    for _ in range(3):
+        db.make_engine(db_url).dispose()
+    guards = [f for f in logging.getLogger(db.SQL_ENGINE_LOGGER).filters if isinstance(f, db.DropSqlResultRows)]
+    assert len(guards) == 1
 
 
 def test_unhandled_error_returns_generic_500_without_details(db_url, monkeypatch, caplog):

@@ -28,10 +28,24 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: python -m pip install -r backend/requirements-dev.txt
+      - name: Install dependencies (versões fixadas em backend/constraints.txt)
+        run: |
+          python -m pip install -r backend/requirements-dev.txt
+          python -m pip check
       - name: Repo structure check
         run: python scripts/check_repo.py
+      - name: .env.example contém só placeholders (não imprime valores)
+        run: |
+          if [ -f .env.example ]; then python scripts/check_env_example.py .env.example; else echo ".env.example ausente"; fi
+      - name: Migrations em banco novo (upgrade, status, seed sintético)
+        working-directory: backend
+        env:
+          AFRIKA_DATABASE_URL: sqlite:///${{ runner.temp }}/ci-migrations.sqlite3
+        run: |
+          python -m app.cli migrate
+          python -m app.cli db-status
+          python -m app.cli seed-demo
+          python -m app.cli migrate
       - name: Unit tests
         run: python -m pytest -q
 
@@ -75,7 +89,9 @@ jobs:
         with:
           node-version: '24'
       - name: Install backend dependencies
-        run: python -m pip install -r ../backend/requirements.txt
+        run: |
+          python -m pip install -r ../backend/requirements.txt
+          python -m pip check
       - name: Install frontend dependencies
         run: npm ci
       - name: Install Chromium

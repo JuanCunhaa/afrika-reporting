@@ -80,6 +80,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const data = await res.json().catch(() => null);
   if (!res.ok) {
     const err = data?.error;
+    // Sem corpo de erro da API: resposta veio do proxy/gateway (backend parado ou inacessível).
+    if (!err && res.status >= 500)
+      throw new ApiError(
+        res.status,
+        'api_unavailable',
+        `API indisponível (HTTP ${res.status}). Verifique se o backend está em execução.`,
+      );
     throw new ApiError(res.status, err?.code ?? 'http_error', err?.message ?? `HTTP ${res.status}`, err?.details ?? []);
   }
   return data as T;

@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 // PYTHON aponta para o interpretador com backend/requirements instalado (padrão: python).
 const here = path.dirname(fileURLToPath(import.meta.url));
 const backendDir = path.resolve(here, '../backend');
-const python = process.env.PYTHON ? path.resolve(process.env.PYTHON) : 'python';
+// Caminho (contém separador) => absoluto, pois o webServer roda com cwd=backend; nome simples => PATH.
+const pythonEnv = process.env.PYTHON || 'python';
+const python = /[\\/]/.test(pythonEnv) ? path.resolve(pythonEnv) : pythonEnv;
 const API_PORT = 8010;
 const UI_PORT = 5183;
 
