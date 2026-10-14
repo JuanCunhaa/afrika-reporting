@@ -1,4 +1,4 @@
-# Afrika Reporting — local-first (F01)
+# Afrika Reporting — local-first (F02)
 
 Plataforma de relatórios AppSec multi-cliente, operada por Claude Code em fases. **Este ZIP é o ponto de partida de desenvolvimento**, não é uma integração Veracode pronta nem um gerador PPTX completo.
 
@@ -35,7 +35,11 @@ Acesse http://localhost:5173 (API http://localhost:8000/docs).
 - O backend **recusa iniciar** se o banco não existir ou tiver migrations pendentes (mensagem indica `python -m app.cli migrate`). Não há `create_all()` nem seed automático.
 - **API local sem autenticação**: não exponha a porta 8000 em rede/pública. CORS só aceita `http://localhost:5173` (ajustável por `CORS_ORIGINS`).
 - **`.env.example`**: `python scripts/check_env_example.py` lista variáveis e classificação sem mostrar valores.
-- **Conexões Veracode**: só metadados + referência `env:NOME` da credencial. Nunca cole API ID/Key na interface. Nenhuma chamada à Veracode nesta fase.
+- **Conexões Veracode**: só metadados + referência `env:NOME` da credencial. Nunca cole API ID/Key na interface. O backend lê `NOME_API_ID` e `NOME_API_KEY` do próprio ambiente (defina no terminal do uvicorn; nunca no Git).
+- **Descoberta Veracode (F02, somente leitura)**: botão **Veracode** no cliente e em cada subcliente — teste de conexão, aplicações/sandboxes, BUs, Teams, usuários, relacionamentos e metadados. Detalhes, limites e variáveis `AFRIKA_VERACODE_*`: `docs/VERACODE_INTEGRATION.md`.
+- **Demo sem Veracode real**: `$env:AFRIKA_VERACODE_MODE = "fixture"` usa um tenant **sintético** em processo (o E2E usa este modo).
+- **Loopback**: a API recusa (403) origem não-loopback e `Host` diferente de localhost/127.0.0.1. Não use `--host 0.0.0.0`.
+- **Integração real (opt-in, fora do CI)**: `backend/tests_live/test_veracode_live.py` — só com autorização e credencial read-only.
 
 `pytest.ini` na raiz adiciona `backend/` ao `pythonpath`; `python -m pytest -q` funciona tanto da raiz quanto de `backend/`.
 
@@ -68,4 +72,4 @@ Para começar com Claude Code, abra a pasta raiz e envie integralmente **`prompt
 
 ## Estado inicial
 
-F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões (sem Veracode). F02 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
+F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02: conector Veracode somente leitura e descoberta (validado com tenant sintético; integração real NOT_VERIFIED). F03 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.

@@ -18,4 +18,4 @@
 - Script referência third-party sem licença declarada: somente inspiração de arquitetura/algoritmos; não copiar.
 
 ## Limites de dados
-Retenção: preferir snapshots de métricas e agregados, sem persistir todos os findings. Processamento efêmero limitado (memória/temp encriptado ou descartado) será especificado na F02. Controle de concorrência, rate limit e checkpoints em F02.
+Retenção: preferir snapshots de métricas e agregados, sem persistir todos os findings. F02: descoberta processada em memória (cache TTL, sem disco); concorrência, rate limit, orçamento e prazo por coleta em `backend/app/veracode/` — ver `docs/VERACODE_INTEGRATION.md`. Checkpoints de coletas longas (findings) ficam para F04.

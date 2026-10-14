@@ -135,3 +135,128 @@ export const REGION_LABEL: Record<Region, string> = {
 };
 
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+// ---------------------------------------------------------------- F02: descoberta Veracode (somente leitura)
+
+export type ScopeKind = 'clients' | 'subclients';
+export type ScopeInfo = {
+  kind: 'client' | 'subclient';
+  id: string;
+  name: string;
+  client_id: string;
+  connection_source: 'subclient' | 'client' | 'none';
+  connection: { id: string; name: string; region: Region; credential_ref: string } | null;
+};
+export type CredentialStatus = 'configured' | 'missing' | 'invalid_format' | 'unsupported_ref' | 'not_configured';
+export type VeracodeScope = {
+  scope: ScopeInfo;
+  credential_status: CredentialStatus;
+  mode: 'live' | 'fixture';
+  cache_ttl_seconds: number;
+  page_size: number;
+  max_concurrency: number;
+};
+export type VeracodeErrorInfo = { code: string; message: string; upstream_status: number | null };
+export type CollectionStatus = {
+  resource: string;
+  complete: boolean;
+  status: 'complete' | 'incomplete';
+  reason: VeracodeErrorInfo | null;
+  pages_fetched: number;
+  total_pages_reported: number | null;
+  total_elements_reported: number | null;
+  items_collected: number;
+  requests: number;
+  retries: number;
+  fetched_at: string;
+  cached: boolean;
+  cache_ttl_remaining: number | null;
+};
+export type DiscoveryPage<T> = Page<T> & {
+  scope: ScopeInfo;
+  complete: boolean;
+  collections: CollectionStatus[];
+  summary?: Record<string, number | null | VeracodeErrorInfo>;
+};
+export type ConnectionCheck = { check: string; status: 'ok' | 'error'; error: VeracodeErrorInfo | null };
+export type ConnectionTest = { scope: ScopeInfo; status: 'ok' | 'partial' | 'error'; checks: ConnectionCheck[] };
+
+type Ref = { guid: string | null; legacy_id: number | null; name: string | null };
+export type VcApplication = {
+  guid: string;
+  legacy_id: number | null;
+  name: string | null;
+  business_unit: Ref | null;
+  teams: Ref[] | null;
+  tags: string | null;
+  business_criticality: string | null;
+  custom_fields: { name: string | null; value: string | null }[] | null;
+  policies: { guid: string | null; name: string | null; compliance_status: string | null }[] | null;
+  last_completed_scan_date: string | null;
+};
+export type VcSandbox = { guid: string; legacy_id: number | null; name: string | null; modified: string | null };
+export type VcBusinessUnit = {
+  bu_id: string;
+  name: string | null;
+  is_default: boolean | null;
+  team_ids: string[] | null;
+};
+export type VcTeam = {
+  team_id: string;
+  name: string | null;
+  business_unit: { bu_id: string | null; name: string | null } | null;
+  user_count: number | null;
+};
+export type VcUser = {
+  user_id: string;
+  user_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  active: boolean | null;
+  login_enabled: boolean | null;
+  account_type: string | null;
+};
+type Matched = { identity_match: boolean | null };
+export type VcAppRelationship = {
+  application: { guid: string; name: string | null };
+  business_unit: (Ref & Matched) | null;
+  teams: (Ref & Matched)[] | null;
+};
+export type VcUserRelationship = {
+  user: VcUser;
+  teams: { team_id: string; team_name: string | null; relationship: string | null }[] | null;
+};
+export type VcMetadata = {
+  scope: ScopeInfo;
+  complete: boolean;
+  collections: CollectionStatus[];
+  metadata: {
+    applications: number;
+    custom_fields: {
+      name: string;
+      applications: number;
+      distinct_values: number;
+      values: { value: string; applications: number }[];
+      values_truncated: boolean;
+    }[];
+    tags: { value: string; applications: number }[];
+    business_criticality: { value: string; applications: number }[];
+    policies: { value: string; applications: number }[];
+    domains: Record<string, { available: string[]; source: string }>;
+  };
+};
+export type ListParams = { q?: string; limit: number; offset: number };
+
+const vcBase = (kind: ScopeKind, id: string) => `/api/veracode/${kind}/${id}`;
+
+export const veracode = {
+  scope: (kind: ScopeKind, id: string) => request<VeracodeScope>('GET', vcBase(kind, id)),
+  test: (kind: ScopeKind, id: string) => request<ConnectionTest>('POST', `${vcBase(kind, id)}/test`),
+  invalidate: (kind: ScopeKind, id: string) =>
+    request<{ removed_entries: number }>('DELETE', `${vcBase(kind, id)}/cache`),
+  list: <T,>(kind: ScopeKind, id: string, resource: string, p: ListParams) =>
+    request<DiscoveryPage<T>>('GET', `${vcBase(kind, id)}/${resource}?${qs(p)}`),
+  sandboxes: (kind: ScopeKind, id: string, appGuid: string) =>
+    request<DiscoveryPage<VcSandbox>>('GET', `${vcBase(kind, id)}/applications/${appGuid}/sandboxes?limit=200`),
+  metadata: (kind: ScopeKind, id: string) => request<VcMetadata>('GET', `${vcBase(kind, id)}/metadata`),
+};

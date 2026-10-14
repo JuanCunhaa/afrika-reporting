@@ -6,3 +6,5 @@ pydantic>=2.8,<3
 # F01: persistência local (ORM) e migrations versionadas
 sqlalchemy>=2.0.40,<3
 alembic>=1.16,<2
+# F02: cliente HTTP da integração Veracode (async, timeouts, pool de conexões). Já fixado em constraints.txt.
+httpx>=0.27,<1

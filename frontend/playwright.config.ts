@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { veracodeFixtureEnv } from './e2e/fixture-creds';
 
 // E2E F01: sobe API (FastAPI) + Vite em portas próprias, com banco SQLite NOVO por execução
 // (migrate + seed sintético). Nunca reaproveita servidores de dev nem toca no banco local do usuário.
@@ -33,7 +34,13 @@ export default defineConfig({
     {
       command: `"${python}" -m app.cli migrate && "${python}" -m app.cli seed-demo && "${python}" -m uvicorn app.main:app --host 127.0.0.1 --port ${API_PORT}`,
       cwd: backendDir,
-      env: { ...process.env, AFRIKA_DATABASE_URL: dbUrl, CORS_ORIGINS: `http://127.0.0.1:${UI_PORT}` } as Record<string, string>,
+      // F02: Veracode em modo FIXTURE (tenant sintético em processo). Nenhuma chamada à Veracode real.
+      env: {
+        ...process.env,
+        ...veracodeFixtureEnv,
+        AFRIKA_DATABASE_URL: dbUrl,
+        CORS_ORIGINS: `http://127.0.0.1:${UI_PORT}`,
+      } as Record<string, string>,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
       reuseExistingServer: false,
       timeout: 90_000,

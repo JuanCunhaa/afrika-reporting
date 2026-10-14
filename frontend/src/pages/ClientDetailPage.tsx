@@ -110,6 +110,9 @@ export function ClientDetailPage({ id, navigate }: { id: string; navigate: (path
             <button type="button" className="btn" onClick={() => setEditing(true)}>
               Editar
             </button>
+            <a className="btn" href={`#/veracode/clients/${c.id}`}>
+              Veracode
+            </a>
             <button
               type="button"
               className="btn"
@@ -223,6 +226,9 @@ function SubclientsSection(props: {
                   <span className={`badge source-${s.connection_source}`}>{SOURCE_LABEL[s.connection_source]}</span>
                 </td>
                 <td className="row-actions">
+                  <a className="btn small" href={`#/veracode/subclients/${s.id}`} aria-label={`Veracode do subcliente ${s.name}`}>
+                    Veracode
+                  </a>
                   <button type="button" className="btn small" onClick={() => setForm(s)} disabled={form !== null}>
                     Editar
                   </button>

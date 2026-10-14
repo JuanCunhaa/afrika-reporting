@@ -20,3 +20,15 @@
 - **`.env.example`**: `scripts/check_env_example.py` classifica cada variável (vazio/placeholder/valor padrão não secreto/REVISAR) **sem imprimir valores** e recusa ler `.env` real. Roda no CI quando o arquivo está versionado.
 - **Dependências Python**: versões exatas em `backend/constraints.txt` (aplicado por `requirements.txt`); CI roda `pip check`.
 - **Publicação pública BLOQUEADA** até: licença (texto integral + titularidade), titularidade do código e autenticação da aplicação. Repositório privado é o único destino autorizado.
+
+## Controles implementados na F02 (integração Veracode somente leitura)
+
+- **Loopback obrigatório** (`app/local_only.py`): requisições com IP de origem não-loopback ou `Host` fora de
+  localhost/127.0.0.1/::1 recebem 403 (protege contra `--host 0.0.0.0` acidental e DNS rebinding). Não substitui autenticação.
+- **Credenciais**: só do ambiente do backend (`env:NOME` → `NOME_API_ID`/`NOME_API_KEY`), lidas por requisição, nunca persistidas,
+  nunca devolvidas (nem valores, nem nomes derivados), `repr` mascarado. A UI recebe apenas o estado (`configured`/`missing`/…).
+- **Somente leitura**: hook do cliente HTTP bloqueia qualquer método ≠ GET antes do envio; hosts fixos por região; redirects e `_links` não seguidos (sem SSRF); TLS sempre validado; cookies desativados (cliente compartilhado entre tenants sem estado).
+- **Logs**: só recurso, status, tentativa, espera e IDs internos (UUID). `httpx`/`httpcore` filtrados para WARNING+ (não logam URL com query). Testes com controle negativo.
+- **Minimização**: e-mail/telefone/IP de usuários descartados na normalização; nada coletado vai para disco; cache só em memória com chave sem credenciais.
+- **Fixtures**: tenant sintético gerado em código (`app/veracode/fixtures.py`); credenciais sintéticas derivadas de rótulos fixos — não são chaves reais.
+- **Integração real**: somente opt-in (`backend/tests_live`, `AFRIKA_VERACODE_LIVE=1`) com autorização do operador; nunca no CI.

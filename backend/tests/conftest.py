@@ -66,3 +66,45 @@ def make_subclient(api):
 
 def error_code(response) -> str:
     return response.json()['error']['code']
+
+
+# ---------------------------------------------------------------- F02: Veracode (somente transporte simulado)
+
+from app.veracode.fixtures import FixtureVeracode, synthetic_credentials  # noqa: E402
+from app.veracode.settings import VeracodeSettings  # noqa: E402
+
+
+def veracode_environ(**tenants: str) -> dict[str, str]:
+    """Ambiente SINTÉTICO: {'ALPHA': 'alpha'} -> ALPHA_API_ID/ALPHA_API_KEY do tenant fixture 'alpha'."""
+    env = {}
+    for var, tenant in tenants.items():
+        api_id, api_key = synthetic_credentials(tenant)
+        env[f'{var}_API_ID'], env[f'{var}_API_KEY'] = api_id, api_key
+    return env
+
+
+class SleepRecorder:
+    def __init__(self):
+        self.calls: list[float] = []
+
+    async def __call__(self, seconds: float) -> None:
+        self.calls.append(seconds)
+
+
+@pytest.fixture
+def fake_veracode() -> FixtureVeracode:
+    return FixtureVeracode()
+
+
+@pytest.fixture
+def vc_env() -> dict[str, str]:
+    return veracode_environ(VC_ALPHA='alpha', VC_BETA='beta', VC_DENIED='denied')
+
+
+@pytest.fixture
+def vc_api(db_url, fake_veracode, vc_env):
+    settings = VeracodeSettings(page_size=50, max_retries=2)
+    app = create_app(db_url, veracode_settings=settings, veracode_transport=fake_veracode.transport(),
+                     environ=vc_env, sleep=SleepRecorder())
+    with TestClient(app) as client:
+        yield client

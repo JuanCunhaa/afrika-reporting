@@ -9,7 +9,9 @@ from app.seed import seed_demo
 def test_health(api):
     r = api.get('/api/health')
     assert r.status_code == 200
-    assert r.json() == {'status': 'ok', 'phase': 'F01', 'data': 'local', 'auth': 'none'}
+    body = r.json()
+    assert body.pop('veracode_mode') in ('live', 'fixture')
+    assert body == {'status': 'ok', 'phase': 'F02', 'data': 'local', 'auth': 'none'}
 
 
 def test_demo_metrics_are_explicitly_synthetic(api):
