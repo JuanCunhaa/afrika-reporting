@@ -4,6 +4,7 @@
 - F01 — clientes/subclientes: DONE_LOCAL — aprovada localmente pelo PO
 - F01.1 — hardening e CI: DONE_LOCAL — aprovada localmente pelo PO (`.env.example` versionado em `d71f39e`)
 - **F02 — conector Veracode read-only + descoberta: DONE_LOCAL — aguardando PO** (commit `5fce8bf`; validado só com tenant sintético; integração real NOT_VERIFIED; CI GitHub **verde** em `7fcfc92`)
+- **F02.1-prep — `.env` local + trava read-only + homologação opt-in: DONE_LOCAL — aguardando PO** (commit `d3fa15f`; homologação real F02.1 **NÃO iniciada**; aguarda o usuário preencher `.env` e autorizar)
 - F03 — escopos: NOT_STARTED — **não iniciar sem ordem do PO**
 - F04 — métricas: NOT_STARTED
 - F05 — snapshots/auditoria: NOT_STARTED
@@ -11,6 +12,11 @@
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F02.1-prep (2026-10-14)
+- `.env` criado na raiz (ignorado pelo Git; nunca versionado — 0 commits no histórico); campos a preencher: `AFRIKA_VC_TEST_API_ID`, `AFRIKA_VC_TEST_API_KEY`.
+- pytest **201 passed** (144 anteriores + 57 novos); `tests_live` 6 SKIPPED por padrão; E2E Chromium **14 passed**; build OK; `pip check` OK; gitleaks (staged) 0 achados.
+- Testes reais: **NOT_RUN** (proibido nesta tarefa). Integração real: NOT_VERIFIED.
 
 ## Publicação pública (2026-10-14) — não é fase de produto
 - Repo **público** https://github.com/JuanCunhaa/afrika-reporting (`origin`, branch `main`). Sem deploy.
@@ -23,7 +29,7 @@
 - Integração real com a Veracode: **NOT_VERIFIED** (sem credenciais autorizadas; nenhuma chamada real executada).
 - Sem remote Git; CI GitHub NOT_RUN. Detalhes: `docs/AGENT_HANDOFF.md`, `docs/VERACODE_INTEGRATION.md`.
 
-Próxima autorização esperada: aceite F02, smoke real autorizado (opt-in) e prompt F03 do PO.
+Próxima autorização esperada: aceite F02/F02.1-prep, usuário preenche `.env`, PO autoriza a homologação F02.1 (opt-in); depois prompt F03.
 
 ## Checkpoint F01.1 (2026-10-14)
 - pytest **59 passed** (Py 3.14.7) no `.venv` e num venv novo instalado só pelo lock; E2E Chromium **9 passed** (inclui 4 de API indisponível); build OK; `pip check` OK.

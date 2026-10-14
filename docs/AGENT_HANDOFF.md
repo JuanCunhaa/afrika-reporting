@@ -1,3 +1,60 @@
+# Devolutiva Claude → ChatGPT PO — F02.1-prep: credenciais Veracode de TESTE via `.env` (2026-10-14)
+
+- **Fase / commit:** preparação da F02.1 / `main` / **`d3fa15f`** (implementação) + commit seguinte só com STATUS/handoff. **Homologação F02.1 NÃO iniciada; F03 NÃO iniciada. Nenhum teste real executado. Sem push.**
+- **`.env`:** criado em `E:\afrika-reporting-init\afrika-reporting-init\.env` (não existia), com os campos da ordem. O usuário preenche só `AFRIKA_VC_TEST_API_ID` e `AFRIKA_VC_TEST_API_KEY` (hex, emitidos pela Veracode). `VERACODE_LIVE_TESTS_ENABLED=false` permanece até a autorização. Ignorado por `.gitignore:1`; `git log --all -- .env` vazio.
+- Modelo: Opus 5.5 (a ordem não fixou modelo). Nenhum subagente.
+
+## Decisões
+| Tema | Decisão |
+|---|---|
+| Carregamento | `app/env_loader.py`: `python-dotenv` (`dotenv_values`, sem interpolação) lê `<raiz>/.env` por caminho absoluto derivado do código → independe do cwd. Chamado em `app.main` (antes de `create_app`) e `app.cli`. Variável já definida no sistema (mesmo vazia) **nunca** é sobrescrita. Devolve só nomes. `python-dotenv` já estava instalado/fixado (`constraints.txt` 1.2.4, via `uvicorn[standard]`); só passou a ser dependência direta em `requirements.txt` — nenhuma instalação nova. |
+| Isolamento | `AFRIKA_DOTENV_DISABLED=1` na suíte unitária (`conftest.py`, antes de importar `app.main`) e no backend E2E (`fixture-creds.ts`): credenciais de teste nunca entram nesses processos. |
+| `env:NOME` | Resolvedor da F02 inalterado; `env:AFRIKA_VC_TEST` → `AFRIKA_VC_TEST_API_ID`/`_API_KEY` (testado com `.env` sintético). |
+| Trava read-only | `app/veracode/readonly.py`, duas camadas (event hook + `ReadOnlyTransport` que envolve o transporte real/simulado): só `GET`; só `https:443` em `api.veracode.{com,eu,us}`; só allowlist (applications, sandboxes, business_units, teams, detalhe de Team, users). HEAD/OPTIONS/TRACE também bloqueados. Violação → `ReadOnlyViolation` antes da rede, sem retry. |
+| `VERACODE_READ_ONLY` | Efetiva e fail-closed: ausente/`true` → ok; `false`/inválido → `SettingsError` e o backend **não inicia**; `VeracodeHttpPool` recusa settings relaxadas. Não existe modo com escrita. |
+| Homologação opt-in | `app/veracode/live_gate.py` + `tests_live/conftest.py`: executa só com `--run-veracode-live` (pedido explícito do operador) **e** `VERACODE_LIVE_TESTS_ENABLED=true` **e** credenciais válidas na referência `AFRIKA_VC_TEST_CONNECTION`. Senão: SKIPPED com motivo que cita só nomes. Substitui `AFRIKA_VERACODE_LIVE`/`_LIVE_REF`. Escopo: 1 GET de autenticação (`size=1`) + descoberta (apps, BUs, Teams, usuários, membros de Team); **sem findings**; orçamento padrão 25 req/coleta; região `AFRIKA_VC_TEST_REGION` (opcional, padrão `commercial`). |
+
+## Arquivos
+- Novos: `backend/app/env_loader.py`, `backend/app/veracode/readonly.py`, `backend/app/veracode/live_gate.py`, `backend/tests/test_env_readonly.py`, `backend/tests_live/conftest.py`.
+- Alterados: `backend/app/main.py`, `backend/app/cli.py`, `backend/app/veracode/{http,settings,__init__}.py`, `backend/requirements.txt`, `backend/tests/conftest.py`, `backend/tests_live/test_veracode_live.py`, `frontend/e2e/fixture-creds.ts`, `.env.example`, `README.md`, `docs/VERACODE_INTEGRATION.md`, `docs/AGENT_HANDOFF.md`, `docs/STATUS.md`.
+- Não versionado: `.env`.
+
+## Testes (2026-10-14, Windows 11, Py 3.14.7)
+| Verificação | Resultado |
+|---|---|
+| `python -m pytest -q` (backend/tests) | **PASS — 201 passed** (144 F02 inalterados + 57 novos) |
+| 1 carregamento do `.env` (raiz, cwd, sem interpolação, só nomes) | PASS |
+| 2 `env:AFRIKA_VC_TEST` resolve do `.env` | PASS |
+| 3 precedência do ambiente do sistema (dict e `os.environ`) | PASS |
+| 4 credenciais ausentes de respostas, headers e logs DEBUG (fluxo completo: conexão, teste, descoberta) | PASS |
+| 5 bloqueio de POST/PUT/PATCH/DELETE/HEAD/OPTIONS/TRACE via `request`, `send`, `stream` e transporte cru; GET fora da allowlist/host/porta/TLS; `VERACODE_READ_ONLY=false` impede `create_app`; nenhum outro cliente HTTP importado em `app/` | PASS |
+| 6 portão live: cada condição isolada bloqueia; subprocesso `pytest backend/tests_live` com e sem `--run-veracode-live` → 6 skipped | PASS |
+| 7 rede externa bloqueada (DNS + connect fora do loopback) em toda a suíte unitária; transporte real não alcança a Veracode; E2E em modo fixture com `.env` desativado | PASS |
+| 8 suíte F02 existente | PASS (144) |
+| `npm run build` | PASS |
+| E2E Playwright Chromium | **PASS — 14 passed** |
+| `pip check`; `check_env_example.py .env.example`; `check_repo.py` | PASS; SEGURO; OK |
+| gitleaks no diff staged | PASS — 0 achados (1 falso positivo em URL de teste reescrito) |
+| `pytest backend/tests_live` com `.env` real (vazio), sem e com a flag | 6 SKIPPED (motivos: "não solicitada" / "VERACODE_LIVE_TESTS_ENABLED não é true"); nenhuma requisição |
+| Homologação real | **NOT_RUN** (proibido nesta tarefa) |
+
+## Riscos e limitações
+- A trava do código não substitui privilégios mínimos na conta de API Veracode (papéis só de leitura) — responsabilidade do titular da conta; NOT_VERIFIED.
+- Com `HTTPS_PROXY` definido, o httpx usa transporte de proxy que não passa pela camada de transporte; o event hook continua aplicando a mesma política a toda requisição do cliente.
+- `.env` em texto puro no disco local; proteger a estação (permissões, backup). Se as chaves vazarem: revogar na Veracode.
+- Rodar `tests_live` separado da suíte unitária (a unitária desativa o `.env`; juntas, os testes live ficam SKIPPED — fail-closed).
+- Transparência: criei o `.env` via shell somente porque o arquivo não existia (nenhum conteúdo pré-existente lido). O `.claude/settings.json` nega `Read(**/.env.*)`.
+
+## Pendências
+- Usuário: preencher `AFRIKA_VC_TEST_API_ID`/`AFRIKA_VC_TEST_API_KEY`; confirmar região se não for `commercial`.
+- PO: aceitar esta preparação e autorizar a homologação F02.1.
+- Push para o `origin` público + CI: NOT_RUN (não solicitado).
+
+## Prompt sugerido para a próxima fase (NÃO executado)
+"F02.1 — Homologação real autorizada: com `.env` preenchido pelo usuário, definir `VERACODE_LIVE_TESTS_ENABLED=true` e executar `python -m pytest backend/tests_live -q -rs --run-veracode-live` uma única vez. Reportar só contagens, completude e códigos de erro por domínio (401/403 por papel), confirmar os itens NOT_VERIFIED de `docs/VERACODE_INTEGRATION.md`, voltar a flag para `false` ao final. Não coletar findings; não avançar para a F03."
+
+---
+
 # Devolutiva Claude → ChatGPT PO — Publicação pública do repositório (2026-10-14)
 
 - **Escopo:** somente publicação (sem deploy; F02.1/F03 **não iniciadas**). Repo: https://github.com/JuanCunhaa/afrika-reporting — visibilidade `PUBLIC` confirmada via `gh repo view`.
