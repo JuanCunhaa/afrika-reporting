@@ -68,8 +68,11 @@ Para começar com Claude Code, abra a pasta raiz e envie integralmente **`prompt
 - API Veracode somente leitura; HMAC/segredos fora do Git. Se a API não tiver dado confiável, exigir preenchimento manual identificado.
 - Engine de métricas determinística; IA apenas para interpretação de textos.
 - Definição visual definitiva do template **pendente**. PPTXs reais são privados e **não fazem parte do ZIP**.
-- Repo público com uso comercial reservado: `LICENSE` PolyForm Noncommercial 1.0.0 **somente para código autoral cuja titularidade permita licenciamento**; verificar titularidade/validação jurídica antes de publicar.
 
 ## Estado inicial
 
 F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02: conector Veracode somente leitura e descoberta (validado com tenant sintético; integração real NOT_VERIFIED). F03 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
+
+## Licença
+
+Source-available sob a **PolyForm Noncommercial License 1.0.0** — texto integral e inalterado em [`LICENSE`](LICENSE); aviso obrigatório em [`NOTICE`](NOTICE). Uso comercial **não** é concedido por essa licença: todos os direitos comerciais permanecem com o titular (JuanCunhaa). Para licença comercial, contate o titular pelo GitHub.

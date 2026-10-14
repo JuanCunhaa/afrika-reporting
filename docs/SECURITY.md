@@ -19,7 +19,7 @@
 - **Banco**: `data/*.sqlite3` e `frontend/.e2e-data/` estão no `.gitignore`. Testes e E2E usam bancos temporários com dados sintéticos.
 - **`.env.example`**: `scripts/check_env_example.py` classifica cada variável (vazio/placeholder/valor padrão não secreto/REVISAR) **sem imprimir valores** e recusa ler `.env` real. Roda no CI quando o arquivo está versionado.
 - **Dependências Python**: versões exatas em `backend/constraints.txt` (aplicado por `requirements.txt`); CI roda `pip check`.
-- **Publicação pública BLOQUEADA** até: licença (texto integral + titularidade), titularidade do código e autenticação da aplicação. Repositório privado é o único destino autorizado.
+- **Publicação pública do código (2026-10-14)**: autorizada pelo titular após licença integral (PolyForm Noncommercial 1.0.0 + `NOTICE`), declaração de titularidade e auditoria (gitleaks histórico + árvore, sem dados reais). Isso **não** autoriza expor a aplicação: a API continua sem autenticação e só para uso local.
 
 ## Controles implementados na F02 (integração Veracode somente leitura)
 
