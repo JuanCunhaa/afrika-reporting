@@ -1,7 +1,8 @@
 # Estado do projeto
 
-- F00: DONE_LOCAL (validada em Windows 11 em 2026-10-14; aceite implícito pela ordem F01 do PO)
-- F01 — clientes/subclientes: **DONE_LOCAL — aguardando aceite do PO** (commit `84d0fb4`; CI GitHub NOT_RUN — sem remote)
+- F00: DONE_LOCAL
+- F01 — clientes/subclientes: DONE_LOCAL — aprovada localmente pelo PO
+- **F01.1 — hardening e CI: DONE_LOCAL — aguardando PO** (commit `98270d4`; CI GitHub NOT_RUN — sem remote)
 - F02 — conectores Veracode: NOT_STARTED — **não iniciar sem ordem do PO**
 - F03 — escopos: NOT_STARTED
 - F04 — métricas: NOT_STARTED
@@ -11,11 +12,10 @@
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
 
-## Checkpoint F01 (2026-10-14)
-- Backend: `python -m pytest -q` → **53 passed** (Python 3.14.7, SQLAlchemy 2.1.4, Alembic 1.20.0, SQLite 3.50.4). Python 3.11 NOT_VERIFIED localmente (matriz do CI, não executada).
-- Frontend: `npm run build` → OK. E2E Playwright **Chromium** (v1248, Playwright 1.64.1) → **5 passed**.
-- Migrations: banco novo → head; downgrade base → upgrade head; upgrade idempotente preserva dados; ORM == migration (`compare_metadata` vazio).
-- API local **sem autenticação** — não expor publicamente.
-- Detalhes: `docs/AGENT_HANDOFF.md`. Ordem da fase: `prompts/F01_CLIENTS.md`.
+## Checkpoint F01.1 (2026-10-14)
+- pytest **59 passed** (Py 3.14.7) no `.venv` e num venv novo instalado só pelo lock; E2E Chromium **9 passed** (inclui 4 de API indisponível); build OK; `pip check` OK.
+- Lock `backend/constraints.txt` resolve com wheels para CPython 3.11 e 3.14 (Linux/Windows). Execução em 3.11: NOT_VERIFIED localmente.
+- Sem remote Git. Publicação pública BLOQUEADA (licença, titularidade, autenticação).
+- `.env.example` ainda NÃO versionado: aguarda verificação pelo usuário (ver handoff).
 
-Próxima autorização esperada: aceite F01 + prompt F02 do PO. Não antecipar F02.
+Próxima autorização esperada: aceite F01.1, push privado com CI verde e prompt F02 do PO.
