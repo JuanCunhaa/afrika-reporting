@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.veracode/**)",
+      "Read(**/credentials)",
+      "Read(**/node_modules/**)",
+      "Read(**/.venv/**)",
+      "Read(**/*.sqlite3)",
+      "Read(**/*.db)"
+    ]
+  }
+}
