@@ -2,8 +2,9 @@
 
 - Nenhum dado real: nomes, IDs e credenciais são gerados deterministicamente a partir de rótulos fixos.
 - Valida a assinatura HMAC como a Veracode faria (credencial errada => 401).
-- Formatos seguem as especificações oficiais (HAL `_embedded` + `page`). A página da Applications API usa
-  snake_case e a da Identity API camelCase (como declarado na especificação 1.5), exercitando os dois formatos.
+- Formatos seguem o observado na API REAL (homologação F02.1): HAL `_embedded` + `page` em snake_case nas duas
+  APIs; Team sem `user_count`; usuário sem `account_type`; `relationship` do membro como objeto `{name, display_name}`.
+  (camelCase, aceito por precaução porque a especificação Identity 1.5 o declara, é coberto em test_veracode_http.)
 Tenants: `alpha` (completo, multi-página), `beta` (outro tenant, para isolamento), `denied` (sem permissão
 na Identity API => 403). Qualquer outra credencial => 401.
 """
@@ -67,7 +68,7 @@ def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, labe
         uid = _uid(name, 'user', n)
         user = {'user_id': uid, 'user_legacy_id': 3000 + n, 'user_name': f'{label.lower()}.usuario{n + 1:02d}',
                 'first_name': 'Usuário', 'last_name': f'Sintético {n + 1:02d}', 'active': n % 11 != 10,
-                'login_enabled': True, 'account_type': 'API' if n % 9 == 8 else 'USER',
+                'login_enabled': True, 'saml_user': False, 'scim_user': False,
                 # Campos pessoais presentes na API real: a normalização deve descartá-los.
                 'email_address': f'{label.lower()}.usuario{n + 1:02d}@example.invalid', 'phone': '000'}
         t.users.append(user)
@@ -76,9 +77,9 @@ def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, labe
         team_idx = [n % teams] + ([(n + 1) % teams] if n % 4 == 0 and teams > 1 else [])
         for k in team_idx:
             members[team_rows[k]['team_id']].append(
-                {'user_id': uid, 'user_name': user['user_name'], 'relationship': 'ADMIN' if n % 10 == 0 else 'MEMBER'})
-    for tm in team_rows:
-        tm['user_count'] = len(members[tm['team_id']])
+                {'user_id': uid, 'user_name': user['user_name'],
+                 'relationship': {'name': 'ADMIN', 'display_name': 'Administrador'} if n % 10 == 0 else
+                 {'name': 'MEMBER', 'display_name': 'Membro'}})
     t.teams = team_rows
     t.team_users = members
 
@@ -176,12 +177,12 @@ class FixtureVeracode:
         path = request.url.path
 
         if path == '/appsec/v1/applications':
-            return self._page(tenant.applications, 'applications', page, size, snake=True)
+            return self._page(tenant.applications, 'applications', page, size)
         m = re.fullmatch(r'/appsec/v1/applications/([^/]+)/sandboxes', path)
         if m:
             if m.group(1) not in tenant.sandboxes:
                 return _error(404, 'Not Found')
-            return self._page(tenant.sandboxes[m.group(1)], 'sandboxes', page, size, snake=True)
+            return self._page(tenant.sandboxes[m.group(1)], 'sandboxes', page, size)
         if path.startswith('/api/authn/') and tenant.identity_forbidden:
             return _error(403, 'Forbidden')
         if path == '/api/authn/v2/business_units':
@@ -200,12 +201,11 @@ class FixtureVeracode:
         return _error(404, 'Not Found')
 
     @staticmethod
-    def _page(items: list[dict], key: str, page: int, size: int, snake: bool = False) -> httpx.Response:
+    def _page(items: list[dict], key: str, page: int, size: int) -> httpx.Response:
         total = len(items)
         total_pages = (total + size - 1) // size
         chunk = items[page * size:(page + 1) * size]
-        meta = ({'size': size, 'total_elements': total, 'total_pages': total_pages, 'number': page} if snake else
-                {'size': size, 'totalElements': total, 'totalPages': total_pages, 'number': page})
+        meta = {'size': size, 'total_elements': total, 'total_pages': total_pages, 'number': page}
         body: dict = {'_links': {}, 'page': meta}
         if chunk:
             body['_embedded'] = {key: chunk}

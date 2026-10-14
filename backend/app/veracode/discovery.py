@@ -309,7 +309,8 @@ DOMAIN_FILTERS = {
     'applications': {'available': ['business_unit', 'teams', 'tags', 'custom_fields', 'business_criticality',
                                    'policies'],
                      'source': 'Applications API (perfil da aplicação)'},
-    'users': {'available': ['teams', 'account_type', 'active'],
+    # `account_type` não vem na lista de usuários da API real (homologação F02.1): não anunciado.
+    'users': {'available': ['teams', 'active'],
               'source': 'Identity API (usuários + detalhe de Teams)'},
     'scans': {'available': [], 'source': 'não coletado na F02 (sandboxes listados apenas como metadado)'},
     'sca': {'available': [], 'source': 'não coletado na F02'},

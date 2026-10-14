@@ -111,9 +111,14 @@ def normalize_user(raw: dict) -> dict:
     }
 
 
+def _relationship(v) -> str | None:
+    # API real (homologação F02.1): objeto `{name, display_name}`; especificação Identity 1.5: string.
+    return _str(v.get('name')) if isinstance(v, dict) else _str(v)
+
+
 def normalize_membership(raw: dict) -> dict:
     return {'user_id': raw.get('user_id'), 'user_name': _str(raw.get('user_name')),
-            'relationship': _str(raw.get('relationship'))}
+            'relationship': _relationship(raw.get('relationship'))}
 
 
 def _normalized(col: Collection, fn) -> Collection:
