@@ -37,7 +37,7 @@ Acesse http://localhost:5173 (API http://localhost:8000/docs).
 - **`.env.example`**: `python scripts/check_env_example.py` lista variáveis e classificação sem mostrar valores.
 - **Conexões Veracode**: só metadados + referência `env:NOME` da credencial. Nunca cole API ID/Key na interface. O backend lê `NOME_API_ID` e `NOME_API_KEY` do próprio ambiente (defina no terminal do uvicorn; nunca no Git).
 - **Descoberta Veracode (F02, somente leitura)**: botão **Veracode** no cliente e em cada subcliente — teste de conexão, aplicações/sandboxes, BUs, Teams, usuários, relacionamentos e metadados. Detalhes, limites e variáveis `AFRIKA_VERACODE_*`: `docs/VERACODE_INTEGRATION.md`.
-- **Demo sem Veracode real**: `$env:AFRIKA_VERACODE_MODE = "fixture"` usa um tenant **sintético** em processo (o E2E usa este modo).
+- **Demo sem Veracode real**: `$env:AFRIKA_VERACODE_MODE = "fixture"` usa um tenant **sintético** em processo (o E2E usa este modo). A conexão do seed (`env:AFRIKA_DEMO_VERACODE`) precisa das credenciais sintéticas de `app.veracode.fixtures.synthetic_credentials("alpha")` — ver comando em `docs/AGENT_HANDOFF.md`.
 - **Loopback**: a API recusa (403) origem não-loopback e `Host` diferente de localhost/127.0.0.1. Não use `--host 0.0.0.0`.
 - **Integração real (opt-in, fora do CI)**: `backend/tests_live/test_veracode_live.py` — só com autorização e credencial read-only.
 
