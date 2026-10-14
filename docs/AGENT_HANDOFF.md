@@ -98,6 +98,6 @@ $env:AFRIKA_VERACODE_MODE = "fixture"; cd backend
 $i, $k = (python -c "from app.veracode.fixtures import synthetic_credentials as s; print(*s('alpha'))").Split(" ")
 $env:AFRIKA_DEMO_VERACODE_API_ID = $i; $env:AFRIKA_DEMO_VERACODE_API_KEY = $k
 uvicorn app.main:app --port 8000
-# Smoke real (somente com autorização):
-$env:AFRIKA_VERACODE_LIVE = "1"; $env:AFRIKA_VERACODE_LIVE_REF = "env:NOME"; python -m pytest backend/tests_live -q -rs
+# Smoke real (somente com autorização; F02.1: credenciais e flag no .env da raiz):
+python -m pytest backend/tests_live -q -rs --run-veracode-live
 ```

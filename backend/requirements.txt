@@ -8,3 +8,5 @@ sqlalchemy>=2.0.40,<3
 alembic>=1.16,<2
 # F02: cliente HTTP da integração Veracode (async, timeouts, pool de conexões). Já fixado em constraints.txt.
 httpx>=0.27,<1
+# F02.1: carregamento do .env da raiz (já instalado via uvicorn[standard]; versão fixada em constraints.txt)
+python-dotenv>=1.0,<2

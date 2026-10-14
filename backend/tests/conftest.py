@@ -1,10 +1,69 @@
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
+import ipaddress
+import os
+import socket
 
-from app import db
-from app.main import create_app
+# F02.1: a suíte unitária NUNCA carrega o `.env` real (credenciais de teste não entram neste processo).
+# Definido antes de importar app.main, que carrega o `.env` na importação.
+os.environ['AFRIKA_DOTENV_DISABLED'] = '1'
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app import db  # noqa: E402
+from app.main import create_app  # noqa: E402
+
+
+# ---------------------------------------------------------------- F02.1: nenhuma chamada externa
+
+class ExternalNetworkBlocked(RuntimeError):
+    """Teste tentou resolver/conectar host fora do loopback."""
+
+
+_LOCAL_NAMES = {'localhost', 'testserver'}
+
+
+def _is_local(host) -> bool:
+    if host is None:
+        return True
+    host = host.decode() if isinstance(host, bytes) else str(host)
+    if host in _LOCAL_NAMES or host == '':
+        return True
+    try:
+        return ipaddress.ip_address(host.split('%', 1)[0]).is_loopback
+    except ValueError:
+        return False
+
+
+@pytest.fixture(autouse=True, scope='session')
+def block_external_network():
+    """DNS e connect só para loopback durante toda a suíte (socketpair do event loop continua funcionando)."""
+    real_getaddrinfo, real_connect, real_connect_ex = socket.getaddrinfo, socket.socket.connect, \
+        socket.socket.connect_ex
+
+    def getaddrinfo(host, *args, **kwargs):
+        if not _is_local(host):
+            raise ExternalNetworkBlocked('resolução de host externo bloqueada nos testes')
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    def _check(sock, address):
+        if sock.family in (socket.AF_INET, socket.AF_INET6) and not _is_local(address[0]):
+            raise ExternalNetworkBlocked('conexão externa bloqueada nos testes')
+
+    def connect(self, address):
+        _check(self, address)
+        return real_connect(self, address)
+
+    def connect_ex(self, address):
+        _check(self, address)
+        return real_connect_ex(self, address)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(socket, 'getaddrinfo', getaddrinfo)
+        mp.setattr(socket.socket, 'connect', connect)
+        mp.setattr(socket.socket, 'connect_ex', connect_ex)
+        yield
 
 
 def sqlite_url(path) -> str:

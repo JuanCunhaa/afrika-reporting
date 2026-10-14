@@ -1,10 +1,15 @@
-"""Limites da integração Veracode, todos configuráveis por variável de ambiente (prefixo AFRIKA_VERACODE_)."""
+"""Limites da integração Veracode, configuráveis por variável de ambiente (prefixo AFRIKA_VERACODE_).
+
+`VERACODE_READ_ONLY` (padrão true) é uma trava efetiva: a integração só existe em modo somente leitura e
+recusa iniciar com qualquer outro valor (fail-closed). Não há configuração que habilite escrita.
+"""
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, fields
 
 MODES = ('live', 'fixture')
+READ_ONLY_VAR = 'VERACODE_READ_ONLY'
 
 
 class SettingsError(ValueError):
@@ -27,8 +32,11 @@ class VeracodeSettings:
     page_size: int = 100                   # itens por página (máximo documentado: 500)
     cache_ttl: float = 300.0               # s, validade do cache de descoberta (0 desativa)
     cache_max_entries: int = 256
+    read_only: bool = True                 # VERACODE_READ_ONLY; somente True é aceito
 
     def __post_init__(self):
+        if self.read_only is not True:
+            raise SettingsError(f'{READ_ONLY_VAR} deve ser true: a integração Veracode é somente leitura')
         if self.mode not in MODES:
             raise SettingsError(f'AFRIKA_VERACODE_MODE deve ser um de {MODES}')
         positive = ('connect_timeout', 'read_timeout', 'backoff_base', 'backoff_max', 'max_retry_after',
@@ -46,7 +54,13 @@ class VeracodeSettings:
     def from_env(cls, environ: dict[str, str] | None = None) -> VeracodeSettings:
         env = os.environ if environ is None else environ
         values = {}
+        raw_ro = (env.get(READ_ONLY_VAR) or '').strip().lower()
+        if raw_ro not in ('', 'true', '1'):
+            # 'false' ou valor desconhecido NUNCA relaxa a trava: o backend recusa iniciar a integração.
+            raise SettingsError(f'{READ_ONLY_VAR} deve ser true: a integração Veracode é somente leitura')
         for f in fields(cls):
+            if f.name == 'read_only':
+                continue
             raw = env.get(f'AFRIKA_VERACODE_{f.name.upper()}')
             if raw is None or raw.strip() == '':
                 continue

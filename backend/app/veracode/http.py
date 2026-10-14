@@ -5,7 +5,8 @@ Garantias:
 - Um `httpx.AsyncClient` por região (conexões reutilizadas), TLS sempre validado, sem redirects, sem cookies.
 - Autenticação por requisição (HMAC) — o cliente é compartilhado entre tenants sem guardar estado deles.
 - Hosts fixos por região; links `_links.next` da resposta NÃO são seguidos (página calculada localmente).
-- Qualquer método diferente de GET é bloqueado antes de sair do processo.
+- Trava somente leitura (`readonly.py`): só GET, em host oficial e endpoint da allowlist; aplicada no
+  event hook e no transporte (duas camadas). `VERACODE_READ_ONLY` diferente de true impede a criação do pool.
 - Logs: apenas recurso, status, tentativa e espera. Nunca URL com query, headers, corpo ou credenciais.
 - Cancelamento (asyncio.CancelledError) propaga: semáforo e conexão são liberados e nada é cacheado.
 """
@@ -26,6 +27,7 @@ import httpx
 from app.veracode.credentials import Credentials
 from app.veracode.errors import VeracodeError
 from app.veracode.hmac_auth import VeracodeHmacAuth
+from app.veracode.readonly import ReadOnlyTransport, ReadOnlyViolation, enforce_read_only_hook
 from app.veracode.settings import VeracodeSettings
 
 logger = logging.getLogger('afrika.veracode')
@@ -38,10 +40,6 @@ REGION_BASE_URLS = {
 USER_AGENT = 'afrika-reporting/0.2 (read-only discovery)'
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 _STATUS_ERRORS = {401: 'auth_failed', 403: 'forbidden', 404: 'not_found'}
-
-
-class ReadOnlyViolation(RuntimeError):
-    """Tentativa de requisição não-GET: bloqueada antes do envio."""
 
 
 class _HttpLibLogGuard(logging.Filter):
@@ -60,11 +58,6 @@ def install_http_log_guard() -> None:
 
 def _no_cookies() -> CookieJar:
     return CookieJar(policy=DefaultCookiePolicy(allowed_domains=[]))
-
-
-async def _enforce_read_only(request: httpx.Request) -> None:
-    if request.method != 'GET':
-        raise ReadOnlyViolation('somente GET é permitido na integração Veracode')
 
 
 def parse_retry_after(value: str | None, now: float | None = None) -> float | None:
@@ -86,6 +79,8 @@ class VeracodeHttpPool:
     """Recursos compartilhados pelo processo: clientes por região + semáforo de concorrência."""
 
     def __init__(self, settings: VeracodeSettings, transport: httpx.AsyncBaseTransport | None = None):
+        if settings.read_only is not True:  # redundante com VeracodeSettings; nunca relaxar
+            raise ReadOnlyViolation('a integração Veracode só opera em modo somente leitura')
         install_http_log_guard()
         self.settings = settings
         self._transport = transport
@@ -98,15 +93,17 @@ class VeracodeHttpPool:
             raise ValueError('região desconhecida')
         if region not in self._clients:
             s = self.settings
+            limits = httpx.Limits(max_connections=s.max_concurrency, max_keepalive_connections=s.max_concurrency)
+            inner = self._transport or httpx.AsyncHTTPTransport(limits=limits)  # TLS validado (padrão)
             self._clients[region] = httpx.AsyncClient(
                 base_url=REGION_BASE_URLS[region],
                 timeout=httpx.Timeout(s.read_timeout, connect=s.connect_timeout),
-                limits=httpx.Limits(max_connections=s.max_concurrency, max_keepalive_connections=s.max_concurrency),
+                limits=limits,
                 follow_redirects=False,
                 cookies=_no_cookies(),
                 headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'},
-                event_hooks={'request': [_enforce_read_only]},
-                transport=self._transport,
+                event_hooks={'request': [enforce_read_only_hook]},
+                transport=ReadOnlyTransport(inner),
             )
         return self._clients[region]
 

@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import api, api_veracode, errors
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
+from app.env_loader import load_project_env
 from app.models import MetricSnapshot
 from app.veracode.cache import DiscoveryCache
 from app.veracode.discovery import DiscoveryService
@@ -69,4 +70,5 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     return app
 
 
+load_project_env()  # `.env` da raiz; nunca sobrescreve o ambiente do sistema
 app = create_app()

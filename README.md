@@ -39,7 +39,7 @@ Acesse http://localhost:5173 (API http://localhost:8000/docs).
 - **Descoberta Veracode (F02, somente leitura)**: botão **Veracode** no cliente e em cada subcliente — teste de conexão, aplicações/sandboxes, BUs, Teams, usuários, relacionamentos e metadados. Detalhes, limites e variáveis `AFRIKA_VERACODE_*`: `docs/VERACODE_INTEGRATION.md`.
 - **Demo sem Veracode real**: `$env:AFRIKA_VERACODE_MODE = "fixture"` usa um tenant **sintético** em processo (o E2E usa este modo). A conexão do seed (`env:AFRIKA_DEMO_VERACODE`) precisa das credenciais sintéticas de `app.veracode.fixtures.synthetic_credentials("alpha")` — ver comando em `docs/AGENT_HANDOFF.md`.
 - **Loopback**: a API recusa (403) origem não-loopback e `Host` diferente de localhost/127.0.0.1. Não use `--host 0.0.0.0`.
-- **Integração real (opt-in, fora do CI)**: `backend/tests_live/test_veracode_live.py` — só com autorização e credencial read-only.
+- **Integração real (opt-in, fora do CI)**: `backend/tests_live/test_veracode_live.py` — só com autorização e credencial de TESTE read-only no `.env` da raiz (`AFRIKA_VC_TEST_*`), `VERACODE_LIVE_TESTS_ENABLED=true` e `python -m pytest backend/tests_live -q -rs --run-veracode-live`. O backend carrega o `.env` da raiz automaticamente (variáveis do sistema prevalecem) e `VERACODE_READ_ONLY` só aceita `true`. Ver `docs/VERACODE_INTEGRATION.md`.
 
 `pytest.ini` na raiz adiciona `backend/` ao `pythonpath`; `python -m pytest -q` funciona tanto da raiz quanto de `backend/`.
 

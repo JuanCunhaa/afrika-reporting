@@ -42,7 +42,7 @@ custom fields, políticas, datas); usuários (user_id, user_name, nome, ativo, l
 - Relação usuário↔Team exige 1 requisição por Team (concorrência limitada).
 
 ## Cliente HTTP, paginação, retry e rate limit
-- `httpx.AsyncClient` por região (conexões reutilizadas), TLS validado, sem redirects, sem cookies, **somente GET** (hook bloqueia outros métodos antes do envio). Páginas calculadas localmente; `_links` não são seguidos.
+- `httpx.AsyncClient` por região (conexões reutilizadas), TLS validado, sem redirects, sem cookies, **somente GET** em host oficial e endpoint da allowlist (ver “Trava somente leitura”). Páginas calculadas localmente; `_links` não são seguidos.
 - Paginação até `total_pages`; sem metadados, até página curta. Coleta **incompleta** se: erro em qualquer página, total mudou entre páginas, duplicatas, contagem ≠ `total_elements`, página vazia com itens pendentes, orçamento ou prazo esgotados.
 - Retry: 429, 500, 502, 503, 504, timeout e erro de rede. Backoff exponencial com *full jitter* (`uniform(0, min(max, base·2^n))`). 429 com `Retry-After` (segundos ou data HTTP): espera o valor + jitter; acima de `max_retry_after` desiste sem esperar. 401/403/404/outros 4xx: sem retry.
 - Limites (variáveis `AFRIKA_VERACODE_*`): `CONNECT_TIMEOUT`=5s, `READ_TIMEOUT`=30s, `MAX_RETRIES`=3, `BACKOFF_BASE`=0.5s, `BACKOFF_MAX`=8s, `MAX_RETRY_AFTER`=30s, `MAX_CONCURRENCY`=4 (processo), `MAX_REQUESTS_PER_COLLECTION`=300, `COLLECTION_TIMEOUT`=120s, `PAGE_SIZE`=100 (≤500), `CACHE_TTL`=300s, `CACHE_MAX_ENTRIES`=256, `MODE`=`live`|`fixture`.
@@ -65,6 +65,33 @@ Erros: 409 (conexão/credencial), 502 (401/403/404/429/5xx/resposta inválida da
 ## Modo fixture e testes
 `AFRIKA_VERACODE_MODE=fixture` usa `app/veracode/fixtures.py`: tenants **sintéticos** em processo (alpha: 120 apps/4 BUs/8 Teams/45 usuários; beta; denied = 403 na Identity) que validam a assinatura HMAC. Usado pelos testes e pelo E2E. Nunca é o padrão.
 Integração real opt-in (fora do CI): `backend/tests_live/` — instruções no cabeçalho do arquivo; imprime só contagens.
+
+## `.env` local e trava somente leitura (F02.1)
+- `app/env_loader.py` carrega `<raiz>/.env` (caminho absoluto derivado do código, independente do cwd) no
+  `app.main` e no `app.cli`, via `python-dotenv` sem interpolação. **Variável já definida no sistema (mesmo vazia)
+  prevalece.** `AFRIKA_DOTENV_DISABLED=1` desativa (a suíte unitária e o E2E sempre desativam).
+- Credenciais de teste: `AFRIKA_VC_TEST_API_ID`/`AFRIKA_VC_TEST_API_KEY`, referência `env:AFRIKA_VC_TEST`
+  (`AFRIKA_VC_TEST_CONNECTION`). Modelo em `.env.example`; `.env` é ignorado pelo Git.
+- **Trava somente leitura** (`app/veracode/readonly.py`), em duas camadas (event hook do httpx + transporte que
+  envolve o transporte real): só `GET`, só `https` porta 443 em `api.veracode.{com,eu,us}`, só os caminhos da
+  allowlist (applications, sandboxes de uma aplicação, business_units, teams, detalhe de Team, users). Qualquer
+  outro método/host/caminho levanta `ReadOnlyViolation` antes da rede e não é repetido.
+- `VERACODE_READ_ONLY`: ausente ou `true` → ok; qualquer outro valor (`false`, inválido) → `SettingsError` e o
+  backend **não inicia**. Não existe configuração que habilite escrita. Privilégios mínimos na conta Veracode
+  continuam obrigatórios (a trava do código não substitui o controle de acesso da plataforma).
+- Limitação: se `HTTPS_PROXY` estiver definido, o httpx monta um transporte de proxy que não passa pela camada de
+  transporte; o event hook continua aplicando a mesma política a toda requisição do cliente.
+
+## Homologação real opt-in (F02.1)
+Portão em `app/veracode/live_gate.py`; os testes só executam se **todas** valerem: `--run-veracode-live` na linha
+de comando, `VERACODE_LIVE_TESTS_ENABLED=true`, `VERACODE_READ_ONLY` true/ausente e credenciais válidas na
+referência. Caso contrário, todos são *skipped* com motivo que cita só nomes de variáveis.
+```powershell
+python -m pytest backend/tests_live -q -rs --run-veracode-live   # rodar SEPARADO da suíte unitária
+```
+Escopo: 1 requisição de autenticação (`size=1`) + descoberta (applications, business_units, teams, users,
+membros de Team). **Nenhum finding.** Orçamento padrão de 25 requisições por coleta (ajustável por
+`AFRIKA_VERACODE_MAX_REQUESTS_PER_COLLECTION`). Região: `AFRIKA_VC_TEST_REGION` (padrão `commercial`).
 
 ## Fica para F03/F04
 - F03: regras de escopo por domínio (applications/users/scans/SCA), AND/OR/NOT, sobreposição entre subclientes, `unclassified`, uso dos metadados descobertos.

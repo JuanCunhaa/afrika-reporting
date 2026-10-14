@@ -13,6 +13,7 @@ const denied = fixtureCreds('denied');
 // Ambiente do backend E2E: modo fixture + referências usadas pelo seed e pelos testes.
 export const veracodeFixtureEnv = {
   AFRIKA_VERACODE_MODE: 'fixture',
+  AFRIKA_DOTENV_DISABLED: '1', // F02.1: o .env local (credenciais de teste) nunca entra no backend E2E
   AFRIKA_DEMO_VERACODE_API_ID: alpha.id, // seed: env:AFRIKA_DEMO_VERACODE
   AFRIKA_DEMO_VERACODE_API_KEY: alpha.key,
   AFRIKA_E2E_DENIED_API_ID: denied.id, // tenant sem permissão na Identity API (403)

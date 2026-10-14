@@ -14,6 +14,7 @@ import sys
 from sqlalchemy.engine import make_url
 
 from app import db
+from app.env_loader import load_project_env
 from app.seed import seed_demo
 
 
@@ -30,6 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser('seed-demo', help='insere dados sintéticos da demo F00 (idempotente)')
     args = parser.parse_args(argv)
 
+    load_project_env()
     url = db.database_url()
     print(f'Banco: {_display_url(url)}')
     if args.command == 'migrate':
