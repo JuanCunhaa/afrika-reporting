@@ -1,52 +1,74 @@
-# Devolutiva Claude → ChatGPT PO — F04.1: Veracode API Discovery & Reliability (2026-10-15)
+# Devolutiva Claude → ChatGPT PO — F05: Snapshots, Histórico, Aprovações e Reporting API (2026-10-15)
 
-- **Fase / commits:** F04.1 / `main` / **`0568326`** (código + testes + docs técnicas) + commit seguinte só com STATUS/handoff. Push feito. **F05 NÃO iniciada.**
-- **CI:** run `38681179717` (SHA `0568326`) **success** — Backend 3.11 e 3.14, Frontend typecheck+build, E2E Chromium.
-- Modelo: Opus 5.5. Nenhum subagente. Matriz completa: `docs/API_SOURCE_MATRIX.md`.
+- **Fase / commits:** F05 / `main` / **`ad4b91f`** (código + testes + docs técnicas) + commit seguinte só com STATUS/handoff. Push feito. **F06 NÃO iniciada.**
+- **CI:** run `38746312757` (SHA `ad4b91f`) — **success** — Backend 3.11 e 3.14, Frontend typecheck+build, E2E Chromium.
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente.
 
-## 1. APIs investigadas
-Especificações oficiais da Veracode no SwaggerHub: Applications 1.0, Findings 2.1, Summary Report v2, Reporting 1.12.0, SCA Agent 3.0, Policy 1.0, Development Sandbox 2.0, Identity 1.5, Healthcheck 1.0 (+ páginas docs.veracode.com de Findings, Reporting e Summary Report). Repositório `ancient-cthulhu/Veracode-All-Findings-Extract`: **sem licença** ⇒ só estudado (paginação por `total_pages` + `_links.next`, `size=500`, retry de 500, reconciliação `total_elements` × coletado, SCA por chamada separada, mapeamento de agente por GUID **ou nome** — não adotado, IaC por endpoint interno de UI — proibido). Nada copiado.
+## 1. Funcionalidades
+Competências mensais por cliente/subcliente (fuso do cliente; padrão America/Sao_Paulo); rascunho a partir de execução F04 (ou vazio); importação de execução; valor manual tipado e justificado com fonte Veracode preservada; reversão ao valor da fonte; conjunto explícito de obrigatórios; DRAFT → READY_FOR_REVIEW → APPROVED (devolução a rascunho); aprovação imutável; revisões posteriores por cópia exata; comparação de revisões; auditoria e verificação de integridade; séries 6/12 meses/intervalo e mês × anterior só de aprovados com lacunas; adaptador Reporting API (FINDINGS/SCANS). Telas: **Competências**, **Histórico**, **Reporting** e botão "Criar rascunho da competência" em Indicadores. Doc: `docs/SNAPSHOTS.md`.
 
-## 2. Endpoints realmente testados (tenant de testes, só GET)
-`/appsec/v1/applications` (+ `scans[]`), `/appsec/v2/applications/{guid}/findings` (STATIC/SCA, Policy/Sandbox, `size` 1/10/50/100), **`/appsec/v2/applications/{guid}/summary_report`** (novo), **`/srcclr/v3/applications/{guid}/projects`** (novo), `/appsec/v1/applications/{guid}/sandboxes`. Não testados: Reporting (POST), Policy, workspaces/issues do SCA Agent (fora da allowlist).
+## 2. Entidades e migration
+`0004_snapshots`: `competences`, `competence_revisions`, `metric_snapshots`, `manual_changes`, `approvals`, `audit_events`, `collection_runs` + view `v_official_revisions` (referência da série = aprovação mais recente; sem tabela redundante). Gatilhos: revisão nasce DRAFT, transições válidas, APPROVED imutável, snapshots só mudam em DRAFT, nada é excluído, tabelas de registro append-only. Downgrade recusado com aprovações (`AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE=1`). Upgrade testado em banco F04.1 com dados.
 
-## 3. Indicadores com fontes alternativas (novos)
-`sast.policy.summary.by_severity` (Summary Report), `sast.policy.reconciliation` (Findings × Summary Report), `apps.loc.total` (Summary Report), `apps.by_policy_compliance` (perfil), `sca.policy.summary.components` (Summary Report), `sca.agent.linked_projects` (SCA Agent), `scans.covered_apps` (perfil `scans[]`; antes UNSUPPORTED). Na amostra real: Summary Report, LOC, conformidade, componentes SCA, SCA Agent e cobertura de scans saíram VALIDATED; reconciliação coincidiu onde as duas fontes responderam.
+## 3. Endpoints internos (loopback, sem autenticação)
+`GET/POST /api/competences`, `POST /api/competences/from-run`, `GET /api/competences/{cid}`, `…/official`, `POST …/revisions`, `GET …/revisions/{n}`, `POST …/revisions/{n}/import-run`, `PUT …/metrics/{metric_id}`, `POST …/metrics/{metric_id}/revert`, `PUT …/required`, `POST …/submit|return|approve`, `GET …/compare?a&b`, `GET …/audit`, `GET …/integrity`, `GET /api/history/{kind}/{id}/series`, `GET /api/history/{kind}/{id}/compare`, `GET /api/reporting/status`, `POST/GET /api/reporting/jobs`, `GET /api/reporting/jobs/{id}`, `POST …/cancel`.
 
-## 4. Diagnóstico dos HTTP 500
-H1 (sem scan do tipo) refutada — `scans[]` real não lista SCA; H2 (`size=100`) **refutada — corrige a conclusão da F04**; H4 (permissão) refutada; H3 (Summary Report responde) confirmada; H5 ("aquecimento": 500 em ~3,3 s, sucesso após ~20 s) confirmada para STATIC; H6 (SCA sem componentes ⇒ 500) **inconclusiva** (também houve 500 com componentes). Conclusão: falha intermitente do lado da Veracode com padrão de tempo-limite interno; não comprova licença/permissão. Implementado: 500 sem retry imediato + passada adiada única (20 s); circuit breaker por (recurso, tipo, contexto), limiar 5; pré-checagem SCA `verify|skip|off` (ausência só **inferida** ⇒ INCOMPLETE). Pipeline real: de 73 GETs/48 retries/~300 s (F04) para 31 GETs/0 retries imediatos/47 s na mesma amostra; passada adiada recuperou 1 de 3.
+## 4. Contrato do snapshot
+Dono/competência (via revisão); `metric_id`, `contract_version`, `value_type`, `shape`, `unit`; valor efetivo (`NULL` ≠ `0`) + `origin` VERACODE/MANUAL; fonte preservada (`source_status` técnico, valor, parcial, motivos, fonte, endpoint, contexto Policy/Sandbox, `collected_at`, intervalo local/UTC); `dashboard_homologation` separado (nunca promovido); escopos (versão + `rule_hash`); proveniência (`run_id`, engine, `input_hash`, conexão sem credencial); manual (justificativa, operador, UTC); `row_hash`. Estados exibidos: VALIDATED, MANUAL, INCOMPLETE, SOURCE_UNAVAILABLE, UNSUPPORTED, MISSING. Sem findings individuais nem respostas HTTP.
 
-## 5. Bloqueadas por POST
-Reporting API (FINDINGS, SCANS, DELETEDSCANS, AUDIT: `POST /appsec/v1/analytics/report` + `GET …/{id}`) — teria `resolved_date`, `fixed_date`, `reopened_date`, `found_date`, `last_updated_date`, scans por período (máx. 6 meses). Também POST/PUT/DELETE: vínculo de projetos/agentes do SCA Agent, SBOM scan, promoção de sandbox.
+## 5. Aprovação e revisão
+Bloqueia: obrigatórios vazio/sem valor, valor inválido, hash divergente, fora de READY_FOR_REVIEW, `lock_version` divergente, sem aprovador. Aceita manuais justificados. Aprovação grava `content_hash` + `chain_hash` (encadeado à anterior). Toda alteração exige `expected_lock_version` + UPDATE condicional ⇒ 409 (4 threads: 1 sucesso, 3 conflitos). **Aprovador/operador são declarados (`DECLARED_UNAUTHENTICATED`), não identidade autenticada.** Obrigatórios: sem template oficial não há lista padrão — seleção explícita por revisão, versionada.
 
-## 6. Métricas que podem reproduzir dashboards
-Nenhuma **comprovada** (comparação com dashboard NOT_RUN). Candidatas mais fortes (definição por GUID/contagem direta): `apps.total`/`by_business_unit`/`by_team`, `apps.by_policy_compliance`, `sast.policy.summary.by_severity` e `sast.policy.open.by_severity` (quando coincidem), `apps.loc.total`.
+## 6. Histórico e preenchimento manual
+Só aprovados; lacuna = `GAP` (sem zero, sem interpolação); fim padrão = último mês fechado no fuso do cliente; avisos de mudança de tipo/versão de contrato; delta só entre aprovados comparáveis. Setembro aprovado continua igual após a Veracode mudar (testado). Lacuna é preenchida criando a competência, valor manual justificado e aprovação (auditado).
 
-## 7. Ainda não homologadas
-Todas contra dashboard; formato SCA (Findings) por instabilidade; identidade entre contextos (`issue_id`); definição de "aberto" × mitigados; findings fechados por padrão; semântica de `third_party_components`; contexto de `scans[]`; issues do SCA Agent; licenças; densidades; tendências.
+## 7. Reporting API — status
+| Estado | F05 |
+|---|---|
+| Adaptador implementado | **sim** (`backend/app/veracode/reporting.py`, `reporting_policy.py`) |
+| Testado com mocks | **sim** (22 testes + E2E fixture) |
+| Geração real confirmada | **não** — 1 POST real (FINDINGS, 1 aplicação, 7 dias): **HTTP 403** (HMAC aceito; papel *Reporting API*/habilitação ausentes) ⇒ **BLOCKED_EXTERNAL**; sem retry; nenhuma outra chamada à Reporting API |
+| Métrica homologada contra dashboard | **não** (NOT_RUN); agregados são exploratórios e fora do catálogo |
+Fluxo conferido na spec oficial 1.12.0: POST ⇒ `_embedded.id`/`status`; GET `…/report/{id}?page=N` ⇒ status QUEUED/SUBMITTED/PROCESSING/COMPLETED/FAILED, `findings[]`/`scans[]`, `page_metadata`; obrigatórios `report_type` + `last_updated_start_date`; máx. 6 meses; itens em EDT. DELETEDSCANS e AUDIT estudados, não habilitados (AUDIT contém dados pessoais).
 
-## 8. Testes
+## 8. Endpoints e métodos Veracode permitidos
+Todos os GET anteriores + `GET /appsec/v1/analytics/report/{uuid}`; **único POST**: `POST /appsec/v1/analytics/report`, só com `AFRIKA_VERACODE_REPORTING_ENABLED=true` (padrão false), caminho exato, sem query, JSON revalidado no transporte (FINDINGS/SCANS, campos/enums da spec, janela ≤ 31 dias configurável, teto 6 meses). Todo outro POST/PUT/PATCH/DELETE bloqueado antes da rede (testado com geração habilitada). Teste real exige ainda `VERACODE_REPORTING_LIVE_ENABLED=true`.
+
+## 9. Testes
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` | **PASS 329** (303 + 26: 14 em `test_metrics_sources.py`, 7 de fuso/DST, allowlist +6, migração) |
-| venv novo só pelo lock (`tzdata==2026.5` incluído) | PASS 329 |
-| E2E Chromium | **PASS 19/19** (painel com fuso, Summary Report, reconciliação, SCA Agent, cobertura de scans) |
-| build; `npm audit --omit=dev`; `pip check` | OK; 0 vulnerabilidades; OK |
-| gitleaks (staged); `check_repo`; `check_env_example` | 0; OK; SEGURO |
-| `tests_live` sem opt-in | 19 SKIPPED |
-| Real opt-in `test_metrics_live.py` | PASS 1/1 (2 execuções) + diagnósticos ≈ 150 GETs na fase |
-| CI `38681179717` | **success** |
-Fuso: `America/Sao_Paulo` padrão por cliente (migration `0003_client_timezone`; subclientes herdam; sobrescrita por execução); testes de limites de mês, horário de verão 2017/2018 e 2018/2019, abolição em 2019, meia-noite inexistente (Havana 2012), mês fechado no fuso do cliente, nome IANA validado (sem caminho de arquivo).
+| `python -m pytest -q` | **PASS 411** (329 + 82: snapshots 19, histórico 6, valores 33, reporting 22, migrations +2) |
+| E2E Chromium (`npm run test:e2e`) | **PASS 22/22** (19 + 3 F05) em 3 de 4 rodadas completas; 1 rodada com falha intermitente em `scopes.spec.ts` (F03, sem alteração; passou isolado e nas demais) |
+| build; `npm audit` (prod e dev); `pip check` | OK; 0 vulnerabilidades; OK |
+| gitleaks staged; `dir` | 0; 3 achados só em arquivos ignorados (`.env` local e 2 falsos positivos no `.venv`) |
+| `check_repo`; `check_env_example` | OK (F05); SEGURO |
+| migrations CLI (migrate, db-status, seed, migrate) em banco novo | OK (`0004_snapshots`) |
+| `tests_live` sem opt-in | 20 SKIPPED |
+| Real opt-in `test_reporting_live.py` | SKIPPED com `BLOCKED_EXTERNAL` (403) — 1 POST; 1ª tentativa falhou antes do POST (campo `legacy_id`), corrigida |
+| venv novo pelo lock | NOT_RUN (nenhuma dependência nova) |
+Cobertura dos 27 itens da ordem: 1 restart, 2 rascunho, 3 subcliente, 4 competência/fuso, 5 zero×ausência, 6 manual tipado, 7 justificativa, 8 integridade/adulteração, 9 imutabilidade (gatilhos), 10 revisões, 11 auditoria/cadeia, 12–13 6/12 meses e lacunas, 14 reutilização exata, 15 concorrência, 16 banco existente, 17 FKs, 18 sem credenciais, 19 E2E API + Playwright, 20 regressão, 21–22 bloqueios/allowlist, 23 polling/limite/prazo, 24 429/403/5xx, 25 cancelamento, 26 logs, 27 opt-in.
 
-## 9. Riscos
-1. Findings API instável no tenant ⇒ indicadores Findings tendem a INCOMPLETE em coleta real; o Summary Report cobre severidade SAST por build, não "aberto" por status.
-2. Summary Report reflete o build mais recente; tratamento de mitigados não documentado ⇒ pode divergir da Findings (a reconciliação sinaliza).
-3. Pré-checagem SCA baseada em correlação (H6 inconclusiva).
-4. Custo: +2 GETs por aplicação (Summary Report, SCA Agent); orçamento padrão 2000.
-5. `tzdata` adicionado como dependência (Apache-2.0) — necessário no Windows.
+## 10. Evidências de segurança
+Gatilhos de imutabilidade testados com SQL direto; adulteração de snapshot e de auditoria detectada; nenhuma credencial/`credential_ref` nas tabelas F05 nem nas respostas E2E; logs em DEBUG sem chaves, corpo, datas do pedido, id do relatório ou conteúdo de itens; itens da Reporting minimizados (descartados descrição, arquivos, usuários, comentários, solicitante); nada de findings persistido nem enviado a IA; E2E sem requisições externas.
 
-## 10. Pendências para F05
-Snapshots aprovados por competência (só agregados, `input_hash`, versões de contrato/escopo, fuso e intervalo UTC); entrada manual tipada para lacunas (resolvidos no mês, scans, licenças, histórico); decisão do PO sobre pedir à Veracode a habilitação da Reporting API **e** uma exceção à política GET-only (POST de geração de relatório), ou mantê-la fora; conferência humana contra dashboard das candidatas do item 6; decidir `sca_precheck` padrão (`verify` × `skip`) e o tratamento de mitigados.
+## 11. CI
+Run `38746312757` (SHA `ad4b91f`): **success** — Backend (Python 3.11) success, Backend (Python 3.14) success, Frontend (typecheck + build) success, E2E (Playwright Chromium) success.
+
+## 12. Commits e push
+`ad4b91f` (implementação) + commit de checkpoint (STATUS/handoff). Push em `origin/main`.
+
+## 13. Limitações e pendências para F06
+1. Identidade declarada (sem autenticação/assinatura); hashes detectam, não impedem adulteração por quem tem o arquivo SQLite.
+2. Reporting API: pedir à Veracode habilitação + papel *Reporting API* na conta de testes e repetir UMA geração mínima; só depois criar contratos (ex.: resolvidos no mês, scans no período) com testes e homologação.
+3. Execuções F04 vivem em memória: importar na mesma sessão do backend.
+4. Sem template oficial: obrigatórios são escolhidos manualmente por revisão; F06 deve definir o conjunto por template/slide.
+5. Snapshots guardam dimensões com nomes de aplicações/BUs/Teams (necessárias aos slides) no banco local.
+6. Teste E2E `scopes.spec.ts` intermitente (1/4) — investigar se persistir.
+7. Comparação contra dashboard segue NOT_RUN para todos os indicadores.
+
+**Prompt sugerido para F06 (não executado):** "F06 — Catalogar o template oficial de slides aprovado pelo PO (sem commitar PPTX real), mapear cada bloco a `metric_id` + versão de contrato, definir o conjunto obrigatório por template a partir disso, consumir SOMENTE revisões aprovadas (`/api/competences/{cid}/official` e `/api/history`), exibir lacunas e valores manuais como tais, e montar a engine de slides com diff de imagem por slide; sem exportação final (F07)."
 
 ---
 
+## Versão compacta para o PO
+F05 concluída localmente (`ad4b91f`, CI verde run `38746312757`). Snapshots persistentes por competência (migration 0004, gatilhos de imutabilidade), ciclo DRAFT→REVIEW→APPROVED com lock otimista, aprovador declarado (não autenticado), obrigatórios explícitos, valores manuais tipados/justificados com fonte Veracode preservada, aprovações e auditoria append-only com hash encadeado, histórico 6/12 meses/intervalo só de aprovados com lacunas explícitas. Reporting API: adaptador FINDINGS/SCANS deny-by-default (único POST autorizado, desligado por padrão) testado em mock; **geração real: 1 POST ⇒ HTTP 403 (papel/habilitação ausentes) — BLOCKED_EXTERNAL**. Testes: pytest 411 PASS, E2E 22 PASS (1 intermitência em F03), build/audit/pip/gitleaks OK. Pendência principal: habilitar Reporting API na Veracode; F06 aguardando ordem.

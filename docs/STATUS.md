@@ -9,11 +9,21 @@
 - **F03 — motor de escopos e filtros: DONE — aguardando PO** (commits `2d9192f` + `17743cc` + docs; CI verde run `38670035298`)
 - **F04 — motor de indicadores: DONE — aguardando PO** (commit `ddf3b01` + docs; CI verde run `38677349116`; homologação real parcial: STATIC ok, SCA bloqueado por HTTP 500 da Veracode)
 - **F04.1 — fontes alternativas e confiabilidade: DONE — aguardando PO** (commit `0568326` + docs; CI verde run `38681179717`)
-- F05 — snapshots/auditoria: NOT_STARTED — **não iniciar sem ordem do PO**
-- F06 — slides/templates: NOT_STARTED (template oficial pendente)
+- **F05 — snapshots, histórico, aprovações e Reporting API: DONE_LOCAL — aguardando PO** (commit `ad4b91f` + docs; CI verde run `38746312757`; Reporting API real: HTTP 403 — BLOCKED_EXTERNAL)
+- F06 — slides/templates: NOT_STARTED (template oficial pendente) — **não iniciar sem ordem do PO**
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F05 (2026-10-15)
+- Migration `0004_snapshots`: competences, competence_revisions, metric_snapshots, manual_changes, approvals, audit_events, collection_runs + view `v_official_revisions`; gatilhos de imutabilidade/append-only; downgrade recusado com aprovações. Doc: `docs/SNAPSHOTS.md`.
+- Ciclo DRAFT → READY_FOR_REVIEW → APPROVED com `expected_lock_version` (conflito 409); aprovador **declarado** (sem autenticação); obrigatórios explícitos e versionados; hashes por snapshot, conteúdo aprovado e cadeias (aprovações e auditoria).
+- Histórico só de aprovados (6/12 meses, intervalo, mês × anterior), lacunas explícitas, sem interpolação.
+- Reporting API: adaptador FINDINGS/SCANS (POST de geração único, deny-by-default, desligado por padrão); mocks PASS; geração real: 1 POST ⇒ **HTTP 403** (BLOCKED_EXTERNAL: papel/habilitação ausentes na conta de testes).
+- pytest **411 passed** (329 + 82); E2E Chromium **22 passed** (19 + 3; 1 falha intermitente em `scopes.spec.ts` numa de 4 rodadas completas); build OK; `npm audit` 0; `pip check` OK; `check_repo`/`check_env_example` OK; migrations CLI OK; `tests_live` sem opt-in 20 SKIPPED.
+- CI GitHub run `38746312757` (SHA `ad4b91f`): **success** (Backend 3.11/3.14, build, E2E).
+
+Próxima autorização esperada: aceite da F05 pelo PO; F06 só com ordem expressa.
 
 ## Checkpoint F04.1 (2026-10-15)
 - Inventário oficial (SwaggerHub) + matriz por indicador: `docs/API_SOURCE_MATRIX.md`. Allowlist: + Summary Report e SCA Agent (projetos por aplicação), ambos GET. Reporting API: BLOCKED_POST.
