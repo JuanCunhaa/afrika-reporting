@@ -298,7 +298,11 @@ def test_live_suite_is_skipped_by_default(extra_args):
                           'no:cacheprovider', *extra_args], cwd=ROOT, env=env, capture_output=True, text=True,
                          encoding='utf-8', timeout=120)
     assert out.returncode == 0, out.stdout[-2000:]
-    assert '6 skipped' in out.stdout and 'passed' not in out.stdout and 'failed' not in out.stdout
+    collected = int(subprocess.run([sys.executable, '-m', 'pytest', 'backend/tests_live', '--collect-only', '-q',
+                                    '-p', 'no:cacheprovider'], cwd=ROOT, env=env, capture_output=True, text=True,
+                                   encoding='utf-8', timeout=120).stdout.count('::'))
+    assert collected > 0 and f'{collected} skipped' in out.stdout  # todos, sem depender do total de testes live
+    assert 'passed' not in out.stdout and 'failed' not in out.stdout
     assert ('não solicitada' if not extra_args else 'VERACODE_LIVE_TESTS_ENABLED') in out.stdout
 
 
