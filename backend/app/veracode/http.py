@@ -5,8 +5,9 @@ Garantias:
 - Um `httpx.AsyncClient` por região (conexões reutilizadas), TLS sempre validado, sem redirects, sem cookies.
 - Autenticação por requisição (HMAC) — o cliente é compartilhado entre tenants sem guardar estado deles.
 - Hosts fixos por região; links `_links.next` da resposta NÃO são seguidos (página calculada localmente).
-- Trava somente leitura (`readonly.py`): só GET, em host oficial e endpoint da allowlist; aplicada no
-  event hook e no transporte (duas camadas). `VERACODE_READ_ONLY` diferente de true impede a criação do pool.
+- Trava somente leitura (`readonly.py`): só GET, em host oficial e endpoint da allowlist (única exceção: POST de
+  geração de relatório da Reporting API, se habilitado); aplicada no event hook e no transporte (duas camadas).
+  `VERACODE_READ_ONLY` diferente de true impede a criação do pool.
 - Logs: apenas recurso, status, tentativa e espera. Nunca URL com query, headers, corpo ou credenciais.
 - Cancelamento (asyncio.CancelledError) propaga: semáforo e conexão são liberados e nada é cacheado.
 """
@@ -27,7 +28,7 @@ import httpx
 from app.veracode.credentials import Credentials
 from app.veracode.errors import VeracodeError
 from app.veracode.hmac_auth import VeracodeHmacAuth
-from app.veracode.readonly import ReadOnlyTransport, ReadOnlyViolation, enforce_read_only_hook
+from app.veracode.readonly import ReadOnlyTransport, ReadOnlyViolation, make_policy_hook
 from app.veracode.settings import VeracodeSettings
 
 logger = logging.getLogger('afrika.veracode')
@@ -102,8 +103,9 @@ class VeracodeHttpPool:
                 follow_redirects=False,
                 cookies=_no_cookies(),
                 headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'},
-                event_hooks={'request': [enforce_read_only_hook]},
-                transport=ReadOnlyTransport(inner),
+                # Geração de relatório (único POST) só quando habilitada nas configurações (padrão: desligada).
+                event_hooks={'request': [make_policy_hook(allow_report_generation=s.reporting_enabled)]},
+                transport=ReadOnlyTransport(inner, allow_report_generation=s.reporting_enabled),
             )
         return self._clients[region]
 
@@ -263,6 +265,70 @@ class CollectionRun:
                         attempt + 1, delay)
             await self._sleep(delay)
         raise AssertionError('inalcançável')
+
+    async def post_json(self, path: str, body: dict, *, label: str) -> dict:
+        """F05: SOMENTE para a geração de relatório da Reporting API (a trava do transporte recusa qualquer outro
+        POST). Repete apenas o que comprovadamente não foi processado: HTTP 429 e falha ao CONECTAR. 5xx, timeout
+        de leitura e erro de rede após o envio NÃO são repetidos — poderiam gerar relatórios duplicados."""
+        s = self.settings
+        for attempt in range(s.max_retries + 1):
+            if self.requests >= self.max_requests:
+                raise VeracodeError('request_budget_exhausted')
+            remaining = self.deadline - self._clock()
+            if remaining <= 0:
+                raise VeracodeError('deadline_exceeded')
+            self.requests += 1
+            retry_after = None
+            try:
+                async with self.pool.semaphore:
+                    self.pool.in_flight += 1
+                    try:
+                        async with asyncio.timeout(remaining):
+                            resp = await self._client.post(path, json=body, auth=self._auth)
+                    finally:
+                        self.pool.in_flight -= 1
+            except TimeoutError:
+                raise VeracodeError('deadline_exceeded') from None
+            except (httpx.ConnectError, httpx.ConnectTimeout):
+                error = VeracodeError('network_error')  # não chegou ao servidor: repetir é seguro
+            except httpx.TimeoutException:
+                raise VeracodeError('timeout') from None
+            except httpx.TransportError:
+                raise VeracodeError('network_error') from None
+            else:
+                status = resp.status_code
+                if 200 <= status < 300:
+                    try:
+                        data = resp.json()
+                    except ValueError:
+                        raise VeracodeError('invalid_response', upstream_status=status) from None
+                    if not isinstance(data, dict):
+                        raise VeracodeError('invalid_response', upstream_status=status)
+                    return data
+                if status != 429:
+                    code = _STATUS_ERRORS.get(status) or ('bad_request' if 400 <= status < 500 else
+                                                          'invalid_response' if status < 400 else 'upstream_error')
+                    logger.warning('veracode recurso=%s status=%s erro=%s (sem nova tentativa)', label, status, code)
+                    raise VeracodeError(code, upstream_status=status)
+                error = VeracodeError('rate_limited', upstream_status=status)
+                retry_after = parse_retry_after(resp.headers.get('Retry-After'))
+            if attempt >= s.max_retries:
+                logger.warning('veracode recurso=%s erro=%s tentativas esgotadas (%s)', label, error.code, attempt + 1)
+                raise error
+            if retry_after is not None and retry_after > s.max_retry_after:
+                raise error
+            delay = (retry_after + self._rng.uniform(0, s.backoff_base)) if retry_after is not None \
+                else self._backoff(attempt)
+            if self._clock() + delay >= self.deadline:
+                raise VeracodeError('deadline_exceeded')
+            self.retries += 1
+            logger.info('veracode recurso=%s erro=%s tentativa=%s nova tentativa em %.2fs', label, error.code,
+                        attempt + 1, delay)
+            await self._sleep(delay)
+        raise AssertionError('inalcançável')
+
+    def remaining(self) -> float:
+        return self.deadline - self._clock()
 
     async def paginate(self, path: str, embedded_key: str, *, label: str, id_field: str,
                        params: dict | None = None, page_size: int | None = None,

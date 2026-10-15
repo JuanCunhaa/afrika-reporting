@@ -70,3 +70,5 @@ com regras históricas (`zoneinfo` + `tzdata`, ex.: horário de verão até 2019
 fuso, intervalo local, **intervalo UTC** efetivamente comparado, `as_of` (data da coleta), campo de data aplicado e
 `historical_state=false`. Estado atual **não** representa o fechamento de competências anteriores.
 Fontes e definições por indicador: `docs/API_SOURCE_MATRIX.md`.
+
+> **F05:** existe adaptador da Reporting API (POST de geração autorizado pelo PO, desligado por padrão), mas a conta de testes recebeu HTTP 403 e nenhum contrato novo foi criado: os indicadores acima que dependem dela continuam **UNSUPPORTED** até contrato, testes e homologação. Ver `docs/VERACODE_INTEGRATION.md`.

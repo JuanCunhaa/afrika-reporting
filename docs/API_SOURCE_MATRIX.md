@@ -19,7 +19,7 @@ Homologação: `VERIFIED_REAL` (formato/comportamento conferido no tenant de tes
 | Findings 2.1 (OFICIAL) | `GET /appsec/v2/applications/{guid}/findings` (`context`=sandbox, `scan_type`, `severity[_gte]`, `cwe`, `cve`, `new`, `violates_policy`, `sca_dep_mode`, `sca_scan_mode`, `mitigated_after`…) ; `GET /appsec/v1/cwes`, `/categories` | HMAC; *Results API* (ou Reviewer/Security Lead) | SAST/SCA por contexto — STATIC **VERIFIED_REAL**; SCA **instável** (500) |
 | Summary Report v2 (OFICIAL) | `GET /appsec/v2/applications/{guid}/summary_report` (`context`, `build_id`; padrão = build mais recente) | HMAC; *Results API* | **novo (F04.1)**: severidade por build, LOC, componentes SCA, conformidade — **VERIFIED_REAL** |
 | SCA Agent 3.0 (OFICIAL) | `GET /srcclr/v3/applications/{guid}/projects` (projetos vinculados); `GET /v3/workspaces`, `/v3/workspaces/{id}/projects`, `/…/projects/{p}/issues` (`status` open/fixed, `created_after/before`, `scans_after/before`), `/…/libraries`; PUT/DELETE/POST de vínculo e agentes | HMAC; acesso SCA/workspace | **novo**: só projetos vinculados por GUID — **VERIFIED_REAL** (amostra sem projetos); issues **NOT_VERIFIED** (fora da allowlist) |
-| Reporting 1.12 (OFICIAL) | `POST /appsec/v1/analytics/report` + `GET /appsec/v1/analytics/report/{id}`; tipos FINDINGS, SCANS, DELETEDSCANS, AUDIT; filtros `last_updated_start/end_date` (máx. 6 meses), `policy_sandbox`, `status` Open/Closed, `scan_type` | HMAC; papel *Reporting API*; habilitação pela Veracode | **BLOCKED_POST** — seria a fonte de `resolved_date`, `fixed_date`, `reopened_date`, `found_date`, histórico e scans |
+| Reporting 1.12 (OFICIAL) | `POST /appsec/v1/analytics/report` + `GET /appsec/v1/analytics/report/{id}`; tipos FINDINGS, SCANS, DELETEDSCANS, AUDIT; filtros `last_updated_start/end_date` (máx. 6 meses), `policy_sandbox`, `status` Open/Closed, `scan_type` | HMAC; papel *Reporting API*; habilitação pela Veracode | **F05: adaptador implementado e testado em mock (FINDINGS/SCANS); POST de geração autorizado pelo PO, desligado por padrão; real ⇒ HTTP 403 (BLOCKED_EXTERNAL)** — fonte potencial de `resolved_date`, `fixed_date`, `reopened_date`, `found_date` e scans; nenhum indicador do catálogo depende dele |
 | Policy 1.0 (OFICIAL) | `GET /appsec/v1/policies`, `/{guid}`, `/{guid}/versions[/{v}]`, `policy_settings*`, `policy_licenselist` | HMAC | não usado (conformidade vem do perfil); candidato para regras/prazos |
 | Development Sandbox 2.0 (OFICIAL) | `GET …/sandboxes[/{guid}]`; POST `promote` | HMAC | lista de sandboxes (já usada) |
 | Identity 1.5 (OFICIAL) | BUs, Teams, usuários (GET); muitas operações POST/PUT/DELETE | HMAC | descoberta F02 — VERIFIED_REAL |
@@ -71,6 +71,8 @@ dashboard? · homologação. Todas as chamadas GET; autenticação HMAC (credenc
 | Contagens do Summary Report | `numflawssevN` por módulo; `flaws_not_mitigated`; `flaw_status` (chave real `flaw-status`); "build mais recente" por padrão | Summary Report |
 
 ## 4. Bloqueados por POST (não executados)
-Reporting API (FINDINGS, SCANS, DELETEDSCANS, AUDIT): `POST /appsec/v1/analytics/report` e só então `GET …/{id}`.
+Reporting API: **F05** — POST de geração autorizado (só FINDINGS/SCANS, corpo validado, desligado por padrão); a
+conta de testes recebeu HTTP 403 ⇒ habilitação/papel pendentes na Veracode. DELETEDSCANS e AUDIT: não habilitados.
+Ver `docs/VERACODE_INTEGRATION.md` → "Reporting API (F05)".
 Também exigem POST/PUT/DELETE (fora de escopo): vínculo de projetos do SCA Agent, criação de workspaces/agentes,
 `/sbom/v1/manage/scan`, promoção de sandbox, Identity `by_permissions`/`notinteam`, tokens OAuth.

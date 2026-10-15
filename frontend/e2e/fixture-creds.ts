@@ -18,6 +18,10 @@ export const veracodeFixtureEnv = {
   AFRIKA_DEMO_VERACODE_API_KEY: alpha.key,
   AFRIKA_E2E_DENIED_API_ID: denied.id, // tenant sem permissão na Identity API (403)
   AFRIKA_E2E_DENIED_API_KEY: denied.key,
+  // F05: Reporting API habilitada SOMENTE contra o tenant fixture (sintético, em processo); polling curto.
+  AFRIKA_VERACODE_REPORTING_ENABLED: 'true',
+  AFRIKA_VERACODE_REPORTING_POLL_INTERVAL: '0.2',
+  AFRIKA_VERACODE_REPORTING_POLL_MAX_INTERVAL: '0.5',
 };
 
 export const SYNTHETIC_SECRET_VALUES = [alpha.id, alpha.key, denied.id, denied.key];

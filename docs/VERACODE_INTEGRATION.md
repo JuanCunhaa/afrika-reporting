@@ -186,7 +186,48 @@ licença nem permissão. Mecanismos implementados (`backend/app/metrics/collecto
   ~300 s); passada adiada recuperou 1 de 3; circuitos de Sandbox abriram. Indicadores do Summary Report, SCA Agent,
   conformidade, LOC e cobertura de scans: VALIDATED na amostra; Findings: INCOMPLETE (500).
 
+## Reporting API (F05) — única escrita autorizada
+Política do PO (F05): GET em endpoints autorizados + **um único POST**, o de solicitação de geração de relatório.
+Especificação oficial consultada: SwaggerHub `Veracode/veracode-reporting_api_specification` **1.12.0** e
+https://docs.veracode.com/r/Reporting_REST_API (2026-10-15).
+
+| Item | Especificação | Implementação |
+|---|---|---|
+| Gerar | `POST /appsec/v1/analytics/report`, corpo = filtros; obrigatórios `report_type`, `last_updated_start_date` (data UTC) | `reporting_policy.build`: só FINDINGS e SCANS; campos e enums da spec; **exigimos** também `last_updated_end_date`; janela ≤ `AFRIKA_VERACODE_REPORTING_MAX_WINDOW_DAYS` (padrão 31) e ≤ 6 meses (teto documentado) |
+| Resposta do POST | `_embedded.id` (UUID), `_embedded.status` | `parse_report` (tolera objeto sem `_embedded`, registrado como `envelope=top_level`) |
+| Status/resultado | `GET /appsec/v1/analytics/report/{id}?page=N`; status `QUEUED, SUBMITTED, PROCESSING, COMPLETED, FAILED`; `_embedded.findings[]`/`scans[]`; `page_metadata{number,size,total_elements,total_pages}`; `report_expiration_date` | polling limitado (intervalo 5 s ×1,5 até 30 s; ≤ 60 consultas; prazo global 900 s); páginas ≤ 20 (acima ⇒ `report_too_large`, resultado INCOMPLETE); total lido × `total_elements` |
+| Erros | 400/401/403/500 | POST: retry **só** em 429 (Retry-After) e falha de conexão; 5xx/timeout de leitura **sem** retry (evita relatório duplicado). GET: retry 429/5xx com backoff. 403 ⇒ dica de habilitação/papel |
+| Cancelamento | não existe na API | cancela localmente (polling/leitura param); relatório expira na Veracode |
+| Permissão | papel *Reporting API* + habilitação pela Veracode (suporte) | 403 registrado como bloqueio externo |
+| Datas dos itens | "timestamps em EDT" (spec) | não usadas para competência; agregados não entram no catálogo |
+
+Tipos estudados: **FINDINGS** (datas de resolução/reabertura/fix, status Open/Closed, Policy/Sandbox, scan_type,
+severidade) e **SCANS** (submitted/published, scan_state, most_recent_scan, contagens por severidade) — habilitados;
+**DELETEDSCANS** (scans excluídos, filtros `deletion_*`) e **AUDIT** (log de auditoria com IDs de usuários = dados
+pessoais) — **não habilitados**.
+
+Trava (`readonly.py`, deny-by-default, hook + transporte): POST só se `AFRIKA_VERACODE_REPORTING_ENABLED=true`
+(padrão **false**), só no caminho exato, sem query, `Content-Type: application/json`, corpo revalidado no transporte
+(igual ao reconstruído pela política). Qualquer outro POST, PUT, PATCH, DELETE etc. continua bloqueado antes da rede.
+GET acrescentado à allowlist: `/appsec/v1/analytics/report/{uuid}`.
+
+Minimização: itens reduzidos na leitura a `app_id`, `scan_type`, `policy_sandbox`, `status`, `severity` e datas
+(FINDINGS) ou `scan_state`/datas/flags (SCANS); descartados descrição, arquivo, usuários, comentários de mitigação,
+`requested_by_*`. Execuções em memória (`/api/reporting/jobs`), só metadados + **agregados exploratórios**
+(`EXPLORATORY_NOT_HOMOLOGATED`), nunca persistidos nem enviados a IA. Limites: 1 simultânea, 6 gerações/hora.
+
+### Estados de evidência (não equivalentes)
+| Estado | Situação F05 |
+|---|---|
+| Adaptador implementado | **sim** (`backend/app/veracode/reporting.py`, `reporting_policy.py`) |
+| Adaptador testado com mocks | **sim** — `test_reporting.py` (22) + E2E fixture |
+| Geração real confirmada | **não** — 1 POST real (FINDINGS, 1 aplicação, 7 dias) ⇒ **HTTP 403** (assinatura aceita; papel/habilitação ausentes) ⇒ `BLOCKED_EXTERNAL` |
+| Métrica homologada contra dashboard | **não** (NOT_RUN) |
+
+Teste real: `tests_live/test_reporting_live.py`, exige portão comum **e** `VERACODE_REPORTING_LIVE_ENABLED=true`.
+
 ## Fica para as próximas fases
 - F03: **entregue** — `docs/SCOPES.md`.
+- F05: snapshots/aprovação — `docs/SNAPSHOTS.md`; Reporting API — seção acima (geração real bloqueada por 403).
 - Pendentes de homologação: SCA (formato e estabilidade), identidade entre contextos, fechados por padrão, scans,
-  licenças, SCA Agent, Reporting/Analytics (datas de resolução/histórico), comparação com dashboard.
+  licenças, SCA Agent, Reporting (habilitação na Veracode), comparação com dashboard.

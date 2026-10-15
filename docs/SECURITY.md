@@ -60,3 +60,21 @@
 - **Fuso do cliente**: nome IANA validado contra a lista oficial instalada antes de abrir a zona (sem caminho de arquivo).
 - **Custo/abuso**: 500 sem retry imediato, passada adiada única e circuit breaker limitam requisições repetindo a mesma
   falha. Repositório de referência sem licença: estudado, nenhum trecho copiado.
+
+## Controles implementados na F05 (snapshots e Reporting API)
+- **Imutabilidade no banco**: gatilhos impedem alterar revisão APPROVED, snapshots fora de DRAFT, excluir competências,
+  revisões e snapshots, e qualquer UPDATE/DELETE em aprovações, alterações manuais, execuções importadas e auditoria.
+  Downgrade da migration recusado com aprovações registradas (exige `AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE=1`).
+- **Integridade**: SHA-256 por snapshot, por conteúdo aprovado e encadeado (aprovações e auditoria); verificação
+  recalcula tudo e bloqueia aprovação com hash divergente.
+- **Concorrência**: `expected_lock_version` + UPDATE condicional ⇒ conflito 409, nunca sobrescrita.
+- **Identidade declarada**: operador/aprovador são texto livre sem autenticação (`DECLARED_UNAUTHENTICATED`); API segue
+  só em loopback. Entradas validadas (sem caracteres de controle; justificativa obrigatória; valores tipados;
+  NaN/Infinity recusados); erros não ecoam valores.
+- **Sem segredos nos snapshots**: conexão só por id/nome/região; nenhum `credential_ref`, chave, header ou resposta HTTP
+  (teste varre todas as tabelas F05). Banco local fica em `data/` (ignorado pelo Git).
+- **Reporting API (única escrita)**: deny-by-default — POST só com `AFRIKA_VERACODE_REPORTING_ENABLED=true`, só
+  `POST /appsec/v1/analytics/report`, corpo JSON revalidado no transporte (FINDINGS/SCANS, campos/enums da spec, janela
+  limitada); todo outro POST/PUT/PATCH/DELETE bloqueado antes da rede (testado com o pool habilitado). POST sem retry em
+  5xx (sem duplicatas); cota 6/h, 1 simultâneo, polling/páginas/prazo limitados. Itens minimizados na leitura, nada
+  persistido; logs só com id da execução, status e contagens (teste de vazamento com DEBUG).

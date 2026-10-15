@@ -59,6 +59,15 @@ class Tenant:
     sca_sandbox_unsupported: bool = False  # simula 400 para SCA em sandbox (suporte NÃO homologado)
     sca_500_without_components: bool = False  # F04.1: Findings SCA => 500 se a aplicação não tem componentes
     sca_projects: dict[str, list[dict]] = field(default_factory=dict)  # app guid -> projetos do agente vinculados
+    # F05 — Reporting API sintética (formato da especificação 1.12.0; itens com campos sensíveis SINTÉTICOS que o
+    # adaptador deve descartar). Erros simulados são consumidos em ordem.
+    reporting_forbidden: bool = False                                     # 403: API não habilitada/papel ausente
+    reporting_post_errors: list[int] = field(default_factory=list)        # status antes de aceitar o POST
+    reporting_status_errors: list[int] = field(default_factory=list)      # status antes de responder o GET
+    reporting_processing_polls: int = 1   # GETs em PROCESSING antes de COMPLETED (-1 = nunca conclui)
+    reporting_fail: bool = False                                          # processamento termina FAILED
+    reporting_page_size: int = 3
+    reports: dict[str, dict] = field(default_factory=dict)                # id -> pedido recebido e consultas
 
 
 def make_finding(issue_id: int, scan_type: str, *, severity: int | None, status: str | None = 'OPEN',
@@ -257,11 +266,16 @@ class FixtureVeracode:
         self.requests.append((tenant.name if tenant else '?', request.method, request.url.path))
         if tenant is None:
             return _error(401, 'Unauthorized')
+        path = request.url.path
+        if request.method == 'POST' and path == '/appsec/v1/analytics/report':
+            return self._report_generate(tenant, request)
         if request.method != 'GET':
             return _error(405, 'Method Not Allowed')
         q = {k: v[-1] for k, v in parse_qs(request.url.query.decode()).items()}
         page, size = int(q.get('page', 0)), min(int(q.get('size', 50)), 500)
-        path = request.url.path
+        m = re.fullmatch(r'/appsec/v1/analytics/report/([0-9a-f-]{36})', path)
+        if m:
+            return self._report_status(tenant, m.group(1), page)
 
         if path == '/appsec/v1/applications':
             return self._page(tenant.applications, 'applications', page, size)
@@ -349,6 +363,87 @@ class FixtureVeracode:
                 'modules': {'module': [{'name': 'sintetico.jar', 'loc': 1000 + 100 * idx,
                                         **{f'numflawssev{s}': n for s, n in sev.items()}}]}}
         return _json(200, body)
+
+    # ------------------------------------------------------------ F05: Reporting API sintética
+
+    @staticmethod
+    def _report_error(status: int) -> httpx.Response:
+        headers = {'Content-Type': 'application/json', **({'Retry-After': '1'} if status == 429 else {})}
+        return httpx.Response(status, headers=headers, content=json.dumps(
+            {'_embedded': {'errors': [{'status': str(status), 'title': 'erro sintético'}]}}).encode())
+
+    def _report_generate(self, tenant: Tenant, request: httpx.Request) -> httpx.Response:
+        if tenant.reporting_forbidden:
+            return _error(403, 'Forbidden')
+        if tenant.reporting_post_errors:
+            return self._report_error(tenant.reporting_post_errors.pop(0))
+        body = json.loads(request.content)
+        rid = str(uuid.uuid4())
+        tenant.reports[rid] = {'type': body['report_type'], 'body': body, 'polls': 0}
+        return _json(200, {'_embedded': {'id': rid, 'report_type': body['report_type'], 'status': 'SUBMITTED',
+                                         'requested_by_user': 'usuario.sintetico@exemplo.invalid',
+                                         'requested_by_account': 424242,
+                                         'date_report_requested': '2026-10-15T12:00:00Z', '_links': {},
+                                         'page_metadata': {}}})
+
+    @staticmethod
+    def _report_items(tenant: Tenant, rtype: str, body: dict) -> list[dict]:
+        apps = [a for a in tenant.applications if body.get('app_id') in (None, a['id'])]
+        if rtype == 'SCANS':
+            return [{'app_id': str(a['id']), 'app_name': a['profile']['name'], 'scan_id': str(9000 + n),
+                     'scan_type': 'Static Analysis', 'policy_sandbox': 'Policy', 'scan_state': 'Results Ready',
+                     'submitted': '2026-09-28', 'published': '2026-09-28', 'last_updated_date': '2026-09-28',
+                     'most_recent_scan': True, 'first_scan': False, 'submitter_name': 'Pessoa Sintética',
+                     'submitter_username': 'pessoa.sintetica'} for n, a in enumerate(apps) if a.get('scans')]
+        out = []
+        by_guid = {a['guid']: a for a in apps}
+        for (guid, sandbox, stype), findings in sorted(tenant.findings.items(), key=lambda kv: str(kv[0])):
+            app = by_guid.get(guid)
+            if app is None:
+                continue
+            for f in findings:
+                st = f['finding_status']
+                out.append({'app_id': str(app['id']), 'app_name': app['profile']['name'],
+                            'finding_id': str(f['issue_id']),
+                            'scan_type': 'SCA' if stype == 'SCA' else 'Static Analysis',
+                            'policy_sandbox': 'Sandbox' if sandbox else 'Policy',
+                            'status': 'Open' if st['status'] == 'OPEN' else 'Closed',
+                            'severity': str(f['finding_details'].get('severity')),
+                            'found_date': (st['first_found_date'] or '')[:10] or None,
+                            'resolved_date': '2026-09-20' if st['status'] == 'CLOSED' else None,
+                            'last_updated_date': '2026-09-20',
+                            'description': 'Descrição sintética (descartada)',
+                            'filename': 'src/sintetico/Arquivo.java',
+                            'mitigation_last_accepted_username': 'aprovador.sintetico',
+                            'mitigation_last_accepted_comment': 'comentário sintético (descartado)'})
+        return out
+
+    def _report_status(self, tenant: Tenant, rid: str, page: int) -> httpx.Response:
+        if tenant.reporting_forbidden:
+            return _error(403, 'Forbidden')
+        if tenant.reporting_status_errors:
+            return self._report_error(tenant.reporting_status_errors.pop(0))
+        rep = tenant.reports.get(rid)
+        if rep is None:
+            return _error(404, 'Not Found')
+        if page == 0:
+            rep['polls'] += 1
+        base = {'id': rid, 'report_type': rep['type'], 'requested_by_user': 'usuario.sintetico@exemplo.invalid',
+                'requested_by_account': 424242, 'date_report_requested': '2026-10-15T12:00:00Z'}
+        if tenant.reporting_fail:
+            return _json(200, {'_embedded': {**base, 'status': 'FAILED', 'page_metadata': {}}})
+        if tenant.reporting_processing_polls < 0 or rep['polls'] <= tenant.reporting_processing_polls:
+            return _json(200, {'_embedded': {**base, 'status': 'PROCESSING', '_links': {}, 'page_metadata': {}}})
+        items = self._report_items(tenant, rep['type'], rep['body'])
+        size = tenant.reporting_page_size
+        total_pages = (len(items) + size - 1) // size
+        key = 'findings' if rep['type'] == 'FINDINGS' else 'scans'
+        return _json(200, {'_embedded': {
+            **base, 'status': 'COMPLETED', 'date_report_completed': '2026-10-15T12:01:00Z',
+            'report_expiration_date': '2026-10-22T12:01:00Z', 'data_refresh_date': '2026-10-15T11:00:00Z',
+            key: items[page * size:(page + 1) * size], '_links': {},
+            'page_metadata': {'number': page, 'size': size, 'total_elements': len(items),
+                              'total_pages': total_pages}}})
 
     @staticmethod
     def _page(items: list[dict], key: str, page: int, size: int) -> httpx.Response:

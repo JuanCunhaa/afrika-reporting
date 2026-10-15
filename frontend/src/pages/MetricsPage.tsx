@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Client, MetricRow, MetricRun, MetricStatus, Subclient, api, errorMessage, metrics } from '../api';
+import { loadOperator, saveOperator, snapshots } from '../snapshotsApi';
 import { Empty, ErrorBox, Loading, fmtDate, useLoad } from '../ui';
 
 // F04: painel inicial de indicadores. A coleta só começa por ação explícita do usuário; os números vêm do
@@ -190,7 +191,7 @@ function MetricCard({ m }: { m: MetricRow }) {
   );
 }
 
-export function MetricsPage({ clientId }: { clientId?: string }) {
+export function MetricsPage({ clientId, navigate }: { clientId?: string; navigate: (p: string) => void }) {
   const clients = useLoad(() => api.listClients({ limit: 200, offset: 0, status: 'all' }), []);
   const [client, setClient] = useState(clientId ?? '');
   const [subs, setSubs] = useState<Subclient[]>([]);
@@ -327,6 +328,7 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
           {run.error && <ErrorBox message={run.error.message} />}
           {result && (
             <>
+              <DraftFromRun runId={run.run_id} navigate={navigate} />
               <p data-testid="run-summary">
                 {(Object.keys(STATUS_LABEL) as MetricStatus[]).map((s) => (
                   <span key={s} className={`badge ${STATUS_CLASS[s]}`}>
@@ -396,5 +398,35 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
         </div>
       )}
     </section>
+  );
+}
+
+// F05: leva a execução concluída para um rascunho de competência (persistido; sobrevive à reinicialização).
+function DraftFromRun({ runId, navigate }: { runId: string; navigate: (p: string) => void }) {
+  const [operator, setOperator] = useState(loadOperator);
+  const [error, setError] = useState('');
+  const create = async () => {
+    setError('');
+    try {
+      saveOperator(operator);
+      const out = await snapshots.fromRun(runId, operator);
+      navigate(`/snapshots/${out.competence_id}/${out.revision}`);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  };
+  return (
+    <div className="form" aria-label="Criar rascunho">
+      <div className="field">
+        <label htmlFor="d-operator">Operador (declarado)</label>
+        <input id="d-operator" value={operator} onChange={(e) => setOperator(e.target.value)} maxLength={120} />
+      </div>
+      <div className="actions">
+        <button className="btn" type="button" onClick={create} disabled={operator.trim().length < 2}>
+          Criar rascunho da competência
+        </button>
+      </div>
+      {error && <ErrorBox message={error} />}
+    </div>
   );
 }

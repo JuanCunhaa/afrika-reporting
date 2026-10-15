@@ -13,7 +13,10 @@ from app.main import create_app
 from app.orm import Base
 from conftest import sqlite_url
 
-TABLES = {'connections', 'clients', 'subclients', 'scope_definitions', 'scope_versions', 'alembic_version'}
+F04_TABLES = {'connections', 'clients', 'subclients', 'scope_definitions', 'scope_versions', 'alembic_version'}
+F05_TABLES = {'collection_runs', 'competences', 'competence_revisions', 'metric_snapshots', 'manual_changes',
+              'approvals', 'audit_events'}
+TABLES = F04_TABLES | F05_TABLES
 F01_TABLES = {'connections', 'clients', 'subclients', 'alembic_version'}
 
 
@@ -23,7 +26,7 @@ def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
     engine = db.make_engine(url)
     try:
         assert set(inspect(engine).get_table_names()) == TABLES
-        assert db.current_revision(engine) == db.head_revision() == '0003_client_timezone'
+        assert db.current_revision(engine) == db.head_revision() == '0004_snapshots'
     finally:
         engine.dispose()
 
@@ -181,5 +184,60 @@ def test_scope_versions_are_immutable_at_database_level(db_url):
             conn.execute(text('DELETE FROM clients WHERE id = :id'), {'id': client_id})
         with pytest.raises(IntegrityError), engine.begin() as conn:
             conn.execute(text("UPDATE scope_definitions SET domain = 'findings'"))
+    finally:
+        engine.dispose()
+
+
+
+# ---------------------------------------------------------------- F05: snapshots
+
+def test_f05_upgrade_on_existing_f04_database_preserves_data(tmp_path):
+    """Banco em uso na F04.1 (revisão 0003, com cliente, subcliente e escopo) recebe a 0004 sem perder nada."""
+    url = sqlite_url(tmp_path / 'f04.sqlite3')
+    db.upgrade(url, '0003_client_timezone')
+    engine = db.make_engine(url)
+    client_id = uuid.uuid4()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO clients (id, name, name_key, display_name, is_active, report_mode, timezone, "
+                              "created_at, updated_at) VALUES (:id, 'Legado', 'legado', 'Legado', 1, 'both', "
+                              "'America/Sao_Paulo', :n, :n)"), {'id': client_id.hex, 'n': '2026-01-01 00:00:00'})
+            _insert_scope(conn, client_id.hex)
+        db.upgrade(url)
+        assert db.current_revision(engine) == '0004_snapshots'
+        assert set(inspect(engine).get_table_names()) == TABLES
+        with engine.connect() as conn:
+            views = conn.execute(text("SELECT name FROM sqlite_master WHERE type='view'")).scalars().all()
+        assert views == ['v_official_revisions']
+        with engine.connect() as conn:
+            assert conn.execute(text('SELECT COUNT(*) FROM scope_versions')).scalar() == 1
+    finally:
+        engine.dispose()
+    with TestClient(create_app(url)) as api:
+        assert api.get(f'/api/clients/{client_id}').json()['timezone'] == 'America/Sao_Paulo'
+        r = api.post('/api/competences', json={'owner_kind': 'client', 'owner_id': str(client_id),
+                                               'competence': '2026-09', 'operator': 'Operador Sintético'})
+        assert r.status_code == 201 and r.json()['timezone'] == 'America/Sao_Paulo'
+
+
+def test_f05_downgrade_refuses_to_drop_approved_history(db_url, monkeypatch):
+    with TestClient(create_app(db_url)) as api:
+        cid = api.post('/api/clients', json={'name': 'Com histórico'}).json()['id']
+        comp = api.post('/api/competences', json={'owner_kind': 'client', 'owner_id': cid, 'competence': '2026-09',
+                                                  'operator': 'Operador'}).json()['id']
+        base = f'/api/competences/{comp}/revisions/1'
+        api.put(f'{base}/required', json={'metric_ids': ['licenses.usage'], 'operator': 'Op', 'expected_lock_version': 1})
+        api.put(f'{base}/metrics/licenses.usage', json={'value': 1, 'justification': 'Valor sintético de teste',
+                                                         'operator': 'Op', 'expected_lock_version': 2})
+        api.post(f'{base}/submit', json={'operator': 'Op', 'expected_lock_version': 3})
+        assert api.post(f'{base}/approve', json={'approver': 'Aprovador', 'expected_lock_version': 4}).status_code == 200
+    monkeypatch.delenv('AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE', raising=False)
+    with pytest.raises(RuntimeError, match='downgrade recusado'):
+        db.downgrade(db_url, '0003_client_timezone')
+    engine = db.make_engine(db_url)
+    try:
+        assert db.current_revision(engine) == '0004_snapshots'
+        with engine.connect() as conn:
+            assert conn.execute(text('SELECT COUNT(*) FROM approvals')).scalar() == 1
     finally:
         engine.dispose()

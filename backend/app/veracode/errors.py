@@ -24,6 +24,12 @@ CATALOG: dict[str, tuple[int, str]] = {
     'deadline_exceeded': (504, 'Prazo total da coleta excedido'),
     'inconsistent_pagination': (502, 'Paginação inconsistente (dados mudaram durante a coleta ou total divergente)'),
     'membership_count_mismatch': (502, 'Quantidade de membros do Team diverge do total informado pela Veracode'),
+    # F05 — Reporting API
+    'reporting_disabled': (409, 'Geração de relatórios da Reporting API desabilitada (AFRIKA_VERACODE_REPORTING_'
+                                'ENABLED)'),
+    'report_failed': (502, 'A Veracode informou falha no processamento do relatório (status FAILED)'),
+    'report_poll_limit': (504, 'Relatório não concluiu dentro do limite de consultas de status'),
+    'report_too_large': (502, 'Relatório com mais páginas que o limite configurado: resultado incompleto'),
 }
 
 

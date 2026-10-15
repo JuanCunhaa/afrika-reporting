@@ -6,7 +6,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import api, api_metrics, api_scopes, api_veracode, errors
+from app import api, api_metrics, api_reporting, api_scopes, api_snapshots, api_veracode, errors
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
@@ -14,12 +14,15 @@ from app.metrics.runs import RunManager
 from app.veracode.cache import DiscoveryCache
 from app.veracode.discovery import DiscoveryService
 from app.veracode.fixtures import FixtureVeracode
+from app.veracode.reporting import ReportingJobs
 from app.veracode.http import VeracodeHttpPool
 from app.veracode.settings import VeracodeSettings
 
-DESCRIPTION = ('F04: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
+DESCRIPTION = ('F05: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
                '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio '
-               '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência. '
+               '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência '
+               '+ snapshots por competência, revisões, aprovação auditável e séries históricas '
+               '+ Reporting API (única escrita autorizada: POST de geração de relatório, desligado por padrão). '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -42,14 +45,16 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
                                                                             settings.cache_max_entries),
                                               environ=environ, **extra)
         app.state.metric_runs = RunManager(app.state.veracode)
+        app.state.reporting = ReportingJobs(settings, pool, **extra)
         try:
             yield
         finally:
+            await app.state.reporting.aclose()
             await app.state.metric_runs.aclose()
             await pool.aclose()
             engine.dispose()
 
-    app = FastAPI(title='Afrika Reporting API', version='0.4.0', description=DESCRIPTION, lifespan=lifespan)
+    app = FastAPI(title='Afrika Reporting API', version='0.5.0', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
 
@@ -62,10 +67,12 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     api_veracode.install(app)
     app.include_router(api_scopes.router)
     app.include_router(api_metrics.router)
+    app.include_router(api_snapshots.router)
+    app.include_router(api_reporting.router)
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'phase': 'F04', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
+        return {'status': 'ok', 'phase': 'F05', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
 
     return app
 

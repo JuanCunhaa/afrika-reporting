@@ -68,7 +68,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
@@ -500,4 +500,9 @@ export const metrics = {
   start: (body: MetricRunInput) => request<MetricRun>('POST', '/api/metrics/runs', body),
   get: (runId: string) => request<MetricRun>('GET', `/api/metrics/runs/${runId}`),
   cancel: (runId: string) => request<MetricRun>('POST', `/api/metrics/runs/${runId}/cancel`),
+  catalog: () => request<{ metrics: { metric_id: string; name: string }[] }>('GET', '/api/metrics/catalog'),
+};
+
+export const metricRuns = {
+  list: () => request<{ items: MetricRun[] }>('GET', '/api/metrics/runs'),
 };

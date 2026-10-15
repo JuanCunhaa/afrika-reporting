@@ -1,7 +1,9 @@
 """Limites da integração Veracode, configuráveis por variável de ambiente (prefixo AFRIKA_VERACODE_).
 
 `VERACODE_READ_ONLY` (padrão true) é uma trava efetiva: a integração só existe em modo somente leitura e
-recusa iniciar com qualquer outro valor (fail-closed). Não há configuração que habilite escrita.
+recusa iniciar com qualquer outro valor (fail-closed). Não há configuração que habilite escrita em aplicações,
+findings, políticas, usuários ou scans. Única exceção (F05, autorizada pelo PO): `reporting_enabled` libera
+SOMENTE o POST de geração de relatório da Reporting API, validado por `reporting_policy`.
 """
 from __future__ import annotations
 
@@ -46,6 +48,16 @@ class VeracodeSettings:
     # Summary Report sem componentes de terceiros: 'verify' (padrão) chama a Findings SCA uma vez e, se vier 500,
     # registra ausência INFERIDA; 'skip' nem chama; 'off' ignora a pré-checagem.
     sca_precheck: str = 'verify'
+    # F05 — Reporting API (única escrita autorizada: POST de geração de relatório). DESLIGADA por padrão.
+    reporting_enabled: bool = False          # AFRIKA_VERACODE_REPORTING_ENABLED=true habilita o POST de geração
+    reporting_max_window_days: int = 31      # janela de `last_updated_*` (teto documentado: 6 meses)
+    reporting_poll_interval: float = 5.0     # s, primeira espera entre consultas de status
+    reporting_poll_max_interval: float = 30.0  # s, teto do intervalo (crescimento 1,5x)
+    reporting_max_polls: int = 60            # consultas de status por relatório
+    reporting_timeout: float = 900.0         # s, prazo global (geração + espera + páginas)
+    reporting_max_pages: int = 20            # páginas por relatório; acima disso => INCOMPLETE (sem agregado definitivo)
+    reporting_max_active: int = 1            # relatórios simultâneos no processo
+    reporting_max_per_hour: int = 6          # gerações por hora no processo (cota local)
     read_only: bool = True                 # VERACODE_READ_ONLY; somente True é aceito
 
     def __post_init__(self):
@@ -58,12 +70,16 @@ class VeracodeSettings:
         positive = ('connect_timeout', 'read_timeout', 'backoff_base', 'backoff_max', 'max_retry_after',
                     'max_concurrency', 'max_requests_per_collection', 'collection_timeout', 'page_size',
                     'cache_max_entries', 'metrics_max_requests', 'metrics_timeout', 'metrics_max_applications',
-                    'findings_page_size', 'circuit_breaker_threshold')
+                    'findings_page_size', 'circuit_breaker_threshold', 'reporting_max_window_days',
+                    'reporting_poll_interval', 'reporting_poll_max_interval', 'reporting_max_polls',
+                    'reporting_timeout', 'reporting_max_pages', 'reporting_max_active', 'reporting_max_per_hour')
         for name in positive:
             if getattr(self, name) <= 0:
                 raise SettingsError(f'{name} deve ser > 0')
         if self.max_retries < 0 or self.cache_ttl < 0 or self.findings_retry_pass_delay < 0:
             raise SettingsError('max_retries e cache_ttl não podem ser negativos')
+        if self.reporting_max_window_days > 184:
+            raise SettingsError('reporting_max_window_days máximo é 184 (6 meses documentados)')
         if self.page_size > 500 or self.findings_page_size > 500:
             raise SettingsError('page_size máximo documentado pela Veracode é 500')
 
