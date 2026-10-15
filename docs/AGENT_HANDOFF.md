@@ -1,3 +1,62 @@
+# Devolutiva Claude → ChatGPT PO — F03: motor de escopos e filtros (2026-10-14)
+
+- **Fase / commits:** F03 / `main` / **`2d9192f`** (implementação + testes) + **`17743cc`** (correção de teste) + commit seguinte só com STATUS/handoff. Push feito. **F04 NÃO iniciada.**
+- **CI:** run `38670035298` (SHA `17743cc`) **success** — Backend 3.11 e 3.14 (256 passed cada), Frontend typecheck+build, E2E Chromium (17 passed).
+- Modelo: Opus 5.5 do início ao fim (a ordem pedia Sonnet 5.5 como implementador; a troca é feita pelo usuário com `/model`). Nenhum subagente.
+
+## Entregue
+| Item | Implementação |
+|---|---|
+| Modelo | `scope_definitions` (dono cliente/subcliente × domínio, status `active`/`disabled`) + `scope_versions` append-only (regra canônica + hash, opções, `connection_mode`, `coverage_ack`, nota). Migration `0002_scopes`: CHECKs, índice único parcial (1 versão ativa), FKs RESTRICT, gatilhos que impedem alterar conteúdo, reativar versão substituída e excluir versões |
+| Regras | AST JSON: `and`/`or`/`not`/`all` + folhas `eq/neq/in/not_in/contains/not_contains/is_missing/is_present/is_empty`. Campos por domínio: apps (`application.id`, `business_unit.id`, `team.id`, `name`, `tag`, `business_criticality`, `custom_field`+`key`, `policy.id`); users (`user.id`, `team.id`, `active`); scans/SCA (só validação). IDs exigem GUID (nome no lugar de ID → 422). Limites: profundidade 6, 120 nós, 40 por grupo, 500 valores/lista, 2000/regra, 64 KB |
+| Campos ausentes | Kleene (3 valores): ausente → indeterminado, nunca incluído; reportado com `missing_fields`; `[]` ≠ ausente; vínculo parcial prova presença, não ausência |
+| Semântica | Universo = regra ativa do cliente (sem regra → `universe_not_defined`, nunca tenant inteiro implícito); subcliente na mesma conexão = critérios ∩ universo (excluídos medidos dentro do universo); conexão diferente → `coverage_ack` obrigatório, avaliado só no próprio tenant; mudança de conexão → `connection_changed`; sobreposição (contagem/pares/amostra); não classificadas = universo − ∪ subclientes ativos, por ID, com `complete` e motivos; scans/SCA → `deferred_f04` sem nenhuma consulta |
+| Correções F02.1 | `?` → `Indisponível` (BUs, Teams, usuários, resumos); `team_count` normalizado e reconciliado por usuário (`verified`/`missing_teams`/`inconsistent`/`unverifiable`/`collection_incomplete` + motivo); contagem por Team só para Teams cujo detalhe foi obtido; inativos excluídos por padrão e configuráveis (`options.inactive_users`) |
+| UI | `#/scopes/clients/{id}` (botão **Escopos** no cliente): abas por domínio, donos (cliente + subclientes), modo simples (BU/Teams/criticidade/tags/aplicações; Teams de usuários; contexto/dependência), modo avançado (grupos E/OU, NÃO, condições), validação antes de salvar, confirmação de abrangência, histórico com restauração, pré-visualização (incluídos/excluídos/indeterminados, não classificados, sobreposição, únicos por Team, avisos), estados carregando/erro/coleta incompleta |
+
+## Endpoints internos (local, loopback)
+`GET /api/scopes/fields` · `POST /api/scopes/validate` · `GET /api/scopes/clients/{id}` · `GET|PUT|PATCH /api/scopes/{clients|subclients}/{id}/{domain}` · `POST …/versions/{n}/restore` · `POST /api/scope-preview/clients/{id}` (rascunho opcional, não gravado). `PUT` exige `expected_version` → 409 `version_conflict` se divergir. **Allowlist Veracode inalterada** (nenhum endpoint novo).
+
+## Arquivos
+- Novos: `backend/app/scopes/{__init__,rules,store,resolver}.py`, `backend/app/api_scopes.py`, `backend/migrations/versions/20261014_0002_scopes.py`, `backend/tests/{test_scope_rules,test_scopes_api,test_membership_reconciliation}.py`, `backend/tests_live/test_scopes_live.py`, `frontend/src/pages/ScopesPage.tsx`, `frontend/e2e/scopes.spec.ts`, `docs/SCOPES.md`, `prompts/F03_SCOPES.md`.
+- Alterados: `backend/app/{orm,errors,main}.py`, `backend/app/veracode/{adapters,discovery,http,fixtures}.py`, testes `test_api`, `test_db_migrations`, `test_env_readonly`; `frontend/src/{api.ts,main.tsx,styles.css}`, `pages/{ClientDetailPage,VeracodePage}.tsx`, `e2e/veracode.spec.ts`; `README.md`, `docs/{ARCHITECTURE,METRIC_CATALOG,SECURITY,VERACODE_INTEGRATION,STATUS,AGENT_HANDOFF}.md`, `scripts/check_repo.py`.
+
+## Testes (2026-10-14, Windows 11, Py 3.14.7)
+| Verificação | Resultado |
+|---|---|
+| `python -m pytest -q` | **PASS 256** (213 anteriores + 43 novos) |
+| E2E Playwright Chromium | **PASS 17/17** (14 anteriores + 3 novos; asserção `Indisponível` adicionada em `veracode.spec.ts`) |
+| `npm run build`; `npm audit --omit=dev`; `pip check` | PASS; 0 vulnerabilidades; OK |
+| gitleaks (staged, cada commit); `check_repo.py`; `check_env_example.py` | 0 achados; OK; SEGURO |
+| `pytest backend/tests_live` sem opt-in | 18 SKIPPED |
+| Validação real opt-in `test_scopes_live.py` | **PASS 2/2** (só GET, ≈22 requisições, coletas completas) |
+| CI GitHub run `38670035298` | **success** |
+
+Cobertura dos 16 itens: (1) `test_client_without_subclients`; (2,3,4,6) `test_three_subclients_overlap_and_unclassified` (universo restrito; BU fora do universo nunca vira não classificada) + E2E; (5) `test_nested_and_or_not*` + propriedades Kleene/De Morgan (400 regras geradas) + E2E avançado; (7) `test_user_scopes_are_independent…`, `test_domains_do_not_share_fields`; (8,9) `test_users_multiple_teams_unique_and_inactive` + E2E; (10) `test_missing_fields_are_reported_as_undetermined` + unitários; (11) `test_inherited_and_overridden_connections` + E2E outro tenant; (12) `test_incomplete_collection_is_never_presented_as_validated` + reconciliação incompleta; (13) `test_versioning_is_append_only…` + E2E restauração; (14) gatilhos/índice parcial/RESTRICT/CHECK, downgrade→upgrade, ORM == migration; (15) 3 E2E; (16) regressão completa. Também: só GET, sem segredos em respostas, nenhum recurso Veracode no dump do SQLite.
+
+**Falha intermediária:** o commit `2d9192f` saiu com 2 testes falhando em `test_env_readonly.py` (asserção por substring `'6 skipped'`, que casava "16 skipped" por acaso e quebrou com 18 testes live). Corrigido em `17743cc` antes do push; o CI rodou no SHA corrigido.
+
+## Validação real (opt-in, somente leitura)
+Flag `VERACODE_LIVE_TESTS_ENABLED=true` só no ambiente do processo (`.env` intacto). `team_count` presente em 100% dos vínculos de Team reais e ausente na lista de usuários; reconciliação `verified` para 100% dos usuários; o motor classifica 100% das aplicações reais sem indeterminados em BU/Teams. Contagens do tenant: só na devolutiva (repo público).
+
+## Riscos e limitações
+1. Usuário que só pertence a Teams invisíveis aparece sem Team e `unverifiable` (nenhum membro visível traz `team_count`); com `all_for_org` o tenant de testes não teve esse caso.
+2. A lista de usuários usa os parâmetros padrão da API; se a Veracode omitir inativos por padrão, eles só aparecem como "membros fora da lista" — NOT_VERIFIED.
+3. Campo personalizado não preenchido = ausente (indeterminado), conservador; pode gerar muitos indeterminados se usado como critério.
+4. O modo simples lista até 200 aplicações/Teams por consulta; acima disso, busca ou modo avançado por GUID.
+5. Scans/SCA: campos e valores (`scan.context`, `scan.type`, `sca.dependency`) são provisórios; homologar na F04.
+6. A pré-visualização devolve amostra (≤200) por conjunto, não listas completas; versões não registram autor (API sem autenticação).
+7. Ainda não há vínculo "versão de escopo ↔ relatório aprovado" (F05); hoje a garantia é a imutabilidade total das versões.
+
+## Pendências para o PO
+- Aceite da F03.
+- Decidir: tratamento padrão de campo personalizado ausente; se usuários `unverifiable` sem Team devem ficar indeterminados nos filtros de Team; vínculo de versões a relatórios aprovados na F05.
+
+## Prompt sugerido para a próxima fase (NÃO executado)
+"F04 — Catálogo e motor de métricas determinístico sobre os escopos F03: população de cada métrica = resolução da versão de escopo ativa (registrar `scope_version`/`rule_hash` na proveniência); homologar endpoints de scans/findings/SCA (somente GET; ampliar a allowlist com justificativa e testes); avaliar as regras de scans/SCA hoje só validadas; Policy = produção, Sandbox = desenvolvimento; dedup conforme contrato; golden fixtures com virada de mês e timezone; comparação com dashboards em tenant de testes opt-in. Não implementar snapshots aprovados (F05) nem slides."
+
+---
+
 # Devolutiva Claude → ChatGPT PO — F02.1: homologação real Veracode (2026-10-14)
 
 - **Fase / commits:** F02.1 / `main` / **`7c52d57`** (código + testes) + commit seguinte só com docs. Push feito (inclui `d3fa15f`/`57a4c25` da F02.1-prep, antes só locais). **F03 NÃO iniciada.**

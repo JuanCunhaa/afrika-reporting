@@ -6,13 +6,21 @@
 - **F02 — conector Veracode read-only + descoberta: DONE_LOCAL — aguardando PO** (commit `5fce8bf`; validado só com tenant sintético; integração real NOT_VERIFIED; CI GitHub **verde** em `7fcfc92`)
 - **F02.1-prep — `.env` local + trava read-only + homologação opt-in: DONE_LOCAL — aguardando PO** (commit `d3fa15f`)
 - **F02.1 — homologação real Veracode: DONE — aguardando PO** (commit `7c52d57` + docs; 11/11 domínios VERIFIED_REAL — paginação Identity multipágina e 403/429 só em mock; 1 incompatibilidade corrigida)
-- F03 — escopos: NOT_STARTED — **não iniciar sem ordem do PO**
-- F04 — métricas: NOT_STARTED
+- **F03 — motor de escopos e filtros: DONE — aguardando PO** (commits `2d9192f` + `17743cc` + docs; CI verde run `38670035298`)
+- F04 — métricas: NOT_STARTED — **não iniciar sem ordem do PO**
 - F05 — snapshots/auditoria: NOT_STARTED
 - F06 — slides/templates: NOT_STARTED (template oficial pendente)
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F03 (2026-10-14)
+- Escopos por dono (cliente/subcliente) × domínio (applications/users/scans/SCA); versões append-only (migration `0002_scopes`, gatilhos); AST com AND/OR/NOT, limites e lógica de 3 valores; universo, interseção, outro tenant com confirmação, sobreposição, não classificadas; reconciliação `team_count`; inativos fora por padrão (configurável); UI simples/avançada com pré-visualização. Doc: `docs/SCOPES.md`.
+- pytest **256 passed** (213 + 43); E2E Chromium **17 passed** (14 + 3); build OK; `npm audit` 0; `pip check` OK; gitleaks (staged) 0; `check_repo`/`check_env_example` OK.
+- Validação real opt-in (`tests_live/test_scopes_live.py`, só GET, ~22 requisições): **2 passed**; `team_count` presente nos membros de Team reais; reconciliação 100% `verified`. Contagens só no relatório ao PO.
+- CI GitHub run `38670035298` (SHA `17743cc`): **success** (Backend 3.11/3.14 256 passed; build; E2E 17 passed).
+
+Próxima autorização esperada: aceite da F03 pelo PO; depois prompt F04.
 
 ## Checkpoint F02.1 (2026-10-14)
 - Tenant REAL de testes (região `commercial`), somente GET; flag live só no ambiente do processo (`.env` intacto, `VERACODE_LIVE_TESTS_ENABLED=false` nele).
@@ -21,7 +29,6 @@
 - Correção: `relationship` do membro de Team é objeto na API real; fixture sintético alinhado ao formato real; `account_type` não é mais anunciado como filtro.
 - Matriz por domínio: `docs/VERACODE_INTEGRATION.md` → "Homologação real (F02.1) — resultado". Contagens do tenant não versionadas (repo público).
 
-Próxima autorização esperada: aceite da F02.1 pelo PO; depois prompt F03.
 
 ## Checkpoint F02.1-prep (2026-10-14)
 - `.env` criado na raiz (ignorado pelo Git; nunca versionado — 0 commits no histórico); campos a preencher: `AFRIKA_VC_TEST_API_ID`, `AFRIKA_VC_TEST_API_KEY`.
