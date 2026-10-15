@@ -40,3 +40,13 @@
 - **Tenants**: subcliente em outra conexão exige confirmação explícita e nunca entra em interseção/não classificadas do cliente; mudança de conexão invalida a versão para resolução.
 - **Respostas**: pré-visualização devolve no máximo 200 itens de amostra (id + nome) da descoberta em memória; sem credenciais (testado na API e no E2E).
 
+## Controles implementados na F04 (indicadores)
+- **Allowlist**: só `GET /appsec/v2/applications/{guid}/findings` foi acrescentado (justificativa: Findings API oficial;
+  testes de bloqueio para v1, detalhe, CWE e SCA Agent). Trava somente leitura e loopback inalterados.
+- **Minimização de findings**: descrição, caminho/arquivo/linha, módulo, procedimento e anotações são descartados na
+  normalização; nada de findings vai para disco ou banco; resultados das execuções guardam só agregados (contagens,
+  rankings com nome/GUID de aplicação, CWE, componente e identificador de vulnerabilidade) e vivem em memória.
+- **Sem credenciais nas respostas**: nem valores, nem nomes de variáveis, nem `credential_ref` (testado na API e no E2E).
+- **Abuso/custo**: execuções só por ação explícita; no máximo 3 simultâneas (429), orçamento/prazo por execução e teto
+  de aplicações; cancelamento explícito. Homologação real só opt-in (`tests_live/test_metrics_live.py`), amostra
+  pequena, imprimindo só contagens, chaves e enums.

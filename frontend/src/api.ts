@@ -425,3 +425,69 @@ export const scopes = {
   preview: (clientId: string, domain: ScopeDomain, draft: Draft | null) =>
     request<Resolution>('POST', `/api/scope-preview/clients/${clientId}`, { domain, draft, sample_limit: 50 }),
 };
+
+// ---------------------------------------------------------------- F04: indicadores (somente leitura na Veracode)
+
+export type MetricStatus = 'VALIDATED' | 'INCOMPLETE' | 'UNAVAILABLE' | 'UNSUPPORTED' | 'FAILED';
+export type MetricReason = { code: string; message: string };
+export type MetricRow = {
+  metric_id: string;
+  contract_version: number;
+  status: MetricStatus;
+  publishable: boolean;
+  value: unknown;
+  partial: unknown;
+  reasons: MetricReason[];
+  coverage: Record<string, unknown>;
+  filters: Record<string, unknown>;
+  temporal: {
+    mode: 'CURRENT_STATE' | 'EVENT_IN_PERIOD' | 'STATE_AT_PERIOD_END';
+    competence: string;
+    date_field: string;
+    as_of: string;
+    historical_state: boolean;
+    note: string;
+    period: { period_start: string; period_end_inclusive: string; utc_offset: string };
+  };
+  name: string;
+  description: string;
+  domain: 'applications' | 'sast' | 'sca' | 'scans' | 'licenses';
+  source: string;
+  endpoint: string | null;
+  context: string;
+  scan_type: string;
+  shape: 'SCALAR' | 'BY_SEVERITY' | 'BREAKDOWN' | 'RANKING';
+  unit: string;
+  support: string;
+  homologation: string;
+  limitations: string[];
+};
+export type MetricRunResult = {
+  collected_at: string;
+  applications_collected_at: string | null;
+  connection: { connection_source: string; id?: string; name?: string; region?: Region } | null;
+  population: { status: string; reasons: MetricReason[]; applications: number; total_available: number | null; undetermined: number };
+  collection: { contexts: number; requests: number; retries: number; cache_hits: number; limit_reached: string | null } | null;
+  provenance: { run_id: string; engine: string; input_hash: string; scope_refs: { owner_name: string; domain: string; status: string; version: number | null; rule_hash: string | null }[] };
+  summary: Partial<Record<MetricStatus, number>>;
+  metrics: MetricRow[];
+};
+export type MetricRun = {
+  run_id: string;
+  status: 'pending' | 'running' | 'done' | 'cancelled' | 'failed';
+  owner: { kind: 'client' | 'subclient'; id: string; name: string; client_id: string };
+  competence: { competence: string; utc_offset: string; period_start: string; period_end_inclusive: string };
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  progress: { stage: string; applications_done: number; applications_total: number | null };
+  error: MetricReason | null;
+  result?: MetricRunResult | null;
+};
+export type MetricRunInput = { owner_kind: 'client' | 'subclient'; owner_id: string; competence: string; utc_offset: string };
+
+export const metrics = {
+  start: (body: MetricRunInput) => request<MetricRun>('POST', '/api/metrics/runs', body),
+  get: (runId: string) => request<MetricRun>('GET', `/api/metrics/runs/${runId}`),
+  cancel: (runId: string) => request<MetricRun>('POST', `/api/metrics/runs/${runId}/cancel`),
+};

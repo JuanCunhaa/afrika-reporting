@@ -116,6 +116,9 @@ export function ClientDetailPage({ id, navigate }: { id: string; navigate: (path
             <a className="btn" href={`#/scopes/clients/${c.id}`}>
               Escopos
             </a>
+            <a className="btn" href={`#/metrics/clients/${c.id}`}>
+              Indicadores
+            </a>
             <button
               type="button"
               className="btn"

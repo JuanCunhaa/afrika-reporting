@@ -1,4 +1,4 @@
-"""Regressão F00: health, métricas demo sintéticas, demo de clientes (agora via seed explícito) e CORS."""
+"""Regressão F00: health, ausência da métrica demo (substituída pelo motor F04), demo de clientes (agora via seed explícito) e CORS."""
 from fastapi.testclient import TestClient
 
 from app import db
@@ -11,13 +11,12 @@ def test_health(api):
     assert r.status_code == 200
     body = r.json()
     assert body.pop('veracode_mode') in ('live', 'fixture')
-    assert body == {'status': 'ok', 'phase': 'F03', 'data': 'local', 'auth': 'none'}
+    assert body == {'status': 'ok', 'phase': 'F04', 'data': 'local', 'auth': 'none'}
 
 
-def test_demo_metrics_are_explicitly_synthetic(api):
-    r = api.get('/api/demo/metrics')
-    assert r.status_code == 200
-    assert all(x['source'] == 'SYNTHETIC' and x['status'] == 'DEMO_ONLY' for x in r.json())
+def test_demo_metric_endpoint_was_removed(api):
+    # F04: valores fictícios não convivem com indicadores reais (o motor fica em /api/metrics).
+    assert api.get('/api/demo/metrics').status_code == 404
 
 
 def test_new_database_starts_empty_no_automatic_seed(api):

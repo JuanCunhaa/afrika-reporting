@@ -1,25 +1,63 @@
-# Catálogo de indicadores — hipóteses a homologar
+# Catálogo de indicadores — F04
 
-| ID | Domínio | Dado desejado | Fonte candidata | Observação |
-|---|---|---|---|---|
-| apps.total | apps | total de aplicações do escopo | Applications API | população = escopo F03 (`docs/SCOPES.md`): universo ∩ critérios do subcliente, dedup por GUID; indeterminados fora; excluídas/arquivadas a definir |
-| users.unique | users | usuários únicos por Team | Identity API | dedup por `user_id`; inativos fora por padrão (configurável); só com vínculos completos; reconciliação `team_count` reportada |
-| scans.count | scans | scans na competência | Reporting/scan metadata | contar eventos, policy/sandbox |
-| scans.covered_apps | scans | apps com ao menos um scan | scan metadata | distinct GUID |
-| sast.open.by_severity | SAST | abertas no corte do mês | Findings/Analytics | validar snapshot retrospectivo |
-| sast.fixed.month | SAST | corrigidas no mês | Reporting/Analytics | métrica de fechamento correta |
-| sast.fixed.cumulative | SAST | corrigidas acumuladas | Analytics | aplicações excluídas: seguir dashboard |
-| sca.open.by_severity | SCA | abertas por severidade | SCA/Findings | SCA agent vs upload |
-| sca.direct_transitive | SCA | questões em dependências | SCA | categorização dashboard |
-| sca.vulnerable_methods | SCA | métodos vulneráveis | SCA | confirmar superfície API |
-| compliance.by_status | policy | pass/fail/conditional/not assessed | Policy/Analytics | população e janela |
-| loc.total | metrics | LOC de aplicações | Applications/Analytics | origem exata pendente |
-| density.kloc | metrics | findings por KLOC | Analytics | respeitar regra oficial |
-| density.mb | metrics | findings por MB | Analytics | não assumir denominador |
-| density.per_app | metrics | findings por aplicação | Analytics | convenções de população |
-| top_apps.sast | SAST | ranking de aplicações | Findings/Analytics | desempates oficiais |
-| top_weaknesses | SAST | categorias CWE | Findings/Analytics | agrupamentos oficiais |
-| licenses.usage | license | licenças em uso | API/entrada manual | pode exigir preenchimento manual |
-| trend.monthly | history | séries de 6/12 meses | snapshots aprovados | manual quando faltar histórico |
+Fonte de verdade do código: `backend/app/metrics/registry.py` (contratos) e `GET /api/metrics/catalog`.
+Contrato tipado (`backend/app/metrics/contracts.py`, enums): `metric_id`, versão, nome, descrição, domínio, fonte,
+endpoint, escopo de aplicações, contexto Policy/Sandbox, tipo de scan, modo temporal, campo de data, critério de
+status e de severidade, deduplicação + prova de identidade, unidade, forma, fórmula, arredondamento, regras de
+completude, suporte, homologação e limitações. Resultado: status, valor (**só** se VALIDATED), `partial` (só se
+INCOMPLETE), motivos, cobertura, filtros, temporalidade (competência, período, `as_of`, campo de data) e
+proveniência da execução (run_id, versões de escopo, versões de contrato, `input_hash`).
 
-**Status:** todas fontes são candidatas até prova real da equivalência com dashboards. F04 exige para cada métrica: query real, parâmetros, timestamp, filtro, contagem e prova reconciliada. Fases anteriores não devem inventar.
+## Status
+| Status | Quando | Valor |
+|---|---|---|
+| VALIDATED | coleta completa e contrato atendido (zero é legítimo) | `value` |
+| INCOMPLETE | coleta parcial, limite de requisições/prazo, indeterminados, campo ausente (severidade, status, data, Teams), identidade de dedup não comprovada, contexto parcialmente recusado | `partial` (não definitivo) |
+| UNAVAILABLE | escopo/conexão/credencial ausente, subcliente sem escopo ou sem abrangência, estado histórico não reconstruível, não aplicável ao dono | — |
+| UNSUPPORTED | fonte não homologada ou incapaz; contexto recusado pela Veracode (HTTP 400) | — |
+| FAILED | todos os contextos exigidos falharam (nenhum dado) | — |
+
+Convenções: "aberto" = `status=OPEN` e `resolution_status != APPROVED` (equivalência com o dashboard
+**NOT_VERIFIED**); severidade 5 Very High … 0 Informational, ausente = `UNKNOWN` ⇒ INCOMPLETE; Policy = produção,
+Sandbox = desenvolvimento; SAST e SCA nunca somados nem com a mesma identidade.
+
+## Implementados (fonte homologada em formato; valores NÃO comparados ao dashboard)
+| ID | Domínio | Contexto | Temporal | Dedup / identidade | Observação |
+|---|---|---|---|---|---|
+| apps.total | apps | — | estado atual | GUID | população = escopo F03 |
+| apps.by_business_unit | apps | — | estado atual | GUID | BU ausente ⇒ INCOMPLETE |
+| apps.by_team | apps | — | estado atual | GUID | soma por Team ≥ total; traz distintas e atribuições |
+| apps.without_team | apps | — | estado atual | GUID | Teams ausentes ≠ vazio |
+| apps.multiple_teams | apps | — | estado atual | GUID | |
+| apps.unclassified | apps | — | estado atual | GUID | só cliente principal; bloqueios da F03 ⇒ INCOMPLETE |
+| sast.policy.open.by_severity | SAST | Policy | estado atual | issue_id no contexto | |
+| sast.sandbox.open.by_severity | SAST | Sandbox | estado atual | issue_id no contexto | **ocorrências** por sandbox |
+| sast.sandbox.open.distinct | SAST | Sandbox | estado atual | (app, issue_id) entre contextos — **NOT_PROVEN** | sempre INCOMPLETE até prova |
+| sast.open.distinct | SAST | Policy+Sandbox | estado atual | idem — **NOT_PROVEN** | idem |
+| sast.policy.open.by_cwe | SAST | Policy | estado atual | — | top 10 + outros; desempate por id (não oficial) |
+| sast.policy.open.top_applications | SAST | Policy | estado atual | — | top 10; desempate nome/GUID (não oficial) |
+| sast.policy.new_in_period.by_severity | SAST | Policy | evento na competência | — | `first_found_date` ∈ [início, fim); qualquer status |
+| sast.policy.open.by_first_found_month | SAST | Policy | estado atual | — | envelhecimento por mês de identificação |
+| sca.policy.open.by_severity | SCA | Policy | estado atual | issue_id no contexto | upload + agente juntos |
+| sca.sandbox.open.by_severity | SCA | Sandbox | estado atual | issue_id no contexto | suporte **SUPPORT_NOT_VERIFIED**; 400 ⇒ UNSUPPORTED |
+| sca.open.distinct | SCA | Policy+Sandbox | estado atual | (app, component_id, cve.name) — **NOT_PROVEN** | identidade própria do SCA |
+| sca.policy.open.top_components | SCA | Policy | estado atual | component_id | biblioteca + versão |
+| sca.policy.open.top_vulnerabilities | SCA | Policy | estado atual | cve.name | pode não ser CVE |
+| sca.policy.open.by_dependency_mode | SCA | Policy | estado atual | — | `metadata.sca_dep_mode` |
+
+## Não suportados / indisponíveis (lacunas explícitas)
+| ID | Status | Motivo |
+|---|---|---|
+| *.at_period_end (apps, SAST, SCA) | UNAVAILABLE | fonte só expõe estado atual; fechamento de competência = snapshot aprovado (F05) ou entrada manual |
+| sast.policy.resolved_in_period | UNSUPPORTED | Findings API sem data de resolução (`last_seen_date` não é resolução) |
+| sca.policy.new_in_period | UNSUPPORTED | `first_found_date` do SCA pode ser data de publicação da vulnerabilidade (spec) |
+| sca.agent.projects | UNSUPPORTED | SCA Agent (`/srcclr`) não homologado nem na allowlist; Findings API não traz projeto |
+| scans.count, scans.covered_apps | UNSUPPORTED | nenhuma API de scans/builds homologada |
+| licenses.usage | UNSUPPORTED | nenhuma API de licenças homologada (provável entrada manual) |
+| compliance.by_status, loc.total, density.*, trend.monthly | não registrados | próximas iterações (fontes a homologar; tendência depende de snapshots F05) |
+
+## Temporalidade
+Competência `YYYY-MM`, sempre mês **fechado** (`[1º dia 00:00, 1º dia do mês seguinte)`), fuso por deslocamento fixo
+`±HH:MM` (padrão `+00:00`; sem horário de verão — decisão de fuso padrão pendente com o PO). Cada resultado traz
+`as_of` (data da coleta), período, campo de data aplicado e `historical_state=false`. Estado atual **não** representa
+o fechamento de competências anteriores.

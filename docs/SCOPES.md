@@ -67,7 +67,7 @@ negação, `all` neutro/absorvente) testadas com 400 regras geradas deterministi
    indeterminado. "Usuários únicos por Team": dedup por `user_id`; por Team só quando o detalhe do Team foi obtido;
    total só com coleta completa (senão `null` + motivo).
 7. Coleta Veracode incompleta → `status=incomplete`, `complete=false`; a UI mostra "não validado".
-8. Scans/SCA: `status=deferred_f04` — nenhuma consulta à Veracode.
+8. Scans/SCA na pré-visualização: `status=deferred_f04`. **F04:** as regras ativas de `scans` (SAST) e `sca` (SCA) filtram os findings das aplicações da população nos indicadores (cliente + subcliente na mesma conexão; só o subcliente em conexão própria); nunca ampliam a coleta além do escopo de aplicações; `sca.dependency` ausente/`BOTH` ⇒ indeterminado.
 
 ## Reconciliação usuário–Team (correção F02.1)
 `team_count` do membro do Team (API real: presente em 100% dos vínculos do tenant de testes; ausente na lista de

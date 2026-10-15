@@ -3,6 +3,7 @@
 Especificações oficiais (SwaggerHub, organização Veracode):
 - Applications API 1.0: https://app.swaggerhub.com/apis/Veracode/veracode-applications-api-specification/1.0
 - Identity API 1.5:     https://app.swaggerhub.com/apis/Veracode/veracode-identity_api/1.5
+- Findings API 2.1 (F04): https://app.swaggerhub.com/apis/Veracode/veracode-findings_api_specification/2.1
 
 Só campos necessários para descoberta/filtros futuros são mantidos (minimização de dados pessoais:
 e-mail, telefone, IP, login etc. de usuários são descartados na normalização).
@@ -22,6 +23,8 @@ BUSINESS_UNITS = '/api/authn/v2/business_units'
 TEAMS = '/api/authn/v2/teams'
 TEAM_DETAIL = '/api/authn/v2/teams/{team_id}'
 USERS = '/api/authn/v2/users'
+FINDINGS = '/appsec/v2/applications/{guid}/findings'
+FINDING_SCAN_TYPES = ('STATIC', 'SCA')  # SCA não pode ser combinado com outros tipos (documentação oficial)
 
 
 def _str(v) -> str | None:
@@ -127,6 +130,65 @@ def normalize_membership(raw: dict) -> dict:
             'relationship': _relationship(raw.get('relationship')), 'team_count': _int(raw.get('team_count'))}
 
 
+def _upper(v) -> str | None:
+    return v.strip().upper() if isinstance(v, str) and v.strip() else None
+
+
+def _severity(v) -> int | None:
+    return v if isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 5 else None
+
+
+def _sca_metadata(v) -> dict:
+    # Especificação: `metadata` é string ("Displays metadata values, such as the SCA scan mode and dependency
+    # mode"); observado em integrações: objeto. Aceita os dois; formato desconhecido => campos ausentes.
+    if isinstance(v, dict):
+        return {'sca_dep_mode': _upper(v.get('sca_dep_mode')), 'sca_scan_mode': _upper(v.get('sca_scan_mode'))}
+    out = {'sca_dep_mode': None, 'sca_scan_mode': None}
+    if isinstance(v, str):
+        for part in v.replace(';', ',').split(','):
+            key, sep, value = part.partition(':')
+            if not sep:
+                key, sep, value = part.partition('=')
+            key = key.strip().strip('"').lower()
+            if sep and key in out:
+                out[key] = _upper(value.strip().strip('"'))
+    return out
+
+
+def normalize_finding(raw: dict) -> dict:
+    """Minimização: descrição, arquivo/linha, módulo, procedimento e anotações NÃO saem deste módulo.
+
+    `issue_id` é único "dentro do contexto da aplicação" (especificação): não prova identidade entre contextos.
+    """
+    status = raw.get('finding_status') if isinstance(raw.get('finding_status'), dict) else {}
+    details = raw.get('finding_details') if isinstance(raw.get('finding_details'), dict) else {}
+    cwe = details.get('cwe') if isinstance(details.get('cwe'), dict) else None
+    cve = details.get('cve') if isinstance(details.get('cve'), dict) else None
+    issue_id = raw.get('issue_id')
+    out = {
+        'issue_id': issue_id if isinstance(issue_id, int) and not isinstance(issue_id, bool) else None,
+        'scan_type': _upper(raw.get('scan_type')),
+        'context_type': _upper(raw.get('context_type')),
+        'context_guid': _str(raw.get('context_guid')),
+        'violates_policy': raw.get('violates_policy') if isinstance(raw.get('violates_policy'), bool) else None,
+        'status': _upper(status.get('status')),
+        'resolution': _upper(status.get('resolution')),
+        'resolution_status': _upper(status.get('resolution_status')),
+        'first_found_date': _str(status.get('first_found_date')),
+        'last_seen_date': _str(status.get('last_seen_date')),
+        'severity': _severity(details.get('severity')),
+        'cwe_id': cwe.get('id') if cwe and isinstance(cwe.get('id'), int) else None,
+        'cwe_name': _str(cwe.get('name')) if cwe else None,
+    }
+    if out['scan_type'] == 'SCA':
+        out.update({'component_id': _str(details.get('component_id')),
+                    'component_filename': _str(details.get('component_filename')),
+                    'component_version': _str(details.get('version')),
+                    'vulnerability_id': _str(cve.get('name')) if cve else None,
+                    **_sca_metadata(details.get('metadata'))})
+    return out
+
+
 def _normalized(col: Collection, fn) -> Collection:
     col.items = [fn(i) for i in col.items]
     return col
@@ -143,6 +205,18 @@ async def fetch_sandboxes(run: CollectionRun, application_guid: str) -> Collecti
     col = await run.paginate(SANDBOXES.format(guid=quote(application_guid, safe='')), 'sandboxes',
                              label='sandboxes', id_field='guid')
     return _normalized(col, normalize_sandbox)
+
+
+async def fetch_findings(run: CollectionRun, application_guid: str, scan_type: str,
+                         sandbox_guid: str | None = None) -> Collection:
+    """Findings de UM contexto: Policy (sem `context`) ou um sandbox (`context`=GUID do sandbox)."""
+    if scan_type not in FINDING_SCAN_TYPES:
+        raise ValueError('scan_type não suportado')
+    params = {'scan_type': scan_type, **({'context': sandbox_guid} if sandbox_guid else {})}
+    col = await run.paginate(FINDINGS.format(guid=quote(application_guid, safe='')), 'findings',
+                             label=f'findings:{scan_type.lower()}', id_field='issue_id', params=params,
+                             page_size=run.settings.findings_page_size)
+    return _normalized(col, normalize_finding)
 
 
 async def fetch_business_units(run: CollectionRun) -> Collection:

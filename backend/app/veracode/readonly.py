@@ -25,6 +25,8 @@ ALLOWED_GET_PATHS = (
     re.compile(r'/api/authn/v2/teams'),
     re.compile(rf'/api/authn/v2/teams/{_SEG}'),
     re.compile(r'/api/authn/v2/users'),
+    # F04: Findings API (lista por aplicação; `context`=sandbox e `scan_type` vão na query). Somente leitura.
+    re.compile(rf'/appsec/v2/applications/{_SEG}/findings'),
 )
 
 

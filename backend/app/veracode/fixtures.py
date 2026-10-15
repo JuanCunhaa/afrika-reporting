@@ -6,6 +6,10 @@
   APIs; Team sem `user_count`; usuário sem `account_type`; `relationship` do membro como objeto `{name, display_name}`;
   membro do Team com `team_count` (quantidade de Teams do usuário).
   (camelCase, aceito por precaução porque a especificação Identity 1.5 o declara, é coberto em test_veracode_http.)
+Findings (F04, Findings API v2): `/appsec/v2/applications/{guid}/findings` com `scan_type` (SCA nunca combinado
+com outros tipos => 400) e `context`=GUID do sandbox (sem `context` => Policy). Findings sintéticos repetem o mesmo
+`issue_id` entre Policy e sandboxes e o mesmo componente/vulnerabilidade SCA com `issue_id` diferentes — para testar
+deduplicação sem supor identidade. Datas de identificação ficam na virada de agosto/setembro/outubro de 2026.
 Tenants: `alpha` (completo, multi-página), `beta` (outro tenant, para isolamento), `denied` (sem permissão
 na Identity API => 403). Qualquer outra credencial => 401.
 """
@@ -47,6 +51,79 @@ class Tenant:
     team_users: dict[str, list[dict]] = field(default_factory=dict)
     users: list[dict] = field(default_factory=list)
     identity_forbidden: bool = False
+    # (application_guid, sandbox_guid|None, scan_type) -> findings no formato da Findings API
+    findings: dict[tuple[str, str | None, str], list[dict]] = field(default_factory=dict)
+    sca_sandbox_unsupported: bool = False  # simula 400 para SCA em sandbox (suporte NÃO homologado)
+
+
+def make_finding(issue_id: int, scan_type: str, *, severity: int | None, status: str | None = 'OPEN',
+                 resolution: str = 'UNRESOLVED', resolution_status: str = 'NONE',
+                 first_found: str | None = '2026-09-15T12:00:00.000Z', last_seen: str = '2026-09-20T10:00:00.000Z',
+                 cwe: tuple[int, str] | None = None, sandbox_guid: str | None = None, component: str | None = None,
+                 filename: str | None = None, version: str | None = None, vulnerability: str | None = None,
+                 dep_mode: str | None = None) -> dict:
+    """Finding SINTÉTICO no formato da Findings API v2 (inclui campos que a normalização descarta)."""
+    details: dict = {'severity': severity, 'file_path': 'src/sintetico/Arquivo.java', 'file_line_number': 42,
+                     'module': 'sintetico.jar', 'procedure': 'metodoSintetico'}
+    if scan_type == 'SCA':
+        details = {'severity': severity, 'component_id': component, 'component_filename': filename,
+                   'version': version, 'licenses': [{'license_id': 'MIT', 'risk_rating': '2'}],
+                   'metadata': {'sca_scan_mode': 'UPLOAD', 'sca_dep_mode': dep_mode},
+                   'cve': None if vulnerability is None else {'name': vulnerability, 'cvss': 7.5,
+                                                              'severity': 'High'}}
+    if cwe:
+        details['cwe'] = {'id': cwe[0], 'name': cwe[1]}
+    finding_status = {'first_found_date': first_found, 'status': status, 'resolution': resolution,
+                      'resolution_status': resolution_status, 'last_seen_date': last_seen, 'new': False,
+                      'mitigation_review_status': 'NONE'}
+    return {'issue_id': issue_id, 'scan_type': scan_type, 'description': 'Descrição sintética (descartada)',
+            'count': 1, 'context_type': 'SANDBOX' if sandbox_guid else 'APPLICATION',
+            'context_guid': sandbox_guid, 'violates_policy': (severity or 0) >= 3, 'build_id': 1,
+            'finding_status': finding_status, 'finding_details': details,
+            'annotations': [{'comment': 'anotação sintética (descartada)'}]}
+
+
+_CWES = [(79, 'Cross-site Scripting'), (89, 'SQL Injection'), (117, 'Improper Output Neutralization for Logs'),
+         (327, 'Use of a Broken or Risky Cryptographic Algorithm'), (601, 'URL Redirection to Untrusted Site'),
+         (209, 'Generation of Error Message Containing Sensitive Information')]
+_FOUND = ['2026-07-10T08:00:00.000Z', '2026-08-31T23:30:00.000Z', '2026-09-01T00:00:00.000Z',
+          '2026-09-15T12:00:00.000Z', '2026-09-30T23:59:59.999Z', '2026-10-01T00:00:00.000Z']
+
+
+def _synthetic_findings(t: Tenant, name: str, i: int, guid: str) -> None:
+    n = i % 6
+    policy = []
+    for k in range(n):
+        status = 'CLOSED' if k == 4 else 'OPEN'
+        approved = status == 'OPEN' and (i + k) % 9 == 0
+        policy.append(make_finding(1000 + k, 'STATIC', severity=(i + k) % 6, status=status,
+                                   resolution='MITIGATED' if approved else ('FIXED' if status == 'CLOSED'
+                                                                            else 'UNRESOLVED'),
+                                   resolution_status='APPROVED' if approved else 'NONE',
+                                   first_found=_FOUND[(i + 2 * k) % 6], cwe=_CWES[(i + k) % 6]))
+    t.findings[(guid, None, 'STATIC')] = policy
+    comp_a = _uid(name, 'component', i % 3)
+    t.findings[(guid, None, 'SCA')] = [
+        make_finding(9000, 'SCA', severity=4, component=comp_a, filename=f'biblioteca-{i % 3}.jar',
+                     version='1.0.0', vulnerability=f'SYNTH-VULN-000{1 + i % 3}', dep_mode='DIRECT',
+                     cwe=(502, 'Deserialization of Untrusted Data')),
+        make_finding(9001, 'SCA', severity=2, component=_uid(name, 'component', 'shared'),
+                     filename='biblioteca-compartilhada.jar', version='2.3.1', vulnerability='SYNTH-VULN-0100',
+                     dep_mode='TRANSITIVE')] if i % 4 == 0 else []
+    for s, sandbox in enumerate(t.sandboxes[guid]):
+        sb = sandbox['guid']
+        repeated = [make_finding(1000, 'STATIC', severity=policy[0]['finding_details']['severity'],
+                                 first_found='2026-09-02T09:00:00.000Z', cwe=_CWES[i % 6], sandbox_guid=sb)] \
+            if n else []
+        t.findings[(guid, sb, 'STATIC')] = repeated + [
+            make_finding(2000 + s, 'STATIC', severity=(i + s) % 5 + 1, first_found='2026-09-10T09:00:00.000Z',
+                         cwe=_CWES[s % 6], sandbox_guid=sb),
+            make_finding(2100, 'STATIC', severity=3, first_found='2026-09-11T09:00:00.000Z', cwe=_CWES[1],
+                         sandbox_guid=sb)]  # mesmo issue_id em todos os sandboxes da aplicação
+        t.findings[(guid, sb, 'SCA')] = [
+            make_finding(9500 + s, 'SCA', severity=4, component=comp_a, filename=f'biblioteca-{i % 3}.jar',
+                         version='1.0.0', vulnerability=f'SYNTH-VULN-000{1 + i % 3}', dep_mode='DIRECT',
+                         sandbox_guid=sb)] if i % 4 == 0 else []
 
 
 def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, label: str) -> Tenant:
@@ -112,6 +189,7 @@ def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, labe
                               'name': f'Sandbox {s + 1}', 'application_guid': guid, 'owner_username': 'sintetico',
                               'created': '2026-02-01T10:00:00.000Z', 'modified': '2026-09-01T10:00:00.000Z'}
                              for s in range(n_sandboxes)]
+        _synthetic_findings(t, name, i, guid)
     return t
 
 
@@ -184,6 +262,9 @@ class FixtureVeracode:
             if m.group(1) not in tenant.sandboxes:
                 return _error(404, 'Not Found')
             return self._page(tenant.sandboxes[m.group(1)], 'sandboxes', page, size)
+        m = re.fullmatch(r'/appsec/v2/applications/([^/]+)/findings', path)
+        if m:
+            return self._findings(tenant, m.group(1), q, page, size)
         if path.startswith('/api/authn/') and tenant.identity_forbidden:
             return _error(403, 'Forbidden')
         if path == '/api/authn/v2/business_units':
@@ -200,6 +281,22 @@ class FixtureVeracode:
         if path == '/api/authn/v2/users':
             return self._page(tenant.users, 'users', page, size)
         return _error(404, 'Not Found')
+
+    @staticmethod
+    def _findings(tenant: Tenant, app_guid: str, q: dict, page: int, size: int) -> httpx.Response:
+        if app_guid not in tenant.sandboxes:
+            return _error(404, 'Not Found')
+        types = [t.strip().upper() for t in (q.get('scan_type') or '').split(',') if t.strip()] \
+            or ['STATIC', 'DYNAMIC', 'MANUAL']  # sem scan_type: SCA fica de fora (documentação oficial)
+        if 'SCA' in types and len(types) > 1:
+            return _error(400, 'SCA cannot be combined with other scan types')
+        context = q.get('context')
+        if context and context not in {sb['guid'] for sb in tenant.sandboxes[app_guid]}:
+            return _error(404, 'Not Found')
+        if context and 'SCA' in types and tenant.sca_sandbox_unsupported:
+            return _error(400, 'Bad Request')
+        items = [f for t in types for f in tenant.findings.get((app_guid, context, t), [])]
+        return FixtureVeracode._page(sorted(items, key=lambda f: f['issue_id']), 'findings', page, size)
 
     @staticmethod
     def _page(items: list[dict], key: str, page: int, size: int) -> httpx.Response:

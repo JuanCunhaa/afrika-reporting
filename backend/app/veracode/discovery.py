@@ -105,11 +105,31 @@ class DiscoveryService:
     def _run(self, ctx: ScopeContext, creds: credentials.Credentials) -> CollectionRun:
         return CollectionRun(self.pool, creds, ctx.region, sleep=self._sleep)
 
+    @staticmethod
+    def cache_key(ctx: ScopeContext, creds: credentials.Credentials, resource: str, params: tuple) -> tuple:
+        # Isolamento: escopo + conexão + impressão irreversível da credencial + recurso + parâmetros.
+        return (ctx.kind, str(ctx.id), str(ctx.connection_id), ctx.region, ctx.credential_ref, creds.fingerprint,
+                resource, params)
+
+    def credentials_for(self, ctx: ScopeContext) -> credentials.Credentials:
+        return self._credentials(ctx)
+
+    def metrics_run(self, ctx: ScopeContext, creds: credentials.Credentials) -> CollectionRun:
+        """Coleta de métricas (F04): orçamento e prazo próprios para a execução inteira."""
+        return CollectionRun(self.pool, creds, ctx.region, sleep=self._sleep,
+                             max_requests=self.settings.metrics_max_requests, timeout=self.settings.metrics_timeout)
+
+    async def collect_cached(self, ctx: ScopeContext, creds: credentials.Credentials, resource: str, params: tuple,
+                             collect: Callable[[], Awaitable[Collection]]) -> tuple[Collection, bool]:
+        """Cache transitório (só coletas completas) com a mesma chave/isolamento da descoberta."""
+        col, cached, _ = await self.cache.get_or_collect(self.cache_key(ctx, creds, resource, params), collect,
+                                                         lambda c: c.complete)
+        return col, cached
+
     async def _cached(self, ctx: ScopeContext, resource: str, params: tuple,
                       fetch: Callable[[CollectionRun], Awaitable[Collection]]) -> Result:
         creds = self._credentials(ctx)
-        key = (ctx.kind, str(ctx.id), str(ctx.connection_id), ctx.region, ctx.credential_ref, creds.fingerprint,
-               resource, params)
+        key = self.cache_key(ctx, creds, resource, params)
         col, cached, ttl = await self.cache.get_or_collect(
             key, lambda: fetch(self._run(ctx, creds)), lambda c: c.complete)
         if not col.complete and col.pages_fetched == 0:

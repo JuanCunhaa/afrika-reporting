@@ -179,7 +179,9 @@ class CollectionRun:
 
     def __init__(self, pool: VeracodeHttpPool, creds: Credentials, region: str, *,
                  sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-                 rng: random.Random | None = None, clock: Callable[[], float] = time.monotonic):
+                 rng: random.Random | None = None, clock: Callable[[], float] = time.monotonic,
+                 max_requests: int | None = None, timeout: float | None = None):
+        # max_requests/timeout: limites próprios de coletas maiores (métricas, F04); padrão = descoberta.
         self.pool = pool
         self.settings = pool.settings
         self._client = pool.client(region)
@@ -187,7 +189,8 @@ class CollectionRun:
         self._sleep = sleep
         self._rng = rng or random.Random()
         self._clock = clock
-        self.deadline = clock() + self.settings.collection_timeout
+        self.max_requests = max_requests or self.settings.max_requests_per_collection
+        self.deadline = clock() + (timeout or self.settings.collection_timeout)
         self.requests = 0
         self.retries = 0
 
@@ -198,7 +201,7 @@ class CollectionRun:
     async def get_json(self, path: str, params: dict | None = None, *, label: str) -> dict:
         s = self.settings
         for attempt in range(s.max_retries + 1):
-            if self.requests >= s.max_requests_per_collection:
+            if self.requests >= self.max_requests:
                 raise VeracodeError('request_budget_exhausted')
             remaining = self.deadline - self._clock()
             if remaining <= 0:
@@ -258,8 +261,8 @@ class CollectionRun:
         raise AssertionError('inalcançável')
 
     async def paginate(self, path: str, embedded_key: str, *, label: str, id_field: str,
-                       params: dict | None = None) -> Collection:
-        size = self.settings.page_size
+                       params: dict | None = None, page_size: int | None = None) -> Collection:
+        size = page_size or self.settings.page_size
         col = Collection(resource=label)
         start_requests, start_retries = self.requests, self.retries
         seen: set = set()

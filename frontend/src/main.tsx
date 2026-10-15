@@ -4,6 +4,7 @@ import './styles.css';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
+import { MetricsPage } from './pages/MetricsPage';
 import { ScopesPage } from './pages/ScopesPage';
 import { VeracodePage } from './pages/VeracodePage';
 
@@ -24,9 +25,11 @@ function App() {
   const clientMatch = path.match(/^\/clients\/([0-9a-f-]{36})$/i);
   const veracodeMatch = path.match(/^\/veracode\/(clients|subclients)\/([0-9a-f-]{36})$/i);
   const scopesMatch = path.match(/^\/scopes\/clients\/([0-9a-f-]{36})$/i);
+  const metricsMatch = path.match(/^\/metrics(?:\/clients\/([0-9a-f-]{36}))?$/i);
 
   let page: React.ReactNode;
   if (path === '/connections') page = <ConnectionsPage />;
+  else if (metricsMatch) page = <MetricsPage key={path} clientId={metricsMatch[1]} />;
   else if (veracodeMatch) {
     const kind = veracodeMatch[1] as 'clients' | 'subclients';
     page = <VeracodePage key={path} kind={kind} id={veracodeMatch[2]} />;
@@ -40,7 +43,7 @@ function App() {
       <header>
         <small>AFRIKA / REPORTING</small>
         <h1>Central de relatórios AppSec</h1>
-        <p>F03 — cadastro, descoberta Veracode somente leitura e escopos por domínio. Nenhuma métrica oficial.</p>
+        <p>F04 — cadastro, descoberta Veracode somente leitura, escopos por domínio e indicadores com status e proveniência.</p>
         <nav aria-label="Principal">
           <a href="#/clients" aria-current={path.startsWith('/clients') || path.startsWith('/veracode') || path.startsWith('/scopes') ? 'page' : undefined}>
             Clientes
@@ -48,10 +51,13 @@ function App() {
           <a href="#/connections" aria-current={path === '/connections' ? 'page' : undefined}>
             Conexões
           </a>
+          <a href="#/metrics" aria-current={path.startsWith('/metrics') ? 'page' : undefined}>
+            Indicadores
+          </a>
         </nav>
       </header>
       {page}
-      <footer>F03 • API local (loopback) sem autenticação — não expor publicamente • Nenhuma métrica oficial</footer>
+      <footer>F04 • API local (loopback) sem autenticação — não expor publicamente • Indicadores não homologados contra o dashboard</footer>
     </main>
   );
 }

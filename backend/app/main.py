@@ -6,19 +6,20 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import api, api_scopes, api_veracode, errors
+from app import api, api_metrics, api_scopes, api_veracode, errors
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
-from app.models import MetricSnapshot
+from app.metrics.runs import RunManager
 from app.veracode.cache import DiscoveryCache
 from app.veracode.discovery import DiscoveryService
 from app.veracode.fixtures import FixtureVeracode
 from app.veracode.http import VeracodeHttpPool
 from app.veracode.settings import VeracodeSettings
 
-DESCRIPTION = ('F03: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
-               '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio. '
+DESCRIPTION = ('F04: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
+               '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio '
+               '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência. '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -40,13 +41,15 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
         app.state.veracode = DiscoveryService(settings, pool, DiscoveryCache(settings.cache_ttl,
                                                                             settings.cache_max_entries),
                                               environ=environ, **extra)
+        app.state.metric_runs = RunManager(app.state.veracode)
         try:
             yield
         finally:
+            await app.state.metric_runs.aclose()
             await pool.aclose()
             engine.dispose()
 
-    app = FastAPI(title='Afrika Reporting API', version='0.3.0', description=DESCRIPTION, lifespan=lifespan)
+    app = FastAPI(title='Afrika Reporting API', version='0.4.0', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
 
@@ -58,15 +61,11 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app.include_router(api.router)
     api_veracode.install(app)
     app.include_router(api_scopes.router)
+    app.include_router(api_metrics.router)
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'phase': 'F03', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
-
-    @app.get('/api/demo/metrics', response_model=list[MetricSnapshot])
-    def demo_metrics():
-        return [MetricSnapshot(metric_id='sast.open.medium.policy', competence='2026-09', value=123,
-                               source='SYNTHETIC', status='DEMO_ONLY')]
+        return {'status': 'ok', 'phase': 'F04', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
 
     return app
 

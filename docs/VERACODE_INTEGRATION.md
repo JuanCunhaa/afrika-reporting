@@ -2,6 +2,7 @@
 
 Código: `backend/app/veracode/` + `backend/app/api_veracode.py`; UI: `frontend/src/pages/VeracodePage.tsx`.
 Estado: **homologada contra tenant REAL de testes em 2026-10-14 (F02.1, somente GET)** — matriz em “Homologação real (F02.1) — resultado”.
+F04: Findings API (STATIC) homologada em formato no mesmo tenant; SCA bloqueado por HTTP 500 da Veracode — ver “Homologação real (F04) — resultado”.
 
 ## Autenticação (HMAC)
 - Esquema `VERACODE-HMAC-SHA-256`, implementado a partir da documentação oficial
@@ -27,6 +28,7 @@ Especificações oficiais: [Applications API 1.0](https://app.swaggerhub.com/api
 | Detalhe do Team | `/api/authn/v2/teams/{team_id}` | — | `users[]` (UserTeam) → relação usuário↔Team; `relationship` real = objeto `{name, display_name}` (spec: string; ambos aceitos); `user_count` ausente na API real ⇒ conferência só quando presente |
 | Usuários | `/api/authn/v2/users?page&size` | `users` | parâmetros padrão da API (`deleted`/`inactive` = false); **sem `account_type` na lista real** |
 | Teste de conexão | os 4 endpoints de lista com `size=1` | — | identifica permissão por domínio |
+| **Findings (F04)** | `/appsec/v2/applications/{guid}/findings?scan_type=STATIC` ou `SCA` `[&context={sandbox_guid}]&page&size` | `findings` | [Findings API 2.1](https://app.swaggerhub.com/apis/Veracode/veracode-findings_api_specification/2.1); papel *Results API*; sem `context` = Policy; SCA nunca combinado com outros tipos; `size` próprio (`FINDINGS_PAGE_SIZE`=50) |
 
 Campos mantidos após normalização (minimização): aplicações (guid, id legado, nome, BU, Teams, tags, criticidade,
 custom fields, políticas, datas); usuários (user_id, user_name, nome, ativo, login habilitado, tipo de conta).
@@ -122,6 +124,42 @@ Diferenças mock × real corrigidas (commit `7c52d57`): `relationship` objeto; T
 `account_type`; `page` snake_case na Identity. Campos reais não usados (não normalizados): `scim_team`,
 `member_only`, `deleted`, `features`, `saml_user`, `scim_user`. `team_count` passou a ser normalizado na F03.
 
-## Fica para F03/F04
-- F03: **entregue** — `docs/SCOPES.md`. Nenhum endpoint novo na allowlist.
-- F04: scans, findings, SCA, Reporting/Analytics, métricas e dedup — nada disso é coletado na F02.
+## Findings API e motor de indicadores (F04)
+Código: `backend/app/metrics/` (contratos, registro, competência, população, coletor, motor, execuções) +
+`backend/app/api_metrics.py`; UI `#/metrics`. Catálogo: `docs/METRIC_CATALOG.md`.
+- **Allowlist ampliada** só com `GET /appsec/v2/applications/{guid}/findings` (testado: v1, detalhe de finding,
+  `/appsec/v1/cwes` e `/srcclr/...` continuam bloqueados).
+- Normalização mínima: `issue_id`, tipo, contexto, status/resolução/mitigação, `first_found_date`,
+  `last_seen_date`, severidade, CWE; SCA: `component_id`, arquivo, versão, `cve.name`, `sca_dep_mode`/`sca_scan_mode`
+  (`metadata` objeto ou string). **Descrição, arquivo/linha, módulo, procedimento e anotações são descartados.**
+- Coleta por aplicação da população (nunca do tenant inteiro): sandboxes → Policy STATIC/SCA → cada sandbox
+  STATIC/SCA. Uma `CollectionRun` por execução: `AFRIKA_VERACODE_METRICS_MAX_REQUESTS`=2000,
+  `METRICS_TIMEOUT`=600 s, `METRICS_MAX_APPLICATIONS`=1000 (acima ⇒ não coleta, INCOMPLETE),
+  `FINDINGS_PAGE_SIZE`=50. Limite atingido ⇒ indicadores INCOMPLETE. 400 num contexto ⇒ `unsupported`.
+- Cache transitório reaproveita a chave da descoberta (escopo + conexão + impressão da credencial + recurso +
+  aplicação/contexto/tipo); só coletas completas; nada em disco. Execuções e resultados (só agregados) vivem em
+  memória (máx. 50 retidas, 3 simultâneas) e somem ao reiniciar.
+- Identidade: `issue_id` é "único dentro do contexto da aplicação" (spec) ⇒ dedup entre sandboxes/Policy por
+  `issue_id` é **NOT_PROVEN** (indicadores distintos ficam INCOMPLETE com valor candidato). SCA usa identidade própria
+  (componente + vulnerabilidade).
+
+## Homologação real (F04) — resultado
+2026-10-15, região `commercial`, mesma conta de API de TESTE; somente GET; amostra de 3 aplicações com scan
+concluído (+ até 2 sandboxes cada); flag live só no ambiente do processo. Total da fase ≈ 300 GETs (2 execuções da
+suíte + diagnóstico de 5xx). Contagens não versionadas.
+
+| Item | Estado | Evidência (sem valores do tenant) |
+|---|---|---|
+| Autenticação/permissão Findings API | VERIFIED_REAL | 200 em STATIC (Policy e Sandbox) |
+| Formato STATIC | VERIFIED_REAL | chaves `issue_id, scan_type, context_type, context_guid, violates_policy, count, build_id, description, finding_status{first_found_date,last_seen_date,status,resolution,resolution_status,new,mitigation_review_status}, finding_details{severity,cwe,finding_category,file_*,module,procedure,relative_location,exploitability,attack_vector}`; datas com `Z`; enums observados `OPEN`, `UNRESOLVED`, `NONE`, `APPLICATION` |
+| Paginação findings | VERIFIED_REAL | `page` snake_case + `_links`; **`size=100` ⇒ HTTP 500** em aplicação com mais de uma página de 50 findings, `size=50` ⇒ 200; **sem `size` a API usou 20** (spec diz 50) ⇒ `FINDINGS_PAGE_SIZE=50` |
+| Erros 5xx da Findings API | BLOCKED_EXTERNAL | uma aplicação: 500 em STATIC com qualquer `size` (1/10/50); SCA: 500 (corpo vazio) intermitente/persistente em todas as aplicações testadas; um timeout de 60 s. O motor reporta INCOMPLETE/FAILED — nunca zero |
+| Formato SCA | NOT_VERIFIED | uma resposta 200 (estrutura HAL normal, página cheia) obtida; chaves dos itens não inspecionadas (chamadas seguintes 500). Na 2ª execução 3 contextos SCA deram `invalid_response` (200 rejeitado pelo validador; hipótese não confirmada: item sem `issue_id`) |
+| Identidade Policy × Sandbox | NOT_PROVEN | todos os `issue_id` repetidos entre Policy e sandbox da mesma aplicação (amostra) tinham o mesmo CWE e severidade — indício, não prova |
+| Fechados retornados por padrão | NOT_VERIFIED | amostra só com `OPEN` |
+| Comparação com o dashboard | NOT_RUN | nenhum agregado comparado com a plataforma; exige conferência humana com os mesmos filtros |
+
+## Fica para as próximas fases
+- F03: **entregue** — `docs/SCOPES.md`.
+- Pendentes de homologação: SCA (formato e estabilidade), identidade entre contextos, fechados por padrão, scans,
+  licenças, SCA Agent, Reporting/Analytics (datas de resolução/histórico), comparação com dashboard.

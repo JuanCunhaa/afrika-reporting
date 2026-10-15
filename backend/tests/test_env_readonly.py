@@ -195,8 +195,11 @@ def test_transport_layer_blocks_even_without_client_hooks(method):
 
 
 @pytest.mark.parametrize('url', [
-    'https://api.veracode.com/appsec/v1/applications/abc/findings',      # findings fora do escopo F02
-    'https://api.veracode.com/appsec/v2/applications/abc/findings',
+    'https://api.veracode.com/appsec/v1/applications/abc/findings',      # v1 não é a Findings API homologada
+    'https://api.veracode.com/appsec/v2/applications/abc/findings/123',  # F04: só a lista por aplicação
+    'https://api.veracode.com/appsec/v2/applications/../x/findings',
+    'https://api.veracode.com/appsec/v1/cwes',
+    'https://api.veracode.com/srcclr/v3/workspaces',                     # SCA Agent: não homologado (F04)
     'https://api.veracode.com/api/authn/v2/api_credentials',
     'https://api.veracode.com/appsec/v1/policies',
     'https://api.veracode.com/appsec/v1/applications/../policies/sandboxes',
@@ -219,7 +222,8 @@ def test_get_outside_allowlist_is_blocked(url):
 
 def test_allowlist_covers_every_adapter_endpoint_on_every_region():
     paths = [adapters.APPLICATIONS, adapters.SANDBOXES.format(guid='00000000-aaaa'), adapters.BUSINESS_UNITS,
-             adapters.TEAMS, adapters.TEAM_DETAIL.format(team_id='t%2F1'), adapters.USERS]
+             adapters.TEAMS, adapters.TEAM_DETAIL.format(team_id='t%2F1'), adapters.USERS,
+             adapters.FINDINGS.format(guid='00000000-aaaa')]
     for host in ALLOWED_HOSTS:
         for path in paths:
             check_request(httpx.Request('GET', f'https://{host}{path}', params={'page': 0, 'size': 1}))

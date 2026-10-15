@@ -82,3 +82,10 @@ a.btn{text-decoration:none;display:inline-block}
 .versions{margin-top:16px}
 .sample{columns:2;font-size:13px}
 @media (max-width:800px){.scopes-layout{grid-template-columns:1fr}}
+/* F04: painel de indicadores */
+.badge.warn{background:#fff1d6;color:#7a4b00}
+.badge.bad{background:#8c2a1c;color:white}
+[data-testid=run-summary] .badge{margin-right:6px}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.metric h4{margin:0}
+.metric-value{font-size:28px;font-weight:600;margin:8px 0}
