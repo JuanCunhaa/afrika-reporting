@@ -8,11 +8,21 @@
 - **F02.1 — homologação real Veracode: DONE — aguardando PO** (commit `7c52d57` + docs; 11/11 domínios VERIFIED_REAL — paginação Identity multipágina e 403/429 só em mock; 1 incompatibilidade corrigida)
 - **F03 — motor de escopos e filtros: DONE — aguardando PO** (commits `2d9192f` + `17743cc` + docs; CI verde run `38670035298`)
 - **F04 — motor de indicadores: DONE — aguardando PO** (commit `ddf3b01` + docs; CI verde run `38677349116`; homologação real parcial: STATIC ok, SCA bloqueado por HTTP 500 da Veracode)
+- **F04.1 — fontes alternativas e confiabilidade: DONE — aguardando PO** (commit `0568326` + docs; CI verde run `38681179717`)
 - F05 — snapshots/auditoria: NOT_STARTED — **não iniciar sem ordem do PO**
 - F06 — slides/templates: NOT_STARTED (template oficial pendente)
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F04.1 (2026-10-15)
+- Inventário oficial (SwaggerHub) + matriz por indicador: `docs/API_SOURCE_MATRIX.md`. Allowlist: + Summary Report e SCA Agent (projetos por aplicação), ambos GET. Reporting API: BLOCKED_POST.
+- Diagnóstico 500: intermitente do lado da Veracode (padrão ~3 s); `size=100` refutado (corrige F04); permissão refutada; SCA sem componentes = indício. Mecanismos: sem retry imediato do 500, passada adiada, circuit breaker, pré-checagem SCA.
+- 7 indicadores novos de fontes alternativas; fuso IANA por cliente (padrão America/Sao_Paulo, migration 0003, tzdata 2026.5).
+- pytest **329 passed**; venv do lock 329; E2E **19 passed**; build OK; `npm audit` 0; `pip check` OK; gitleaks 0; checks OK; real opt-in PASS (≈150 GETs na fase).
+- CI GitHub run `38681179717` (SHA `0568326`): **success**.
+
+Próxima autorização esperada: aceite da F04.1 pelo PO; depois prompt F05.
 
 ## Checkpoint F04 (2026-10-15)
 - `backend/app/metrics/` (contratos tipados, registro de 29 indicadores — 20 calculados + 9 lacunas UNAVAILABLE/UNSUPPORTED, competência fechada, população F03, coletor, motor, execuções em memória), `api_metrics.py`, painel `#/metrics`. Catálogo: `docs/METRIC_CATALOG.md`.
@@ -21,7 +31,6 @@
 - Homologação real opt-in (`tests_live/test_metrics_live.py`, amostra de 3 apps, só GET, ≈300 GETs na fase com diagnóstico): STATIC VERIFIED_REAL (formato/paginação); SCA BLOCKED_EXTERNAL (500); identidade entre contextos NOT_PROVEN; comparação com dashboard **NOT_RUN**.
 - CI GitHub run `38677349116` (SHA `ddf3b01`): **success** (Backend 3.11/3.14 303 passed; build; E2E 19 passed).
 
-Próxima autorização esperada: aceite da F04 pelo PO; depois prompt F05.
 
 ## Checkpoint F03 (2026-10-14)
 - Escopos por dono (cliente/subcliente) × domínio (applications/users/scans/SCA); versões append-only (migration `0002_scopes`, gatilhos); AST com AND/OR/NOT, limites e lógica de 3 valores; universo, interseção, outro tenant com confirmação, sobreposição, não classificadas; reconciliação `team_count`; inativos fora por padrão (configurável); UI simples/avançada com pré-visualização. Doc: `docs/SCOPES.md`.
