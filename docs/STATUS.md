@@ -9,11 +9,21 @@
 - **F03 — motor de escopos e filtros: DONE — aguardando PO** (commits `2d9192f` + `17743cc` + docs; CI verde run `38670035298`)
 - **F04 — motor de indicadores: DONE — aguardando PO** (commit `ddf3b01` + docs; CI verde run `38677349116`; homologação real parcial: STATIC ok, SCA bloqueado por HTTP 500 da Veracode)
 - **F04.1 — fontes alternativas e confiabilidade: DONE — aguardando PO** (commit `0568326` + docs; CI verde run `38681179717`)
-- **F05 — snapshots, histórico, aprovações e Reporting API: DONE_LOCAL — aguardando PO** (commit `ad4b91f` + docs; CI verde run `38746312757`; Reporting API real: HTTP 403 — BLOCKED_EXTERNAL)
-- F06 — slides/templates: NOT_STARTED (template oficial pendente) — **não iniciar sem ordem do PO**
+- **F05 — snapshots, histórico, aprovações e Reporting API: DONE_LOCAL — aprovada pelo PO** (commit `ad4b91f` + docs; CI verde run `38746312757`; Reporting API real: HTTP 403 — BLOCKED_EXTERNAL)
+- **F06A — motor de templates e pré-visualização: DONE_LOCAL — aguardando PO** (commit `c160494` + docs; CI verde run `38776201083`; tema demonstrativo neutro PROVISÓRIO)
+- F06B — NOT_STARTED — **não iniciar sem ordem do PO**
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F06A (2026-10-15)
+- `backend/app/presentations/` + migration `0005_presentations` (templates versionados append-only, escolha por dono, apresentações, revisões append-only com hash encadeado; gatilho: só revisão de competência APROVADA). Docs: `docs/PRESENTATIONS.md`, `docs/PRESENTATION_CONTRACTS.md`.
+- 11 tipos de slide; 3 templates demonstrativos sintéticos; IR de gráficos (bar/line/severity/ranking/comparison/table/kpi); fontes fixadas (principal + 11 meses) e `rebind` explícito; editor HTML 16:9 com pré-visualização ao vivo sem gravação, dados de origem, revisões e integridade.
+- pytest **438 passed** (411 + 27); E2E Chromium **24 passed** (22 + 2) em 3 rodadas completas locais + CI; build OK; `npm audit` 0; `pip check` OK; gitleaks staged 0; `check_repo`/`check_env_example` OK; migrations CLI OK (`0005_presentations`).
+- `scopes.spec.ts`: não reproduzido (6 repetições isoladas + 6 suítes completas + sonda com CPU 20× lenta); sem retry adicionado. Editor: 1 falha intermitente em ~51 execuções (GET após salvar sem resposta) — causa NOT_PROVEN; UI passou a derivar o estado salvo da resposta do PUT.
+- Nenhuma chamada à Veracode nesta fase.
+
+Próxima autorização esperada: aceite da F06A pelo PO; F06B só com ordem expressa.
 
 ## Checkpoint F05 (2026-10-15)
 - Migration `0004_snapshots`: competences, competence_revisions, metric_snapshots, manual_changes, approvals, audit_events, collection_runs + view `v_official_revisions`; gatilhos de imutabilidade/append-only; downgrade recusado com aprovações. Doc: `docs/SNAPSHOTS.md`.

@@ -1,74 +1,59 @@
-# Devolutiva Claude → ChatGPT PO — F05: Snapshots, Histórico, Aprovações e Reporting API (2026-10-15)
+# Devolutiva Claude → ChatGPT PO — F06A: Motor de Templates e Pré-visualização (2026-10-15)
 
-- **Fase / commits:** F05 / `main` / **`ad4b91f`** (código + testes + docs técnicas) + commit seguinte só com STATUS/handoff. Push feito. **F06 NÃO iniciada.**
-- **CI:** run `38746312757` (SHA `ad4b91f`) — **success** — Backend 3.11 e 3.14, Frontend typecheck+build, E2E Chromium.
-- Modelo: Opus 5.5 (ambiente). Nenhum subagente.
+- **Fase / commits:** F06A / `main` / **`c160494`** (código + testes + docs técnicas) + commit seguinte só com STATUS/handoff. Push feito. **F06B, F07 e F08 NÃO iniciadas.**
+- **CI:** run `38776201083` (SHA `c160494`) — **success** — Backend 3.11 e 3.14 (438 passed cada), Frontend typecheck+build, E2E Chromium (24 passed).
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente. Nenhuma chamada à Veracode nesta fase.
 
-## 1. Funcionalidades
-Competências mensais por cliente/subcliente (fuso do cliente; padrão America/Sao_Paulo); rascunho a partir de execução F04 (ou vazio); importação de execução; valor manual tipado e justificado com fonte Veracode preservada; reversão ao valor da fonte; conjunto explícito de obrigatórios; DRAFT → READY_FOR_REVIEW → APPROVED (devolução a rascunho); aprovação imutável; revisões posteriores por cópia exata; comparação de revisões; auditoria e verificação de integridade; séries 6/12 meses/intervalo e mês × anterior só de aprovados com lacunas; adaptador Reporting API (FINDINGS/SCANS). Telas: **Competências**, **Histórico**, **Reporting** e botão "Criar rascunho da competência" em Indicadores. Doc: `docs/SNAPSHOTS.md`.
+## 1. Funcionalidades implementadas
+Templates tipados e versionados (imutáveis, append-only) com tema, slides ordenados, layout, indicadores, campos editáveis, obrigatoriedade e compatibilidade de versões de contrato; escolha de template por cliente/subcliente (subcliente herda do cliente; cliente sem subcliente funciona); criação de apresentação **só** a partir de revisão aprovada (rascunho/em revisão ⇒ 409); fontes fixadas com hash (revisão principal + aprovações dos 11 meses anteriores) e troca explícita (`rebind`); editor HTML com canvas 16:9, navegação (botões, setas, contador, modo apresentação), edição de título/textos/tópicos/títulos de gráfico/legendas/observações/notas/apresentadores, layout e opções, seleção de indicadores compatíveis, inclusão/remoção/reordenação, pré-visualização ao vivo **sem gravação**, dados de origem, revisões (consulta somente leitura) e verificação de integridade. Tema demonstrativo neutro **PROVISÓRIO** (aviso na tela e no rodapé de cada slide). Docs: `docs/PRESENTATIONS.md`, `docs/PRESENTATION_CONTRACTS.md`.
 
-## 2. Entidades e migration
-`0004_snapshots`: `competences`, `competence_revisions`, `metric_snapshots`, `manual_changes`, `approvals`, `audit_events`, `collection_runs` + view `v_official_revisions` (referência da série = aprovação mais recente; sem tabela redundante). Gatilhos: revisão nasce DRAFT, transições válidas, APPROVED imutável, snapshots só mudam em DRAFT, nada é excluído, tabelas de registro append-only. Downgrade recusado com aprovações (`AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE=1`). Upgrade testado em banco F04.1 com dados.
+## 2. Tipos de slides disponíveis (nenhum obrigatório por si)
+Capa · Sumário executivo · KPIs principais · Mês atual × anterior · Gráfico de barras (categorias da competência ou série mensal) · Linhas/série histórica (até 4 séries, 6/12 meses) · Distribuição por severidade · Ranking Top 10 · Tabela de indicadores · Recomendações e observações · Encerramento. Cada tipo declara layouts, campos editáveis/obrigatórios, nº e tipos de valor aceitos e opções.
 
-## 3. Endpoints internos (loopback, sem autenticação)
-`GET/POST /api/competences`, `POST /api/competences/from-run`, `GET /api/competences/{cid}`, `…/official`, `POST …/revisions`, `GET …/revisions/{n}`, `POST …/revisions/{n}/import-run`, `PUT …/metrics/{metric_id}`, `POST …/metrics/{metric_id}/revert`, `PUT …/required`, `POST …/submit|return|approve`, `GET …/compare?a&b`, `GET …/audit`, `GET …/integrity`, `GET /api/history/{kind}/{id}/series`, `GET /api/history/{kind}/{id}/compare`, `GET /api/reporting/status`, `POST/GET /api/reporting/jobs`, `GET /api/reporting/jobs/{id}`, `POST …/cancel`.
+## 3. Modelo de templates
+`template_key` + `version` + `definition_hash`; `theme {id, version}`; `metric_contracts {metric_id: [versões aceitas]}`; `slides[{slot_id, type, layout, required, required_metrics, fields, metrics, options}]`. Sem campo de valor (`extra=forbid` ⇒ 422 para `value`). `required` = slot não removível nem trocável de tipo; `required_metrics` = indicadores não removíveis e, sem valor aprovado, viram **bloqueio** (`ready=false` para F07). Contrato fora das versões aceitas ⇒ `INCOMPATIBLE` (valor não exibido). Embutidos sintéticos: `demo-executivo`, `demo-tecnico`, `demo-minimo` (instalação idempotente; também no `seed-demo`).
 
-## 4. Contrato do snapshot
-Dono/competência (via revisão); `metric_id`, `contract_version`, `value_type`, `shape`, `unit`; valor efetivo (`NULL` ≠ `0`) + `origin` VERACODE/MANUAL; fonte preservada (`source_status` técnico, valor, parcial, motivos, fonte, endpoint, contexto Policy/Sandbox, `collected_at`, intervalo local/UTC); `dashboard_homologation` separado (nunca promovido); escopos (versão + `rule_hash`); proveniência (`run_id`, engine, `input_hash`, conexão sem credencial); manual (justificativa, operador, UTC); `row_hash`. Estados exibidos: VALIDATED, MANUAL, INCOMPLETE, SOURCE_UNAVAILABLE, UNSUPPORTED, MISSING. Sem findings individuais nem respostas HTTP.
+## 4. Persistência e migrations
+`0005_presentations`: `presentation_templates` (append-only), `owner_template_selections` (append-only), `presentations` (identidade imutável, sem DELETE, ponteiro `current_revision` com concorrência otimista), `presentation_revisions` (append-only; documento + fontes + `document_hash`/`sources_hash`/`revision_hash` encadeado; gatilho exige revisão de competência APROVADA e a aprovação dela). Downgrade recusado com apresentações salvas (`AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE=1`). Upgrade testado em banco F05 com histórico aprovado. Auditoria na cadeia F05: `template.version_created`, `template.selected`, `presentation.created|saved|sources_rebound`. O editor não tem caminho de escrita para snapshots/aprovações (testado: `row_hash`, aprovação e integridade F05 iguais antes/depois).
 
-## 5. Aprovação e revisão
-Bloqueia: obrigatórios vazio/sem valor, valor inválido, hash divergente, fora de READY_FOR_REVIEW, `lock_version` divergente, sem aprovador. Aceita manuais justificados. Aprovação grava `content_hash` + `chain_hash` (encadeado à anterior). Toda alteração exige `expected_lock_version` + UPDATE condicional ⇒ 409 (4 threads: 1 sucesso, 3 conflitos). **Aprovador/operador são declarados (`DECLARED_UNAUTHENTICATED`), não identidade autenticada.** Obrigatórios: sem template oficial não há lista padrão — seleção explícita por revisão, versionada.
+## 5. Endpoints e interface
+`GET /api/presentation-catalog`; `GET/POST /api/presentation-templates`; `POST /api/presentation-templates/builtin`; `GET /api/presentation-templates/{key}/versions/{v}`; `POST /api/presentation-templates/{key}/versions`; `GET/PUT /api/template-selection/{kind}/{id}`; `GET/POST /api/presentations`; `GET /api/presentations/{pid}`; `GET …/revisions/{n}`; `PUT …/document`; `POST …/preview`; `POST …/rebind`; `GET …/view[?revision=n]`; `GET …/integrity`. Telas: **Apresentações** (`#/presentations`) e editor (`#/presentations/{id}`).
 
-## 6. Histórico e preenchimento manual
-Só aprovados; lacuna = `GAP` (sem zero, sem interpolação); fim padrão = último mês fechado no fuso do cliente; avisos de mudança de tipo/versão de contrato; delta só entre aprovados comparáveis. Setembro aprovado continua igual após a Veracode mudar (testado). Lacuna é preenchida criando a competência, valor manual justificado e aprovação (auditado).
+IR de gráficos (`charts.py`, `ir_version` 1): `y` = exatamente o número aprovado; ausência ⇒ `y=null` com estado `GAP`/`MISSING`/`NOT_NUMERIC`/`INCOMPATIBLE`; cores por token (`series.1..4` fixas por vinculação, rampa ordinal de severidade de um tom + cinza com textura para desconhecida — paletas validadas com validador de CVD/contraste); eixo Y a partir de 0; unidade do contrato; pt-BR; contagens sem arredondamento, decimal 2 casas e percentual 1 casa (meio-par só no rótulo); linhas quebram em lacunas (sem interpolação); distribuições/rankings só com adaptador explícito por indicador.
 
-## 7. Reporting API — status
-| Estado | F05 |
-|---|---|
-| Adaptador implementado | **sim** (`backend/app/veracode/reporting.py`, `reporting_policy.py`) |
-| Testado com mocks | **sim** (22 testes + E2E fixture) |
-| Geração real confirmada | **não** — 1 POST real (FINDINGS, 1 aplicação, 7 dias): **HTTP 403** (HMAC aceito; papel *Reporting API*/habilitação ausentes) ⇒ **BLOCKED_EXTERNAL**; sem retry; nenhuma outra chamada à Reporting API |
-| Métrica homologada contra dashboard | **não** (NOT_RUN); agregados são exploratórios e fora do catálogo |
-Fluxo conferido na spec oficial 1.12.0: POST ⇒ `_embedded.id`/`status`; GET `…/report/{id}?page=N` ⇒ status QUEUED/SUBMITTED/PROCESSING/COMPLETED/FAILED, `findings[]`/`scans[]`, `page_metadata`; obrigatórios `report_type` + `last_updated_start_date`; máx. 6 meses; itens em EDT. DELETEDSCANS e AUDIT estudados, não habilitados (AUDIT contém dados pessoais).
-
-## 8. Endpoints e métodos Veracode permitidos
-Todos os GET anteriores + `GET /appsec/v1/analytics/report/{uuid}`; **único POST**: `POST /appsec/v1/analytics/report`, só com `AFRIKA_VERACODE_REPORTING_ENABLED=true` (padrão false), caminho exato, sem query, JSON revalidado no transporte (FINDINGS/SCANS, campos/enums da spec, janela ≤ 31 dias configurável, teto 6 meses). Todo outro POST/PUT/PATCH/DELETE bloqueado antes da rede (testado com geração habilitada). Teste real exige ainda `VERACODE_REPORTING_LIVE_ENABLED=true`.
-
-## 9. Testes
+## 6. Testes
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` | **PASS 411** (329 + 82: snapshots 19, histórico 6, valores 33, reporting 22, migrations +2) |
-| E2E Chromium (`npm run test:e2e`) | **PASS 22/22** (19 + 3 F05) em 3 de 4 rodadas completas; 1 rodada com falha intermitente em `scopes.spec.ts` (F03, sem alteração; passou isolado e nas demais) |
-| build; `npm audit` (prod e dev); `pip check` | OK; 0 vulnerabilidades; OK |
-| gitleaks staged; `dir` | 0; 3 achados só em arquivos ignorados (`.env` local e 2 falsos positivos no `.venv`) |
-| `check_repo`; `check_env_example` | OK (F05); SEGURO |
-| migrations CLI (migrate, db-status, seed, migrate) em banco novo | OK (`0004_snapshots`) |
-| `tests_live` sem opt-in | 20 SKIPPED |
-| Real opt-in `test_reporting_live.py` | SKIPPED com `BLOCKED_EXTERNAL` (403) — 1 POST; 1ª tentativa falhou antes do POST (campo `legacy_id`), corrigida |
-| venv novo pelo lock | NOT_RUN (nenhuma dependência nova) |
-Cobertura dos 27 itens da ordem: 1 restart, 2 rascunho, 3 subcliente, 4 competência/fuso, 5 zero×ausência, 6 manual tipado, 7 justificativa, 8 integridade/adulteração, 9 imutabilidade (gatilhos), 10 revisões, 11 auditoria/cadeia, 12–13 6/12 meses e lacunas, 14 reutilização exata, 15 concorrência, 16 banco existente, 17 FKs, 18 sem credenciais, 19 E2E API + Playwright, 20 regressão, 21–22 bloqueios/allowlist, 23 polling/limite/prazo, 24 429/403/5xx, 25 cancelamento, 26 logs, 27 opt-in.
+| `python -m pytest -q` (local e CI 3.11/3.14) | **PASS 438** (411 + 27 F06A) |
+| E2E Chromium `npm run test:e2e` | **PASS 24/24** (22 + 2 F06A) em 3 rodadas completas locais + CI |
+| `presentations.spec.ts` repetido | 2 + 16 + 24 + 6 (partida a frio) PASS; **1 FAIL** isolado antes (ver riscos) |
+| build; `npm audit` (total e prod); `pip check` | OK; 0 vulnerabilidades; OK |
+| gitleaks (staged) | 0 achados |
+| `check_repo`; `check_env_example` | OK (F06A); SEGURO |
+| migrations CLI (migrate, db-status, seed ×2, migrate) em banco novo | OK (`0005_presentations`; seed idempotente, 3 templates) |
+| `tests_live` | NOT_RUN (fase sem chamadas reais) |
+Cobertura da ordem: slides opcionais (remoção/obrigatórios), templates por cliente/subcliente, só aprovados (rascunho, em revisão e revisão-rascunho recusados; gatilho no banco), séries 6 e 12 meses com lacunas, dados ausentes/incompatíveis/estrutura não reconhecida, manuais identificados, gráficos sem números inventados (todo número da IR ⊆ valores aprovados ∪ deltas), edição sem alterar métricas, reordenação/remoção/inclusão, persistência após reinício (visualização idêntica), versionamento de templates, integridade (adulteração de documento e de snapshot detectadas), concorrência (4 threads: 1 sucesso, 3 conflitos), downgrade, upgrade F05→F06A, pré-visualização sem gravação, E2E completo, regressão.
 
-## 10. Evidências de segurança
-Gatilhos de imutabilidade testados com SQL direto; adulteração de snapshot e de auditoria detectada; nenhuma credencial/`credential_ref` nas tabelas F05 nem nas respostas E2E; logs em DEBUG sem chaves, corpo, datas do pedido, id do relatório ou conteúdo de itens; itens da Reporting minimizados (descartados descrição, arquivos, usuários, comentários, solicitante); nada de findings persistido nem enviado a IA; E2E sem requisições externas.
+## 7. `scopes.spec.ts` (investigação)
+Não reproduzido: 6 repetições isoladas (18/18), 3+1+3 suítes completas (22/22 e 24/24), sonda temporária com CPU 20× mais lenta clicando logo após trocar de dono (0/24 cliques perdidos). Duração do teste 5,1 s (timeout 30 s). Hipótese examinada (formulário sincronizado por `useEffect` passivo sobrescrevendo clique) não confirmada — Playwright espera estabilidade antes do clique. **Nenhum retry adicionado e nenhum código F03 alterado.** Causa: NOT_PROVEN; trace é retido em falha (`trace: retain-on-failure`) para a próxima ocorrência.
 
-## 11. CI
-Run `38746312757` (SHA `ad4b91f`): **success** — Backend (Python 3.11) success, Backend (Python 3.14) success, Frontend (typecheck + build) success, E2E (Playwright Chromium) success.
+## 8. Riscos e limitações
+1. **Intermitência nova no editor (1 em ~51 execuções):** PUT de salvamento respondeu 200, mas o GET seguinte ficou sem resposta > 5 s (≈ timeout padrão de lock do SQLite; compatível com bloqueio transitório do arquivo no Windows, **não provado**). Mitigação de correção (não retry): a UI passou a derivar o estado salvo da resposta do PUT; não se repetiu nas 48 execuções seguintes.
+2. Tema e templates demonstrativos; nenhuma fidelidade a template oficial (diff visual por slide depende do arquivo aprovado — F06B).
+3. Sem exportação PPTX/PDF (F07); mapeamento previsto documentado (objetos nativos a partir da IR, sem imagens).
+4. Identidade declarada (sem autenticação); SQLite local.
+5. Janela fixada de 12 meses; distribuições/rankings sem adaptador ⇒ indisponíveis.
+6. Pendências herdadas: Reporting API BLOCKED_EXTERNAL (403); comparação com dashboard NOT_RUN.
 
-## 12. Commits e push
-`ad4b91f` (implementação) + commit de checkpoint (STATUS/handoff). Push em `origin/main`.
+## 9. Pendências para F06B
+Catalogar o template oficial aprovado (sem commitar PPTX real): tema oficial (cores/fontes/master) como novo tema versionado; layouts reais por slide; mapear cada bloco a `metric_id` + versões de contrato e `required_metrics`; regressão visual por slide (screenshots com tolerância medida, ambiente de fontes registrado); decidir conjunto obrigatório por template; eventualmente adaptadores para novos indicadores.
 
-## 13. Limitações e pendências para F06
-1. Identidade declarada (sem autenticação/assinatura); hashes detectam, não impedem adulteração por quem tem o arquivo SQLite.
-2. Reporting API: pedir à Veracode habilitação + papel *Reporting API* na conta de testes e repetir UMA geração mínima; só depois criar contratos (ex.: resolvidos no mês, scans no período) com testes e homologação.
-3. Execuções F04 vivem em memória: importar na mesma sessão do backend.
-4. Sem template oficial: obrigatórios são escolhidos manualmente por revisão; F06 deve definir o conjunto por template/slide.
-5. Snapshots guardam dimensões com nomes de aplicações/BUs/Teams (necessárias aos slides) no banco local.
-6. Teste E2E `scopes.spec.ts` intermitente (1/4) — investigar se persistir.
-7. Comparação contra dashboard segue NOT_RUN para todos os indicadores.
+## 10. Commits e push
+`c160494` (implementação) + commit de checkpoint (STATUS/handoff). Push em `origin/main`. Só arquivos de código, testes e docs (sem banco, PPTX, evidências ou `.env`).
 
-**Prompt sugerido para F06 (não executado):** "F06 — Catalogar o template oficial de slides aprovado pelo PO (sem commitar PPTX real), mapear cada bloco a `metric_id` + versão de contrato, definir o conjunto obrigatório por template a partir disso, consumir SOMENTE revisões aprovadas (`/api/competences/{cid}/official` e `/api/history`), exibir lacunas e valores manuais como tais, e montar a engine de slides com diff de imagem por slide; sem exportação final (F07)."
+**Prompt sugerido para F06B (não executado):** "F06B — A partir do template oficial aprovado pelo PO (arquivo fora do repo), criar o tema oficial versionado (cores, fontes com fallback, master) e as versões de template correspondentes, mapeando cada bloco a `metric_id` + versões de contrato e `required_metrics`; implementar regressão visual por slide com dados sintéticos (tolerância medida, ambiente registrado) e verificação semântica (nº de slides, textos, valores); manter o tema demonstrativo; sem exportação PPTX/PDF (F07)."
 
 ---
 
 ## Versão compacta para o PO
-F05 concluída localmente (`ad4b91f`, CI verde run `38746312757`). Snapshots persistentes por competência (migration 0004, gatilhos de imutabilidade), ciclo DRAFT→REVIEW→APPROVED com lock otimista, aprovador declarado (não autenticado), obrigatórios explícitos, valores manuais tipados/justificados com fonte Veracode preservada, aprovações e auditoria append-only com hash encadeado, histórico 6/12 meses/intervalo só de aprovados com lacunas explícitas. Reporting API: adaptador FINDINGS/SCANS deny-by-default (único POST autorizado, desligado por padrão) testado em mock; **geração real: 1 POST ⇒ HTTP 403 (papel/habilitação ausentes) — BLOCKED_EXTERNAL**. Testes: pytest 411 PASS, E2E 22 PASS (1 intermitência em F03), build/audit/pip/gitleaks OK. Pendência principal: habilitar Reporting API na Veracode; F06 aguardando ordem.
+F06A concluída localmente (`c160494`, CI verde run `38776201083`). Templates tipados e versionados (imutáveis), escolha por cliente/subcliente, 11 tipos de slide, apresentações criadas somente de revisões aprovadas com fontes fixadas por hash e troca explícita, IR de gráficos independente do renderizador (sem números inventados; lacunas/ausências/manuais explícitos), editor HTML 16:9 navegável com pré-visualização ao vivo, dados de origem, revisões e integridade; tema neutro **provisório**. Migration `0005_presentations` com gatilhos. Testes: pytest 438 PASS, E2E 24 PASS, build/audit/pip/gitleaks OK. `scopes.spec.ts` não reproduzido (sem retry). Risco: 1 intermitência rara no editor (causa não provada, mitigada sem retry). F06B aguardando ordem.
