@@ -1,0 +1,404 @@
+{
+  "manifest_version": 1,
+  "case": "alt-fixed-4x3",
+  "slide": {
+    "index": 6,
+    "slide_id": "comparacao-cards",
+    "type": "month_comparison",
+    "layout": "comparison-cards"
+  },
+  "canvas": {
+    "width": 960,
+    "height": 720
+  },
+  "theme": {
+    "id": "visual-alt",
+    "version": 1
+  },
+  "elements": [
+    {
+      "key": "image:logo",
+      "role": "image",
+      "box": {
+        "x": 840,
+        "y": 24,
+        "w": 72,
+        "h": 48
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "header",
+      "role": "header",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 21,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "4560f63fc224b498",
+      "platform_fonts": [
+        "Georgia"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 21,
+      "font": {
+        "family": "Georgia, serif",
+        "size": 30,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "4560f63fc224b498",
+      "platform_fonts": [
+        "Georgia"
+      ]
+    },
+    {
+      "key": "visual",
+      "role": "visual",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 864,
+        "h": 440
+      },
+      "text_length": 93,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "4f8db7c61f183a95",
+      "platform_fonts": []
+    },
+    {
+      "key": "cmp:apps.total",
+      "role": "cmp",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 278.66,
+        "h": 133
+      },
+      "text_length": 47,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": "rgb(255, 255, 255)",
+      "text_hash": "ed201bfd37cee66c",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "cmp-name:apps.total",
+      "role": "cmp-name",
+      "box": {
+        "x": 71,
+        "y": 205,
+        "w": 232.66,
+        "h": 21
+      },
+      "text_length": 20,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 17,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(61, 82, 87)",
+      "background": null,
+      "text_hash": "48f1848bff5bccd5",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "cmp-value:apps.total",
+      "role": "cmp-value",
+      "box": {
+        "x": 71,
+        "y": 232,
+        "w": 232.66,
+        "h": 40
+      },
+      "text_length": 2,
+      "font": {
+        "family": "Consolas, monospace",
+        "size": 40,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "6208ef0f7750c111",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "cmp-detail:apps.total",
+      "role": "cmp-detail",
+      "box": {
+        "x": 71,
+        "y": 278,
+        "w": 232.66,
+        "h": 18
+      },
+      "text_length": 25,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "7f4935cc2c213715",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "cmp:licenses.usage",
+      "role": "cmp",
+      "box": {
+        "x": 340.66,
+        "y": 184,
+        "w": 278.67,
+        "h": 133
+      },
+      "text_length": 46,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": "rgb(255, 255, 255)",
+      "text_hash": "3ef80cfe1772c79b",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "cmp-name:licenses.usage",
+      "role": "cmp-name",
+      "box": {
+        "x": 363.66,
+        "y": 205,
+        "w": 232.67,
+        "h": 21
+      },
+      "text_length": 19,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 17,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(61, 82, 87)",
+      "background": null,
+      "text_hash": "43abcdd0296e781d",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "cmp-value:licenses.usage",
+      "role": "cmp-value",
+      "box": {
+        "x": 363.66,
+        "y": 232,
+        "w": 232.67,
+        "h": 40
+      },
+      "text_length": 2,
+      "font": {
+        "family": "Consolas, monospace",
+        "size": 40,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "0b918943df0962bc",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "cmp-detail:licenses.usage",
+      "role": "cmp-detail",
+      "box": {
+        "x": 363.66,
+        "y": 278,
+        "w": 232.67,
+        "h": 18
+      },
+      "text_length": 25,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "778352ad3d9e9f9d",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 48,
+        "y": 678,
+        "w": 864,
+        "h": 26
+      },
+      "text_length": 78,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "b3f5ecb975848f40",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-custom",
+      "role": "footer-custom",
+      "box": {
+        "x": 48,
+        "y": 686,
+        "w": 165.22,
+        "h": 18
+      },
+      "text_length": 25,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "a39ab61d99c32b8d",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-owner",
+      "role": "footer-owner",
+      "box": {
+        "x": 237.22,
+        "y": 686,
+        "w": 219.3,
+        "h": 18
+      },
+      "text_length": 34,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "b5beb5340dc1f095",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-provisional",
+      "role": "footer-provisional",
+      "box": {
+        "x": 480.52,
+        "y": 686,
+        "w": 117.77,
+        "h": 18
+      },
+      "text_length": 15,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "4607e64e28065645",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 881.3,
+        "y": 686,
+        "w": 30.7,
+        "h": 18
+      },
+      "text_length": 4,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "e6feee4043e67405",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    }
+  ]
+}

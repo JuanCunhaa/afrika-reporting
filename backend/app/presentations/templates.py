@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import ApiError, conflict
 from app.orm import OwnerTemplateSelection, PresentationTemplate, TemplateOrigin, utcnow
+from app.presentations import themes
 from app.presentations.document import TemplateDefinition, validate_template
 from app.scopes import store
 from app.snapshots import audit
@@ -109,14 +110,14 @@ BUILTIN: dict[tuple[str, int], dict] = {
 }
 
 
-def parse_definition(raw: dict) -> TemplateDefinition:
+def parse_definition(raw: dict, session: Session | None = None) -> TemplateDefinition:
     try:
         defn = TemplateDefinition.model_validate(raw)
     except ValidationError as exc:  # sem `input`: nada do que foi enviado volta na resposta
         raise ApiError(422, 'invalid_template', 'Template inválido',
                        [{'field': '.'.join(str(x) for x in e['loc']), 'message': e['msg'], 'type': e['type']}
                         for e in exc.errors()[:100]]) from None
-    validate_template(defn)
+    validate_template(defn, lambda key, version: themes.exists(session, key, version))
     return defn
 
 
@@ -176,7 +177,7 @@ def _insert(session: Session, key: str, version: int, defn: TemplateDefinition, 
 
 
 def create(session: Session, key: str, raw: dict, operator: str) -> PresentationTemplate:
-    defn = parse_definition(raw)
+    defn = parse_definition(raw, session)
     if session.scalar(select(PresentationTemplate.id).where(PresentationTemplate.template_key == key).limit(1)):
         raise conflict('template_exists', 'Já existe template com esta chave: publique uma nova versão')
     t = _insert(session, key, 1, defn, TemplateOrigin.CUSTOM, operator)
@@ -192,7 +193,7 @@ def create_version(session: Session, key: str, raw: dict, operator: str,
                                                     'API: crie um template próprio a partir dele')
     if current.version != expected_version:
         raise conflict('template_conflict', f'O template está na versão {current.version}, não {expected_version}')
-    defn = parse_definition(raw)
+    defn = parse_definition(raw, session)
     if definition_hash(defn) == current.definition_hash:
         raise conflict('template_unchanged', 'Definição idêntica à versão vigente')
     number = (session.scalar(select(func.max(PresentationTemplate.version))

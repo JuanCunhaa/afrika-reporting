@@ -1,0 +1,660 @@
+{
+  "manifest_version": 1,
+  "case": "alt-fixed-4x3",
+  "slide": {
+    "index": 8,
+    "slide_id": "barras-historico",
+    "type": "bar_chart",
+    "layout": "chart-with-text"
+  },
+  "canvas": {
+    "width": 960,
+    "height": 720
+  },
+  "theme": {
+    "id": "visual-alt",
+    "version": 1
+  },
+  "elements": [
+    {
+      "key": "image:logo",
+      "role": "image",
+      "box": {
+        "x": 840,
+        "y": 24,
+        "w": 72,
+        "h": 48
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "header",
+      "role": "header",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 21,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "b07ef5520c47e898",
+      "platform_fonts": [
+        "Georgia"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 21,
+      "font": {
+        "family": "Georgia, serif",
+        "size": 30,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "b07ef5520c47e898",
+      "platform_fonts": [
+        "Georgia"
+      ]
+    },
+    {
+      "key": "visual",
+      "role": "visual",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 506.41,
+        "h": 440
+      },
+      "text_length": 404,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "e67ebbca28e2cb66",
+      "platform_fonts": []
+    },
+    {
+      "key": "chart",
+      "role": "chart",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 506.41,
+        "h": 440
+      },
+      "text_length": 404,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "e67ebbca28e2cb66",
+      "platform_fonts": [
+        "Verdana",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "chart-title",
+      "role": "chart-title",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 506.41,
+        "h": 23
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 19,
+        "weight": "600",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "4eca759f09a837df",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "plot",
+      "role": "plot",
+      "box": {
+        "x": 48,
+        "y": 215,
+        "w": 506.41,
+        "h": 344.34
+      },
+      "text_length": 324,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "e6b4557615fd0d08",
+      "platform_fonts": []
+    },
+    {
+      "key": "bar:2025-10",
+      "role": "bar",
+      "box": {
+        "x": 111.54,
+        "y": 378.2,
+        "w": 20.46,
+        "h": 124.43
+      },
+      "text_length": 22,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "9b2c783eac9ae8c5",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2025-11",
+      "role": "bar",
+      "box": {
+        "x": 129.93,
+        "y": 372.93,
+        "w": 51.87,
+        "h": 154.98
+      },
+      "text_length": 29,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "77cdf092117bc1fb",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "bar:2025-12",
+      "role": "bar",
+      "box": {
+        "x": 179.74,
+        "y": 367.66,
+        "w": 20.46,
+        "h": 134.96
+      },
+      "text_length": 22,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "ea8d36c685b7f8dc",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2026-01",
+      "role": "bar",
+      "box": {
+        "x": 198.13,
+        "y": 362.4,
+        "w": 51.88,
+        "h": 165.51
+      },
+      "text_length": 29,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "008bbf27baa58471",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "bar:2026-02",
+      "role": "bar",
+      "box": {
+        "x": 247.93,
+        "y": 357.13,
+        "w": 20.46,
+        "h": 145.5
+      },
+      "text_length": 22,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "c7ea4a53a5cd9ebe",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2026-03",
+      "role": "bar",
+      "box": {
+        "x": 266.32,
+        "y": 351.87,
+        "w": 51.88,
+        "h": 176.04
+      },
+      "text_length": 29,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "5d74c75b0c100c1a",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "bar:2026-04",
+      "role": "bar",
+      "box": {
+        "x": 306.31,
+        "y": 378.2,
+        "w": 40.4,
+        "h": 124.43
+      },
+      "text_length": 21,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "0dae38d2a2c8e313",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2026-05",
+      "role": "bar",
+      "box": {
+        "x": 334.51,
+        "y": 346.6,
+        "w": 52.14,
+        "h": 181.31
+      },
+      "text_length": 29,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "daaa789873cd2a0b",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "bar:2026-06",
+      "role": "bar",
+      "box": {
+        "x": 384.32,
+        "y": 341.33,
+        "w": 20.46,
+        "h": 161.3
+      },
+      "text_length": 22,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "e090bae94924722d",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2026-07",
+      "role": "bar",
+      "box": {
+        "x": 402.71,
+        "y": 378.2,
+        "w": 52.14,
+        "h": 149.71
+      },
+      "text_length": 28,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "bf9fc2354850eead",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "bar:2026-08",
+      "role": "bar",
+      "box": {
+        "x": 452.51,
+        "y": 336.07,
+        "w": 20.46,
+        "h": 166.56
+      },
+      "text_length": 22,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "633b8d843a11084e",
+      "platform_fonts": [
+        "Consolas"
+      ]
+    },
+    {
+      "key": "bar:2026-09",
+      "role": "bar",
+      "box": {
+        "x": 470.9,
+        "y": 330.8,
+        "w": 52.14,
+        "h": 197.11
+      },
+      "text_length": 29,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "86260887ea869bd0",
+      "platform_fonts": [
+        "Consolas",
+        "Verdana"
+      ]
+    },
+    {
+      "key": "chart-gaps",
+      "role": "chart-gaps",
+      "box": {
+        "x": 48,
+        "y": 567.34,
+        "w": 506.41,
+        "h": 34
+      },
+      "text_length": 68,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 14,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(61, 82, 87)",
+      "background": null,
+      "text_hash": "bbb4093cdbed9ddb",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "side",
+      "role": "side",
+      "box": {
+        "x": 574.41,
+        "y": 184,
+        "w": 337.59,
+        "h": 440
+      },
+      "text_length": 94,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "3a3bd931edd6acbe",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "body:1",
+      "role": "body",
+      "box": {
+        "x": 574.41,
+        "y": 184,
+        "w": 337.59,
+        "h": 46.38
+      },
+      "text_length": 49,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "b4a236143b95cf79",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "body:2",
+      "role": "body",
+      "box": {
+        "x": 574.41,
+        "y": 240.38,
+        "w": 337.59,
+        "h": 46.38
+      },
+      "text_length": 45,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "73d1a23a541a2ac2",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 48,
+        "y": 678,
+        "w": 864,
+        "h": 26
+      },
+      "text_length": 78,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "e817ae603332b405",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-custom",
+      "role": "footer-custom",
+      "box": {
+        "x": 48,
+        "y": 686,
+        "w": 165.22,
+        "h": 18
+      },
+      "text_length": 25,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "a39ab61d99c32b8d",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-owner",
+      "role": "footer-owner",
+      "box": {
+        "x": 237.22,
+        "y": 686,
+        "w": 219.3,
+        "h": 18
+      },
+      "text_length": 34,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "b5beb5340dc1f095",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-provisional",
+      "role": "footer-provisional",
+      "box": {
+        "x": 480.52,
+        "y": 686,
+        "w": 117.77,
+        "h": 18
+      },
+      "text_length": 15,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "4607e64e28065645",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 881.3,
+        "y": 686,
+        "w": 30.7,
+        "h": 18
+      },
+      "text_length": 4,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "b4236e7fae4b1a79",
+      "platform_fonts": [
+        "Verdana"
+      ]
+    }
+  ]
+}

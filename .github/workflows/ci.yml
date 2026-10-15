@@ -67,6 +67,8 @@ jobs:
         run: npm ci
       - name: Typecheck + build
         run: npm run build
+      - name: Motor de comparação visual (testes unitários, imagens sintéticas)
+        run: npm run test:visual-unit
 
   e2e:
     name: E2E (Playwright Chromium)
@@ -78,6 +80,11 @@ jobs:
     env:
       CI: 'true'
       PYTHON: python
+      # F06B.1 — BOOTSTRAP TEMPORÁRIO das referências visuais Linux: sem referência para a plataforma, a regressão
+      # visual guarda as capturas como candidatas (artefato) e mede o ruído; não é modo permanente (remover no
+      # commit que versiona as referências Linux revisadas).
+      VISUAL_BOOTSTRAP: '1'
+      VISUAL_MEASURE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,3 +106,14 @@ jobs:
       # Banco SQLite descartável criado pelo próprio webServer (migrate + seed sintético). Sem segredos.
       - name: Playwright E2E
         run: npm run test:e2e
+      # Só dados SINTÉTICOS (capturas, manifestos, diffs e relatório da regressão visual).
+      - name: Relatório de regressão visual (artefato)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-regression
+          path: |
+            frontend/test-results/visual/
+            frontend/visual/tolerances.json
+          if-no-files-found: warn
+          retention-days: 14

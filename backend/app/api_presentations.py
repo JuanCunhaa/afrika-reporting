@@ -17,19 +17,24 @@ Nenhum endpoint daqui escreve em snapshots, aprovações ou execuções da F05/F
 - `GET  /api/presentations/{pid}/view[?revision=n]`               modelo de visualização (slides + IR)
 - `POST /api/presentations/{pid}/preview`                         visualização de documento NÃO salvo (sem gravar)
 - `GET  /api/presentations/{pid}/integrity`                       verificação de hashes e referências
+- `GET  /api/presentation-themes` | `POST`                        temas (embutidos + próprios) / cria tema próprio
+- `GET  /api/presentation-themes/{key}/versions/{v}`              tema completo (tokens)
+- `POST /api/presentation-themes/{key}/versions`                  publica nova versão de tema próprio
+- `POST /api/theme-assets` | `GET /api/theme-assets/{sha256}`     ativos locais do tema (logo/fonte; fora do Git)
 """
 from __future__ import annotations
 
 import uuid
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.api import SessionDep
-from app.presentations import catalog, service, templates, view
+from app.errors import ApiError
+from app.presentations import assets, catalog, service, templates, themes, view
 from app.presentations.document import Document, TemplateKey, validate_document
-from app.presentations.themes import public_themes
+from app.presentations.themes import ThemeKey
 from app.scopes import store
 
 router = APIRouter(tags=['presentations'])
@@ -88,6 +93,18 @@ class PreviewIn(_Strict):
     document: Document
 
 
+class ThemeIn(_Strict):
+    key: ThemeKey
+    definition: dict[str, Any]
+    operator: Declared
+
+
+class ThemeVersionIn(_Strict):
+    definition: dict[str, Any]
+    operator: Declared
+    expected_version: int = Field(ge=1)
+
+
 class RebindIn(_Strict):
     expected_revision: int = Field(ge=1)
     operator: Declared
@@ -97,8 +114,56 @@ class RebindIn(_Strict):
 # ---------------------------------------------------------------- catálogo e templates
 
 @router.get('/api/presentation-catalog')
-def get_catalog():
-    return {**catalog.public_catalog(), 'themes': public_themes()}
+def get_catalog(session: SessionDep):
+    return {**catalog.public_catalog(), 'themes': themes.list_all(session)}
+
+
+# ---------------------------------------------------------------- temas e ativos (F06B.1)
+
+@router.get('/api/presentation-themes')
+def list_themes(session: SessionDep):
+    return {'items': themes.list_all(session)}
+
+
+@router.get('/api/presentation-themes/{key}/versions/{version}', responses=_ERRORS)
+def get_theme(key: ThemeKey, version: int, session: SessionDep):
+    if not themes.exists(session, key, version):
+        raise ApiError(404, 'theme_not_found', 'Tema (ou versão) não encontrado')
+    defn, public = themes.load(session, key, version)
+    return {**public, 'missing_assets': themes.missing_assets(defn)}
+
+
+@router.post('/api/presentation-themes', status_code=201, responses=_ERRORS)
+def create_theme(data: ThemeIn, session: SessionDep):
+    return themes.create(session, data.key, data.definition, data.operator)
+
+
+@router.post('/api/presentation-themes/{key}/versions', status_code=201, responses=_ERRORS)
+def create_theme_version(key: ThemeKey, data: ThemeVersionIn, session: SessionDep):
+    return themes.create_version(session, key, data.definition, data.operator, data.expected_version)
+
+
+@router.post('/api/theme-assets', status_code=201, responses={**_ERRORS, 413: {'description': 'Arquivo grande demais'}})
+async def upload_asset(request: Request):
+    """Corpo = bytes do arquivo (PNG, JPEG, SVG, WOFF2, WOFF, TTF, OTF). Tipo detectado pela assinatura."""
+    declared = request.headers.get('content-length')
+    if declared and declared.isdigit() and int(declared) > assets.MAX_ASSET_BYTES:
+        raise ApiError(413, 'asset_too_large', 'Arquivo maior que o limite')
+    data = bytearray()
+    async for chunk in request.stream():
+        data += chunk
+        if len(data) > assets.MAX_ASSET_BYTES:
+            raise ApiError(413, 'asset_too_large', 'Arquivo maior que o limite')
+    return assets.add(bytes(data))
+
+
+@router.get('/api/theme-assets/{asset_id}', responses=_ERRORS)
+def get_asset(asset_id: str):
+    data, media_type = assets.read(asset_id)
+    # Conteúdo endereçado por hash (imutável). SVG nunca executa script: CSP restritiva + sandbox + nosniff.
+    return Response(content=data, media_type=media_type, headers={
+        'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, max-age=31536000, immutable',
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
 
 
 @router.get('/api/presentation-templates')

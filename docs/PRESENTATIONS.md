@@ -1,4 +1,4 @@
-# Motor de apresentações (F06A)
+# Motor de apresentações (F06A + F06B.1)
 
 Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`, `templates.py`, `charts.py`, `view.py`,
 `service.py`), API `backend/app/api_presentations.py`, migration `0005_presentations`; frontend
@@ -14,10 +14,11 @@ Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`,
 |---|---|---|
 | Dados e proveniência | F05 (`snapshots`) + `view.load_entries/resolve` | revisões **aprovadas** fixadas; valor, estado, origem, fonte técnica, hashes |
 | Modelo de apresentação | `document.py` (template, documento) | slides ordenados, tipo, layout, campos editoriais, `metric_id`, opções — **sem números** |
-| Tema | `themes.py` | tokens de cor/fonte/tamanho, canvas 1280×720 (16:9), aviso de provisório |
+| Tema | `themes.py` + `assets.py` (F06B.1) | tema versionado com tokens COMPLETOS (cores, fontes, tamanhos, espaçamentos, regiões, cabeçalho/rodapé, capa, fundos, imagens, gráficos, canvas) — ver `docs/THEMES.md` |
 | Layout | `catalog.py` (layouts por tipo) + CSS do renderizador | posição dos blocos por layout |
 | IR de gráficos | `charts.py` | barras, linhas, severidade, ranking, comparação, tabela, KPI — independente do renderizador |
-| Renderização HTML | `SlideView.tsx` | desenha a IR (SVG/HTML nativos, texto selecionável) |
+| Renderização HTML | `SlideView.tsx` + `theme.ts` | desenha a IR (SVG/HTML nativos, texto selecionável); só lê tokens do tema; `#/render/{id}` = captura determinística em escala 1 |
+| Regressão visual | `frontend/visual/` (F06B.1) | captura + manifesto + comparação por imagem com tolerância medida — ver `docs/VISUAL_REGRESSION.md` |
 | Exportação PPTX/PDF | **F07 (não implementada)** | consumirá a mesma visualização (IR + tema), gerando objetos nativos editáveis |
 
 ## Fluxo
@@ -76,6 +77,19 @@ auditoria (cadeia F05): `template.version_created`, `template.selected`, `presen
   dados de origem (valor aprovado, estado, fonte técnica, homologação, justificativa manual, revisões fixadas);
   histórico de revisões (visualização somente leitura); verificação de integridade.
 
+## Editor — confiabilidade (F06B.1)
+- O estado salvo vem da resposta do `PUT` (fonte da verdade). A releitura seguinte só atualiza metadados e visualização:
+  **edições feitas durante o salvamento não são sobrescritas** (defeito reproduzido e corrigido) e uma falha na
+  releitura após HTTP 200 é informada como "a revisão N foi gravada, mas a releitura falhou" (sem nova tentativa
+  automática, sem "alterações não salvas" falso).
+- Gerações de resposta: toda edição, recarga ou salvamento invalida pré-visualizações em voo; resposta antiga nunca
+  substitui a tela (inclusive após "Descartar" — defeito reproduzido e corrigido — ou ao voltar manualmente ao texto
+  salvo). Duplo clique em "Salvar" gera um único `PUT` (guarda síncrona).
+- Concorrência entre abas: `expected_revision` ⇒ 409 na segunda, edição preservada para o operador decidir.
+- Testes: `frontend/e2e/editor-reliability.spec.ts` (rede interceptada: atraso/falha determinísticos) e
+  `backend/tests/test_editor_reliability.py` (leitura após escrita sob leitores concorrentes, revisão vencida,
+  reinício).
+
 ## Preparação para PPTX/PDF (F07)
 - A IR já traz tudo que um exportador precisa sem reler snapshots: categorias, séries, `y` bruto, rótulo formatado,
   tokens de cor, eixos, unidade, legenda, lacunas e referências de dados.
@@ -84,7 +98,23 @@ auditoria (cadeia F05): `template.version_created`, `template.selected`, `presen
   zero); textos ⇒ placeholders editáveis; tema ⇒ cores/fontes do master. Sem converter slides em imagem.
 - PDF: impressão do HTML em ambiente controlado ou derivado do PPTX — escolha e fidelidade **NOT_VERIFIED**.
 
-## Limitações (F06A)
+### Editabilidade prevista por elemento (F06B.1; a validar no spike da F07)
+| Elemento | No PPTX futuro | Observação |
+|---|---|---|
+| Títulos, subtítulos, textos, tópicos, legendas, notas | caixa de texto/placeholder **editável** | fonte/tamanho/cor do tema; `export_family` quando a fonte do tema não existir no PowerPoint |
+| KPIs, comparação, tabela de indicadores, ranking | tabela/caixas de texto **editáveis** | valores = rótulos já formatados da IR; proveniência no texto alternativo (`data-provenance`) |
+| Barras, linhas, série histórica | gráfico **nativo** editável (dados da IR; lacuna = ponto vazio) | sem planilha externa; rótulos de mês rarefeitos são só HTML |
+| Severidade | gráfico de barras horizontais nativo ou tabela | textura da "desconhecida" depende de padrão de preenchimento |
+| Logos, imagens de fundo | imagem (ativo local) | não editável como vetor; SVG precisa de PNG de reserva |
+| Faixas, barra de destaque, separadores | formas nativas | |
+| Lacuna (tracejado), aviso "indisponível" | forma com contorno tracejado + texto | nunca zero |
+| Rótulos de eixo calculados (escala) | gerados pelo gráfico nativo | escala pode diferir do HTML (geometria, não dado) |
+Não reproduzíveis como objeto editável: efeitos CSS sem equivalente (ex.: textura repetida exata), `object-fit: cover`
+de imagens (vira recorte), rarefação de rótulos (o PowerPoint decide).
+
+## Limitações (F06A; atualizadas na F06B.1)
+- F06B.1: temas versionados por cliente e motor visual prontos; **template oficial ainda não recebido** — a reprodução
+  definitiva e a comparação com o PPTX aprovado continuam pendentes.
 - Tema e templates demonstrativos; fidelidade a template oficial (diff visual por slide) depende do arquivo aprovado.
 - Sem exportação (F07); sem autenticação (autor/operador declarados); SQLite local.
 - Valores de estrutura livre (distribuições/rankings manuais) só viram gráfico com adaptador explícito por indicador;

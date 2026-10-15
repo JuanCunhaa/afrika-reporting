@@ -524,3 +524,21 @@ class PresentationRevision(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
 
     presentation: Mapped[Presentation] = relationship(back_populates='revisions')
+
+
+class PresentationTheme(Base):
+    """Versão IMUTÁVEL de um tema visual próprio (append-only por gatilho; F06B.1). Temas embutidos ficam no código.
+    A definição é o JSON canônico COMPLETO (tokens resolvidos) e `definition_hash` cobre todos os valores."""
+    __tablename__ = 'presentation_themes'
+    __table_args__ = (CheckConstraint('version >= 1', name='version_positive'),
+                      UniqueConstraint('theme_key', 'version', name='uq_presentation_themes_theme_key_version'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    theme_key: Mapped[str] = mapped_column(String(60), nullable=False)
+    version: Mapped[int] = mapped_column(Integer(), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    provisional: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    definition_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)

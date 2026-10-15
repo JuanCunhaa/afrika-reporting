@@ -73,21 +73,33 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
   const [integrity, setIntegrity] = useState<PresentationIntegrity | null>(null);
   const [presenting, setPresenting] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [savedView, setSavedView] = useState<PresentationView | null>(null); // visualização da revisão salva
+
+  // F06B.1 — ordem das respostas: `seq` invalida pré-visualizações em voo (toda edição, recarga ou salvamento cria
+  // uma nova geração; resposta de geração antiga é descartada); `loadSeq` faz valer só a recarga mais recente.
+  const seq = useRef(0);
+  const loadSeq = useRef(0);
+  const saving = useRef(false); // guarda síncrona contra duplo clique (o estado `busy` só vale após re-render)
 
   const reload = useCallback(async () => {
     setError('');
+    const n = ++loadSeq.current;
+    seq.current++;
     try {
       const [m, c] = await Promise.all([presentations.get(pid), catalog ? Promise.resolve(catalog) : presentations.catalog()]);
       const [r, v] = await Promise.all([presentations.revision(pid, m.current_revision), presentations.view(pid)]);
+      if (n !== loadSeq.current) return;
+      seq.current++;
       setMeta(m);
       setCatalog(c);
       setDoc(r.document);
       setSaved(r.document);
       setView(v);
+      setSavedView(v);
       setViewing(null);
       setPreviewError(null);
     } catch (e) {
-      setError(errorMessage(e));
+      if (n === loadSeq.current) setError(errorMessage(e));
     }
   }, [pid, catalog]);
 
@@ -98,10 +110,16 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
 
   const dirty = doc !== null && saved !== null && JSON.stringify(doc) !== JSON.stringify(saved);
 
-  // Pré-visualização ao vivo do documento não salvo (servidor monta a IR; nada é gravado).
-  const seq = useRef(0);
+  // Pré-visualização ao vivo do documento não salvo (servidor monta a IR; nada é gravado). Sem alterações pendentes,
+  // nenhuma pré-visualização em voo pode mais substituir a tela: vale a visualização da revisão salva.
   useEffect(() => {
-    if (!doc || !dirty || viewing !== null) return;
+    if (!doc || viewing !== null) return;
+    if (!dirty) {
+      seq.current++;
+      if (savedView) setView(savedView);
+      setPreviewError(null); // erro de um rascunho que não existe mais
+      return;
+    }
     const n = ++seq.current;
     const t = window.setTimeout(() => {
       presentations
@@ -110,7 +128,7 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
         .catch((e) => n === seq.current && setPreviewError(e instanceof ApiError ? e : new ApiError(0, 'error', errorMessage(e))));
     }, 250);
     return () => window.clearTimeout(t);
-  }, [doc, dirty, pid, viewing]);
+  }, [doc, dirty, pid, viewing, savedView]);
 
   if (error && !meta) return <ErrorBox message={error} onRetry={reload} />;
   if (!meta || !doc || !view || !catalog) return <Loading label="Carregando apresentação…" />;
@@ -161,16 +179,39 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
       setBusy(false);
     }
   };
-  const save = () =>
-    act(async () => {
-      // O estado salvo vem da resposta do PUT: se o recarregamento seguinte falhar, a tela não volta a dizer
-      // "alterações não salvas" sobre um conteúdo que já foi gravado.
-      const m = await presentations.save(pid, doc, meta.current_revision, operator, summary);
+  // F06B.1 — salvar: o estado salvo vem da resposta do PUT (fonte da verdade). A releitura seguinte só atualiza
+  // metadados/visualização: NUNCA sobrescreve edições feitas enquanto o PUT estava em andamento, e uma falha nela é
+  // informada como tal (a revisão já foi gravada; sem nova tentativa automática).
+  const save = async () => {
+    if (saving.current || !doc) return;
+    saving.current = true;
+    const sent = doc;
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const m = await presentations.save(pid, sent, meta.current_revision, operator, summary);
       setMeta(m);
-      setSaved(doc);
+      setSaved(sent);
       setSummary('');
-      await reload();
-    }, 'Nova revisão salva.');
+      setMessage(`Revisão ${m.current_revision} salva.`);
+      const n = ++seq.current;
+      try {
+        const [r, v] = await Promise.all([presentations.revision(pid, m.current_revision), presentations.view(pid)]);
+        setSaved(r.document);
+        setDoc((cur) => (cur !== null && JSON.stringify(cur) === JSON.stringify(sent) ? r.document : cur));
+        setSavedView(v);
+        if (n === seq.current) setView(v); // senão, uma edição mais nova já pediu a própria pré-visualização
+      } catch (e) {
+        setError(`A revisão ${m.current_revision} foi gravada, mas a releitura falhou: ${errorMessage(e)}. Recarregue a página para atualizar a visualização.`);
+      }
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      saving.current = false;
+      setBusy(false);
+    }
+  };
   const rebind = () =>
     act(async () => {
       await presentations.rebind(pid, meta.current_revision, operator);
@@ -205,8 +246,16 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
         <strong>não são editáveis aqui</strong>. Para corrigir um indicador, crie uma nova revisão em{' '}
         <a href={`#/snapshots/${view.competence.id}`}>Competências</a>, aprove-a e use “Atualizar fontes aprovadas”.
       </p>
-      {error && <ErrorBox message={error} />}
-      {message && <p role="status">{message}</p>}
+      {error && (
+        <div data-testid="editor-error">
+          <ErrorBox message={error} />
+        </div>
+      )}
+      {message && (
+        <p role="status" data-testid="editor-message">
+          {message}
+        </p>
+      )}
       {previewError && (
         <div role="alert" className="error-box" data-testid="preview-error">
           <span>

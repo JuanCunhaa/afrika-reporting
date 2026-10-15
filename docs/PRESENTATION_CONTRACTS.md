@@ -1,4 +1,4 @@
-# Contratos de templates, documentos e gráficos (F06A)
+# Contratos de templates, documentos e gráficos (F06A + F06B.1)
 
 Fonte de verdade do código: `backend/app/presentations/document.py` (esquemas Pydantic, `extra='forbid'`),
 `catalog.py` (tipos de slide) e `charts.py` (IR). Catálogo em tempo de execução: `GET /api/presentation-catalog`.
@@ -30,10 +30,18 @@ Fonte de verdade do código: `backend/app/presentations/document.py` (esquemas P
 - Validação: tema existente, `slot_id` único, layout do tipo, campos editáveis do tipo, opções aplicáveis,
   quantidade de indicadores, indicador existente e compatível com o tipo de slide.
 
+## Tema (F06B.1)
+`theme: {id, version}` aponta para um tema embutido (`neutral-demo@1`, provisório) ou próprio (tabela
+`presentation_themes`, append-only). O tema existe quando o template é criado (senão 422 `unknown_theme`). Formato completo
+e validações: `docs/THEMES.md`. A visualização (`GET …/view`) traz `theme` completo (+ `canvas.aspect_ratio` derivado)
+e o aviso `theme_asset_missing` se um ativo local faltar. `GET /api/presentation-catalog` lista **resumos** de temas
+(`id, version, name, provisional, origin, versions, definition_hash`) — mudança da F06B.1 (antes: definição do tema
+embutido).
+
 ## Tipos de slide (componentes disponíveis — nenhum é obrigatório por si)
 | Tipo | Layouts | Indicadores | Tipos de valor | IR |
 |---|---|---|---|---|
-| `cover` Capa | cover | 0 | — | dono, competência, período, apresentadores |
+| `cover` Capa | cover | 0 | — | dono, competência, período (+ `period_label` `dd/mm/aaaa a dd/mm/aaaa`, F06B.1), apresentadores |
 | `executive_summary` Sumário | text-with-highlights, text-only | 0–4 | count, decimal, percentage, by_severity | kpi |
 | `kpis` KPIs | kpi-grid | 1–6 | idem | kpi |
 | `month_comparison` Mês × anterior | comparison-table, comparison-cards | 1–6 | idem | comparison |
@@ -78,7 +86,7 @@ Ponto: `{x, y, state, label, value_state, origin, competence, metric_id[, color,
 | `table` | `rows[{metric_id, name, state, value, y, unit_label, value_state, origin, source}]` |
 
 ### Cores
-Tokens do tema; o renderizador resolve. Séries: `series.1…4` na ordem de vinculação (fixa, nunca por posição de
+Tokens do tema; o renderizador resolve (tokens obrigatórios em `docs/THEMES.md`). Séries: `series.1…4` na ordem de vinculação (fixa, nunca por posição de
 ranking; máx. 4 séries por gráfico de linhas). Severidade: rampa ordinal de um tom (`severity.VERY_HIGH` mais escura
 → `severity.INFORMATIONAL` mais clara) + `severity.UNKNOWN` cinza com textura. Lacuna: `gap` (contorno tracejado).
 Paleta validada com o validador de paleta (categórica 4 slots: PASS, aviso de contraste ⇒ rótulos visíveis; rampa de
@@ -91,6 +99,9 @@ severidade: PASS no modo claro do canvas). Identidade nunca só por cor: rótulo
 - Formato pt-BR (milhar `.`, decimal `,`). Contagens: inteiras, sem arredondamento. `decimal`: 2 casas; `percentage`:
   1 casa + `%`; arredondamento **meio-par** só no rótulo — `y` preserva o valor bruto.
 - Linhas: segmentos só entre meses consecutivos com valor; lacuna quebra a linha (sem interpolação).
+- F06B.1 (renderização): eixo de meses sem espaço mostra um rótulo a cada N meses (sempre o último) em vez de truncar;
+  categorias longas continuam truncadas no eixo, com o nome completo no título do elemento. Geometria do gráfico
+  (viewBox, recuos, barras, linhas, rótulos) vem de `theme.charts`.
 
 ### Adaptadores de estrutura (distribuições e rankings)
 Explícitos por indicador (`charts._CATEGORY_ADAPTERS`, `_FIXED_KEYS`): `apps.by_business_unit`, `apps.by_team`,

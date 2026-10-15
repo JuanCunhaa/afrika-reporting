@@ -21,7 +21,7 @@ from app.presentations import charts
 from app.presentations.catalog import SLIDE_TYPES, SlideType
 from app.presentations.document import Document, Slide, TemplateDefinition, contract_versions
 from app.presentations.templates import definition_of, template_out
-from app.presentations.themes import get_theme
+from app.presentations import themes
 from app.scopes import store
 from app.snapshots import history, service
 from app.snapshots.values import headline, loads, value_state
@@ -99,6 +99,13 @@ def resolve(entries: dict, label: str, metric_id: str, versions: list[int]) -> d
 
 # ---------------------------------------------------------------- slides
 
+def period_label(period: dict) -> str:
+    """'01/09/2026 a 30/09/2026' a partir do período da competência (datas locais do fuso da competência)."""
+    def br(iso: str) -> str:
+        return f'{iso[8:10]}/{iso[5:7]}/{iso[0:4]}'
+    return f"{br(period['period_start'])} a {br(period['period_end_inclusive'])}"
+
+
 def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinition, doc: Document,
                 owner: store.Owner, comp: Competence) -> tuple[dict | None, list[dict]]:
     o, f = slide.options, slide.fields
@@ -108,6 +115,7 @@ def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinitio
     if t in (SlideType.COVER, SlideType.CLOSING):
         data = {'kind': 'cover' if t is SlideType.COVER else 'closing', 'owner': owner.name,
                 'owner_kind': owner.kind, 'competence': comp.label, 'period': service.period(comp),
+                'period_label': period_label(service.period(comp)),
                 'presenters': [p.model_dump() for p in doc.presenters] if o.show_presenters else []}
     elif t is SlideType.RECOMMENDATIONS:
         data = None
@@ -218,7 +226,11 @@ def build(session: Session, p: Presentation, prev: PresentationRevision, draft: 
               for m in ref_problems] + _freshness(session, comp, sources)
     blockers = sum(1 for s in slides for i in s['issues'] if i['level'] == 'blocker') + \
         sum(1 for c in checks if c['level'] == 'blocker')
-    theme = get_theme(tmpl.theme_id, tmpl.theme_version)
+    theme_defn, theme = themes.load(session, tmpl.theme_id, tmpl.theme_version)
+    missing = themes.missing_assets(theme_defn)
+    checks += [{'level': 'warning', 'code': 'theme_asset_missing', 'metric_id': None,
+                'message': f'Ativo do tema ausente no armazenamento local ({a[:12]}…): o elemento não é exibido.'}
+               for a in missing]
     return {'presentation': {'id': str(p.id), 'title': doc.title, 'current_revision': p.current_revision},
             'draft': draft is not None,
             'revision': {'number': prev.number, 'created_by': prev.created_by,

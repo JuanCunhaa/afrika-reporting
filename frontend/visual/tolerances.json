@@ -1,0 +1,28 @@
+{
+  "tolerance_version": 1,
+  "comparison": {
+    "color_threshold": 0,
+    "detect_antialiasing": true,
+    "cell_size": 16
+  },
+  "geometry": {
+    "position": 0,
+    "size": 0
+  },
+  "platforms": {
+    "win32": {
+      "max_diff_pixels": 0,
+      "max_aa_pixels": 0,
+      "measured_noise": {
+        "runs": 3,
+        "slides": 19,
+        "max_diff_pixels": 0,
+        "max_aa_pixels": 0,
+        "max_geometry_delta": 0
+      },
+      "measured_at": "2026-10-15T21:07:06.097Z",
+      "chromium": "156.0.8078.4",
+      "basis": "ruído máximo observado em 3 capturas independentes por slide nesta plataforma"
+    }
+  }
+}

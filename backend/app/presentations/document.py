@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -17,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from app.errors import ApiError
 from app.metrics.registry import REGISTRY
 from app.presentations.catalog import SLIDE_TYPES, SlideType, compatible
-from app.presentations.themes import THEMES
+from app.presentations.themes import builtin_exists
 
 SCHEMA_VERSION = 1
 MAX_SLIDES = 40
@@ -147,9 +148,10 @@ def _slide_errors(where: str, type_: SlideType, layout: str | None, fields: Slid
     return out
 
 
-def validate_template(defn: TemplateDefinition) -> None:
+def validate_template(defn: TemplateDefinition,
+                      theme_exists: Callable[[str, int], bool] = builtin_exists) -> None:
     errors = []
-    if (defn.theme.id, defn.theme.version) not in THEMES:
+    if not theme_exists(defn.theme.id, defn.theme.version):
         errors.append(_err('theme', 'Tema inexistente', 'unknown_theme'))
     ids = [s.slot_id for s in defn.slides]
     if len(set(ids)) != len(ids):

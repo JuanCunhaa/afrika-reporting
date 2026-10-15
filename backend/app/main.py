@@ -20,11 +20,12 @@ from app.veracode.reporting import ReportingJobs
 from app.veracode.http import VeracodeHttpPool
 from app.veracode.settings import VeracodeSettings
 
-DESCRIPTION = ('F06A: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
+DESCRIPTION = ('F06B.1: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
                '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio '
                '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência '
                '+ snapshots por competência, revisões, aprovação auditável e séries históricas '
-               '+ Reporting API (única escrita autorizada: POST de geração de relatório, desligado por padrão). '
+               '+ Reporting API (única escrita autorizada: POST de geração de relatório, desligado por padrão) '
+               '+ apresentações com templates e temas visuais versionados (ativos locais, fora do Git). '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -56,7 +57,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
             await pool.aclose()
             engine.dispose()
 
-    app = FastAPI(title='Afrika Reporting API', version='0.6.0', description=DESCRIPTION, lifespan=lifespan)
+    app = FastAPI(title='Afrika Reporting API', version='0.6.1', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
 
@@ -75,7 +76,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'phase': 'F06A', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
+        return {'status': 'ok', 'phase': 'F06B.1', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
 
     return app
 

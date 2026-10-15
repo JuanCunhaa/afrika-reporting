@@ -1,0 +1,2 @@
+# F06B.1: referências visuais e imagens são binárias (sem conversão de fim de linha)
+*.png binary

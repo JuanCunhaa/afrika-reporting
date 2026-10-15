@@ -8,6 +8,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { PresentationEditorPage } from './pages/PresentationEditorPage';
 import { PresentationsPage } from './pages/PresentationsPage';
+import { RenderPage } from './pages/RenderPage';
 import { ReportingPage } from './pages/ReportingPage';
 import { ScopesPage } from './pages/ScopesPage';
 import { SnapshotsPage } from './pages/SnapshotsPage';
@@ -33,6 +34,9 @@ function App() {
   const metricsMatch = path.match(/^\/metrics(?:\/clients\/([0-9a-f-]{36}))?$/i);
   const snapshotsMatch = path.match(/^\/snapshots(?:\/([0-9a-f-]{36})(?:\/(\d+))?)?$/i);
   const presentationMatch = path.match(/^\/presentations\/([0-9a-f-]{36})$/i);
+  const renderMatch = path.match(/^\/render\/([0-9a-f-]{36})(?:\/(\d+))?$/i);
+  // F06B.1: captura determinística dos slides (sem a interface da aplicação).
+  if (renderMatch) return <RenderPage key={path} pid={renderMatch[1]} revision={renderMatch[2] ? Number(renderMatch[2]) : undefined} />;
 
   let page: React.ReactNode;
   if (path === '/connections') page = <ConnectionsPage />;
@@ -63,7 +67,7 @@ function App() {
       <header>
         <small>AFRIKA / REPORTING</small>
         <h1>Central de relatórios AppSec</h1>
-        <p>F06A — cadastro, descoberta Veracode somente leitura, escopos, indicadores, snapshots aprovados, histórico e apresentações (tema provisório).</p>
+        <p>F06B.1 — cadastro, descoberta Veracode somente leitura, escopos, indicadores, snapshots aprovados, histórico e apresentações com temas versionados (tema provisório).</p>
         <nav aria-label="Principal">
           <a href="#/clients" aria-current={path.startsWith('/clients') || path.startsWith('/veracode') || path.startsWith('/scopes') ? 'page' : undefined}>
             Clientes
@@ -89,7 +93,7 @@ function App() {
         </nav>
       </header>
       {page}
-      <footer>F06A • API local (loopback) sem autenticação — operador/aprovador são declarados, não autenticados • Indicadores não homologados contra o dashboard</footer>
+      <footer>F06B.1 • API local (loopback) sem autenticação — operador/aprovador são declarados, não autenticados • Indicadores não homologados contra o dashboard</footer>
     </main>
   );
 }

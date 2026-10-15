@@ -11,7 +11,7 @@ def test_health(api):
     assert r.status_code == 200
     body = r.json()
     assert body.pop('veracode_mode') in ('live', 'fixture')
-    assert body == {'status': 'ok', 'phase': 'F06A', 'data': 'local', 'auth': 'none'}
+    assert body == {'status': 'ok', 'phase': 'F06B.1', 'data': 'local', 'auth': 'none'}
 
 
 def test_demo_metric_endpoint_was_removed(api):

@@ -78,3 +78,22 @@
   limitada); todo outro POST/PUT/PATCH/DELETE bloqueado antes da rede (testado com o pool habilitado). POST sem retry em
   5xx (sem duplicatas); cota 6/h, 1 simultâneo, polling/páginas/prazo limitados. Itens minimizados na leitura, nada
   persistido; logs só com id da execução, status e contagens (teste de vazamento com DEBUG).
+
+## Controles implementados na F06B.1 (temas, ativos, inspeção PPTX, regressão visual)
+- **Recursos proprietários fora do Git**: temas próprios só no banco local; logos/fontes no armazenamento local de
+  ativos (`AFRIKA_ASSET_DIR`, padrão `data/theme-assets/`, ignorado); o tema guarda só `{sha256, media_type}`. PPTX,
+  PDF e relatórios de inspeção (`output/`, `private/`) ignorados pelo Git; a CLI recusa gravar relatório em área
+  versionável. Fixtures de teste (PPTX, PNG, temas) são sintéticas e geradas em tempo de execução.
+- **Ativos**: tipo pela assinatura dos bytes (PNG, JPEG, SVG, WOFF2, WOFF, TTF, OTF), ≤ 5 MB, endereçamento por SHA-256
+  (sem nome original). SVG só sem DOCTYPE/entidades, `script`, `foreignObject`, eventos `on*`, referências/`url()`
+  externas ou `@import`; servido com `nosniff`, CSP `default-src 'none'; sandbox` e conferência do hash antes de servir
+  (adulterado ⇒ 409). Renderização só por `<img>`/`@font-face` com URL local.
+- **Tema**: esquema estrito (`extra='forbid'`); cores só `#RRGGBB`; nomes de família sem aspas/vírgulas/ponto e vírgula
+  (impede injeção de CSS); textos sem `<`/`>`/controle; versões append-only (gatilho) com auditoria.
+- **Inspeção PPTX**: 100% local (biblioteca padrão), sem rede, sem execução de macros/OLE, sem leitura de planilhas
+  incorporadas, sem extração para disco; limites contra zip bomb, XML com DOCTYPE/entidades recusado. Nenhum texto,
+  valor, nota ou comentário copiado; modo `strict` (padrão) também omite nomes e destinos de vínculos.
+- **Regressão visual**: só dados sintéticos; manifesto grava hash do texto (não o texto); artefato do CI contém apenas
+  capturas da fixture sintética.
+- Nenhuma chamada à Veracode nesta fase.
+

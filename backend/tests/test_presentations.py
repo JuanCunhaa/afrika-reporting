@@ -578,7 +578,7 @@ def test_downgrade_refuses_to_drop_saved_presentations(env, db_url, monkeypatch)
         db.downgrade(db_url, '0004_snapshots')
     engine = db.make_engine(db_url)
     try:
-        assert db.current_revision(engine) == '0005_presentations'
+        assert db.current_revision(engine) == '0005_presentations'  # 0006 (sem temas próprios) desceu; 0005 recusou
     finally:
         engine.dispose()
 
@@ -592,7 +592,10 @@ def test_catalog_lists_all_slide_types_and_compatible_metrics(env):
     assert 'severity_distribution' in m['sast.policy.open.by_severity']['slide_types']
     assert 'severity_distribution' not in m['apps.total']['slide_types']
     assert 'top10_ranking' in m['sca.policy.open.top_components']['slide_types']
-    assert cat['themes'][0]['provisional'] is True and cat['themes'][0]['canvas']['aspect_ratio'] == '16:9'
+    # F06B.1: o catálogo lista RESUMOS de temas (embutidos + próprios); o tema completo vem por versão
+    assert cat['themes'][0]['id'] == 'neutral-demo' and cat['themes'][0]['provisional'] is True
+    theme = env.call('GET', '/api/presentation-themes/neutral-demo/versions/1')
+    assert theme['canvas'] == {'width': 1280, 'height': 720, 'aspect_ratio': '16:9'}
 
 
 # ---------------------------------------------------------------- IR (unidade)
@@ -647,7 +650,7 @@ def test_upgrade_from_f05_database_with_approved_history(db_url):
         with engine.connect() as conn:
             assert conn.execute(text('SELECT COUNT(*) FROM approvals')).scalar() == 1
         db.upgrade(db_url)
-        assert db.current_revision(engine) == '0005_presentations'
+        assert db.current_revision(engine) == db.head_revision() == '0006_themes'
     finally:
         engine.dispose()
     with TestClient(create_app(db_url)) as api:

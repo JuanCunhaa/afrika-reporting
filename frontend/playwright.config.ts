@@ -39,6 +39,8 @@ export default defineConfig({
         ...process.env,
         ...veracodeFixtureEnv,
         AFRIKA_DATABASE_URL: dbUrl,
+        // F06B.1: ativos de tema (logos/fontes sintéticos) num diretório descartável do E2E, nunca em data/.
+        AFRIKA_ASSET_DIR: process.env.AFRIKA_E2E_DB.replace(/\.sqlite3$/, '-assets'),
         CORS_ORIGINS: `http://127.0.0.1:${UI_PORT}`,
       } as Record<string, string>,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
