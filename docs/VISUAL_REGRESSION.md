@@ -47,7 +47,7 @@ versionadas: `frontend/visual/baselines/<plataforma>/<caso>/NN-slot.{png,json}`;
 | Plataforma | Medição | Ruído (dif./antisserr./geometria) | Tolerância aplicada |
 |---|---|---|---|
 | win32 (Chromium 156.0.8078.4) | 3 capturas × 19 slides (2026-10-15) | 0 / 0 / 0 px | 0 / 0 / 0 |
-| linux (CI) | *a medir no bootstrap do CI* | — | — |
+| linux (CI ubuntu-latest, Chromium 156.0.8078.4) | 3 capturas × 38 slides (run `38814142754`) + comparação entre 2 execuções de CI | 0 / 0 / 0 px; entre runners: 37/38 idênticos (o 38º foi o slide corrigido entre as execuções) | 0 / 0 / 0 |
 
 Por que referências por plataforma: a rasterização de fontes difere entre sistemas (DirectWrite × FreeType/Skia) e as
 famílias disponíveis também (ex.: `Segoe UI` no Windows); a diferença entre plataformas é justamente da categoria
@@ -60,6 +60,7 @@ famílias disponíveis também (ex.: `Segoe UI` no Windows); a diferença entre 
   referência — usado só uma vez para criar a referência revisada (artefato `visual-regression` do CI); nunca permanente.
 
 ## Evidências desta fase
+- A primeira captura Linux (bootstrap) revelou rótulos de mês **sobrepostos** no gráfico com texto lateral: a rarefação usava largura média estimada de caractere (Segoe UI) e falhava com DejaVu Sans. Corrigido medindo a largura real (canvas `measureText` na pilha de fontes do tema) com folga mínima `charts.axis_label_min_gap`; referências win32 inalteradas.
 - Etapa A (conversão para tokens): 19/19 slides idênticos às capturas anteriores à refatoração (pixel e manifesto).
 - Etapa B (correções deliberadas): o relatório isolou exatamente capa (conteúdo: período), sumário/KPIs (layout:
   legenda/cartões subiram 28 px, saindo do rodapé), gráficos com texto (escala) e mudanças **invisíveis** de geometria de

@@ -1,0 +1,490 @@
+{
+  "manifest_version": 1,
+  "case": "alt-fixed-4x3",
+  "slide": {
+    "index": 13,
+    "slide_id": "ranking",
+    "type": "top10_ranking",
+    "layout": "ranking-table"
+  },
+  "canvas": {
+    "width": 960,
+    "height": 720
+  },
+  "theme": {
+    "id": "visual-alt",
+    "version": 1
+  },
+  "elements": [
+    {
+      "key": "image:logo",
+      "role": "image",
+      "box": {
+        "x": 840,
+        "y": 24,
+        "w": 72,
+        "h": 48
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "header",
+      "role": "header",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 17,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "b1f98b24074f8da6",
+      "platform_fonts": [
+        "Liberation Serif"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 48,
+        "y": 96,
+        "w": 864,
+        "h": 34.5
+      },
+      "text_length": 17,
+      "font": {
+        "family": "Georgia, serif",
+        "size": 30,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "b1f98b24074f8da6",
+      "platform_fonts": [
+        "Liberation Serif"
+      ]
+    },
+    {
+      "key": "visual",
+      "role": "visual",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 864,
+        "h": 440
+      },
+      "text_length": 180,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "f494ca97a5423183",
+      "platform_fonts": []
+    },
+    {
+      "key": "chart",
+      "role": "chart",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 864,
+        "h": 440
+      },
+      "text_length": 180,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "f494ca97a5423183",
+      "platform_fonts": []
+    },
+    {
+      "key": "ranking",
+      "role": "ranking",
+      "box": {
+        "x": 48,
+        "y": 184,
+        "w": 864,
+        "h": 323
+      },
+      "text_length": 180,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "f494ca97a5423183",
+      "platform_fonts": []
+    },
+    {
+      "key": "rank:1",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 216,
+        "w": 864,
+        "h": 29.5
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "7a6d6a9c911a10a3",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:2",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 245.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "c32f88243a36aa58",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:3",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 274.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "7dbbdf773cbc7fa5",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:4",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 303.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "7df076760346c570",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:5",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 332.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "63f3717afb1338e0",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:6",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 361.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "80700706639bcfc8",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:7",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 390.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "7f9c406ada297779",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:8",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 419.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "8a763c712290ce99",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:9",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 448.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 16,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "79aac973c744b079",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "rank:10",
+      "role": "rank",
+      "box": {
+        "x": 48,
+        "y": 477.5,
+        "w": 864,
+        "h": 29
+      },
+      "text_length": 17,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 15,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(19, 34, 38)",
+      "background": null,
+      "text_hash": "ecf177d73505b3ac",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 48,
+        "y": 679,
+        "w": 864,
+        "h": 25
+      },
+      "text_length": 79,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "9ec6cd2aae709f72",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "footer-custom",
+      "role": "footer-custom",
+      "box": {
+        "x": 48,
+        "y": 687,
+        "w": 146.72,
+        "h": 17
+      },
+      "text_length": 25,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "a39ab61d99c32b8d",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "footer-owner",
+      "role": "footer-owner",
+      "box": {
+        "x": 218.72,
+        "y": 687,
+        "w": 192.02,
+        "h": 17
+      },
+      "text_length": 34,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "b5beb5340dc1f095",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "footer-provisional",
+      "role": "footer-provisional",
+      "box": {
+        "x": 434.73,
+        "y": 687,
+        "w": 105.77,
+        "h": 17
+      },
+      "text_length": 15,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "4607e64e28065645",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 879.44,
+        "y": 687,
+        "w": 32.56,
+        "h": 17
+      },
+      "text_length": 5,
+      "font": {
+        "family": "Verdana, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(95, 113, 118)",
+      "background": null,
+      "text_hash": "e4aab8bf8ef4aa67",
+      "platform_fonts": [
+        "Liberation Sans"
+      ]
+    }
+  ]
+}

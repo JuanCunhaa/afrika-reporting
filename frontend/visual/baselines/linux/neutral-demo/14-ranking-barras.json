@@ -1,0 +1,384 @@
+{
+  "manifest_version": 1,
+  "case": "neutral-demo",
+  "slide": {
+    "index": 14,
+    "slide_id": "ranking-barras",
+    "type": "top10_ranking",
+    "layout": "ranking-bars"
+  },
+  "canvas": {
+    "width": 1280,
+    "height": 720
+  },
+  "theme": {
+    "id": "neutral-demo",
+    "version": 1
+  },
+  "elements": [
+    {
+      "key": "header",
+      "role": "header",
+      "box": {
+        "x": 56,
+        "y": 48,
+        "w": 1168,
+        "h": 43.69
+      },
+      "text_length": 17,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "37b06b6417577de2",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 78,
+        "y": 48,
+        "w": 1146,
+        "h": 43.69
+      },
+      "text_length": 17,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 38,
+        "weight": "650",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "37b06b6417577de2",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "visual",
+      "role": "visual",
+      "box": {
+        "x": 56,
+        "y": 107.69,
+        "w": 1168,
+        "h": 524.31
+      },
+      "text_length": 238,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "8c49fd4aeb85dc90",
+      "platform_fonts": []
+    },
+    {
+      "key": "chart",
+      "role": "chart",
+      "box": {
+        "x": 56,
+        "y": 107.69,
+        "w": 1168,
+        "h": 524.31
+      },
+      "text_length": 238,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "8c49fd4aeb85dc90",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "chart-title",
+      "role": "chart-title",
+      "box": {
+        "x": 56,
+        "y": 107.69,
+        "w": 1168,
+        "h": 22
+      },
+      "text_length": 29,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 19,
+        "weight": "600",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "d294f1d00486d19c",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "ranking",
+      "role": "ranking",
+      "box": {
+        "x": 56,
+        "y": 137.69,
+        "w": 1168,
+        "h": 201
+      },
+      "text_length": 209,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "256fc60446eceb35",
+      "platform_fonts": []
+    },
+    {
+      "key": "rank:1",
+      "role": "rank",
+      "box": {
+        "x": 56,
+        "y": 172.69,
+        "w": 1168,
+        "h": 33.5
+      },
+      "text_length": 36,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "3fb011baf16e7bc4",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "rank:2",
+      "role": "rank",
+      "box": {
+        "x": 56,
+        "y": 206.19,
+        "w": 1168,
+        "h": 33
+      },
+      "text_length": 36,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "4d3a32b6d765d00c",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "rank:3",
+      "role": "rank",
+      "box": {
+        "x": 56,
+        "y": 239.19,
+        "w": 1168,
+        "h": 33
+      },
+      "text_length": 36,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "a7b328deeab23715",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "rank:4",
+      "role": "rank",
+      "box": {
+        "x": 56,
+        "y": 272.19,
+        "w": 1168,
+        "h": 33
+      },
+      "text_length": 36,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "3f7df6d056823221",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "rank:5",
+      "role": "rank",
+      "box": {
+        "x": 56,
+        "y": 305.19,
+        "w": 1168,
+        "h": 33
+      },
+      "text_length": 36,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 18,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(11, 11, 11)",
+      "background": null,
+      "text_hash": "d58d4bebdb88183c",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 56,
+        "y": 646,
+        "w": 1168,
+        "h": 26
+      },
+      "text_length": 93,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(111, 109, 104)",
+      "background": null,
+      "text_hash": "5c908af21e3ada8b",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "footer-owner",
+      "role": "footer-owner",
+      "box": {
+        "x": 56,
+        "y": 655,
+        "w": 216.45,
+        "h": 17
+      },
+      "text_length": 34,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(111, 109, 104)",
+      "background": null,
+      "text_hash": "b5beb5340dc1f095",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "footer-source",
+      "role": "footer-source",
+      "box": {
+        "x": 296.45,
+        "y": 655,
+        "w": 264.19,
+        "h": 17
+      },
+      "text_length": 39,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(111, 109, 104)",
+      "background": null,
+      "text_hash": "bb49e9baa6b61a14",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "footer-provisional",
+      "role": "footer-provisional",
+      "box": {
+        "x": 584.64,
+        "y": 655,
+        "w": 116.7,
+        "h": 17
+      },
+      "text_length": 15,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(111, 109, 104)",
+      "background": null,
+      "text_hash": "4607e64e28065645",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 1186.52,
+        "y": 655,
+        "w": 37.48,
+        "h": 17
+      },
+      "text_length": 5,
+      "font": {
+        "family": "system-ui, -apple-system, \"Segoe UI\", Arial, sans-serif",
+        "size": 13,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(111, 109, 104)",
+      "background": null,
+      "text_hash": "57a898af596665ed",
+      "platform_fonts": [
+        "DejaVu Sans"
+      ]
+    }
+  ]
+}
