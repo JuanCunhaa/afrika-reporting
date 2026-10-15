@@ -23,7 +23,7 @@ def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
     engine = db.make_engine(url)
     try:
         assert set(inspect(engine).get_table_names()) == TABLES
-        assert db.current_revision(engine) == db.head_revision() == '0002_scopes'
+        assert db.current_revision(engine) == db.head_revision() == '0003_client_timezone'
     finally:
         engine.dispose()
 

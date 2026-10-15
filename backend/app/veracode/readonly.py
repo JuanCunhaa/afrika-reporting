@@ -27,6 +27,10 @@ ALLOWED_GET_PATHS = (
     re.compile(r'/api/authn/v2/users'),
     # F04: Findings API (lista por aplicação; `context`=sandbox e `scan_type` vão na query). Somente leitura.
     re.compile(rf'/appsec/v2/applications/{_SEG}/findings'),
+    # F04.1: Summary Report API (agregado por build; `context`=sandbox na query) e SCA Agent — projetos vinculados
+    # a UMA aplicação por GUID. Ambos GET documentados (SwaggerHub Veracode). Somente leitura.
+    re.compile(rf'/appsec/v2/applications/{_SEG}/summary_report'),
+    re.compile(rf'/srcclr/v3/applications/{_SEG}/projects'),
 )
 
 

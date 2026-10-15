@@ -10,6 +10,9 @@ Findings (F04, Findings API v2): `/appsec/v2/applications/{guid}/findings` com `
 com outros tipos => 400) e `context`=GUID do sandbox (sem `context` => Policy). Findings sintéticos repetem o mesmo
 `issue_id` entre Policy e sandboxes e o mesmo componente/vulnerabilidade SCA com `issue_id` diferentes — para testar
 deduplicação sem supor identidade. Datas de identificação ficam na virada de agosto/setembro/outubro de 2026.
+F04.1: perfil com `scans[]` (só STATIC, como no real), Summary Report derivado dos findings da Policy (chave
+`flaw-status` com hífen e campos pessoais que a normalização descarta, como no real) e SCA Agent por aplicação.
+`sca_500_without_components` imita o real (só Policy observada): Findings SCA => 500 sem componentes.
 Tenants: `alpha` (completo, multi-página), `beta` (outro tenant, para isolamento), `denied` (sem permissão
 na Identity API => 403). Qualquer outra credencial => 401.
 """
@@ -54,6 +57,8 @@ class Tenant:
     # (application_guid, sandbox_guid|None, scan_type) -> findings no formato da Findings API
     findings: dict[tuple[str, str | None, str], list[dict]] = field(default_factory=dict)
     sca_sandbox_unsupported: bool = False  # simula 400 para SCA em sandbox (suporte NÃO homologado)
+    sca_500_without_components: bool = False  # F04.1: Findings SCA => 500 se a aplicação não tem componentes
+    sca_projects: dict[str, list[dict]] = field(default_factory=dict)  # app guid -> projetos do agente vinculados
 
 
 def make_finding(issue_id: int, scan_type: str, *, severity: int | None, status: str | None = 'OPEN',
@@ -171,6 +176,9 @@ def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, labe
             'guid': guid, 'id': 5000 + i, 'oid': 1, 'organization_id': 1,
             'created': '2026-01-05T12:00:00.000Z', 'modified': '2026-09-20T12:00:00.000Z',
             'last_completed_scan_date': None if i % 7 == 6 else '2026-09-28T09:30:00.000Z',
+            'scans': [] if i % 7 == 6 else [{'scan_type': 'STATIC', 'status': 'PUBLISHED',
+                                             'modified_date': '2026-09-28T09:30:00.000Z', 'internal_status': 'x',
+                                             'scan_url': f'Cid:{9000 + i}'}],
             'profile': {
                 'name': f'{label} App {i + 1:03d}',
                 'business_unit': {'guid': bu['bu_id'], 'id': bu['bu_legacy_id'], 'name': bu['bu_name']},
@@ -265,6 +273,15 @@ class FixtureVeracode:
         m = re.fullmatch(r'/appsec/v2/applications/([^/]+)/findings', path)
         if m:
             return self._findings(tenant, m.group(1), q, page, size)
+        m = re.fullmatch(r'/appsec/v2/applications/([^/]+)/summary_report', path)
+        if m:
+            return self._summary(tenant, m.group(1), q.get('context'))
+        m = re.fullmatch(r'/srcclr/v3/applications/([^/]+)/projects', path)
+        if m:
+            if m.group(1) not in tenant.sandboxes:
+                return _error(404, 'Not Found')
+            return _json(200, {'application': {'guid': m.group(1), 'name': 'sintético'},
+                               'linked_projects': tenant.sca_projects.get(m.group(1), [])})
         if path.startswith('/api/authn/') and tenant.identity_forbidden:
             return _error(403, 'Forbidden')
         if path == '/api/authn/v2/business_units':
@@ -295,8 +312,43 @@ class FixtureVeracode:
             return _error(404, 'Not Found')
         if context and 'SCA' in types and tenant.sca_sandbox_unsupported:
             return _error(400, 'Bad Request')
+        if 'SCA' in types and not context and tenant.sca_500_without_components                 and not tenant.findings.get((app_guid, None, 'SCA')):
+            return httpx.Response(500, headers={'Content-Type': 'application/json'})  # corpo vazio, como no real
         items = [f for t in types for f in tenant.findings.get((app_guid, context, t), [])]
         return FixtureVeracode._page(sorted(items, key=lambda f: f['issue_id']), 'findings', page, size)
+
+    @staticmethod
+    def _summary(tenant: Tenant, app_guid: str, context: str | None) -> httpx.Response:
+        idx = next((i for i, a in enumerate(tenant.applications) if a['guid'] == app_guid), None)
+        if idx is None:
+            return _error(404, 'Not Found')
+        static = tenant.findings.get((app_guid, context, 'STATIC'), [])
+        open_ = [f for f in static if f['finding_status']['status'] == 'OPEN']
+        sev = {s: sum(f['finding_details']['severity'] == s for f in open_) for s in range(6)}
+        sca = tenant.findings.get((app_guid, context, 'SCA'), [])
+        components = {f['finding_details']['component_id'] for f in sca}
+        scanned = bool(tenant.applications[idx].get('last_completed_scan_date'))
+        body = {
+            'app_name': 'nome sintético (descartado)', 'submitter': 'Pessoa Sintética', 'business_owner': 'Dono',
+            'build_id': 100 + idx, 'analysis_id': 200 + idx, 'is_latest_build': True,
+            'generation_date': '2026-10-10 10:00:00 UTC', 'last_update_time': '2026-09-28 09:30:00 UTC',
+            'policy_compliance_status': 'Did Not Pass', 'total_flaws': len(open_),
+            'flaws_not_mitigated': sum(f['finding_status']['resolution_status'] != 'APPROVED' for f in open_),
+            'severity': [{'level': s, 'category': ([{'category_name': 'Sintética', 'severity': 'X', 'count': n}]
+                                                   if n else [])} for s, n in sev.items()],
+            'flaw-status': {'new': 0, 'reopen': 0, 'open': len(open_), 'fixed': 0, 'total': len(open_),
+                            'not_mitigated': len(open_)},
+            'software_composition_analysis': {'third_party_components': len(components),
+                                              'components_violated_policy': sum(1 for f in sca if
+                                                                                f['finding_details']['severity'] >= 4),
+                                              'sca_service_available': 'true', 'vulnerable_components': {}},
+        }
+        if scanned:
+            body['static_analysis'] = {
+                'published_date': '2026-09-28 09:30:00 UTC', 'submitted_date': '2026-09-28 09:00:00 UTC',
+                'modules': {'module': [{'name': 'sintetico.jar', 'loc': 1000 + 100 * idx,
+                                        **{f'numflawssev{s}': n for s, n in sev.items()}}]}}
+        return _json(200, body)
 
     @staticmethod
     def _page(items: list[dict], key: str, page: int, size: int) -> httpx.Response:

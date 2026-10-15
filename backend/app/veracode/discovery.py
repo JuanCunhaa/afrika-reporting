@@ -111,6 +111,10 @@ class DiscoveryService:
         return (ctx.kind, str(ctx.id), str(ctx.connection_id), ctx.region, ctx.credential_ref, creds.fingerprint,
                 resource, params)
 
+    @property
+    def sleep(self) -> Callable[[float], Awaitable[None]]:
+        return self._sleep
+
     def credentials_for(self, ctx: ScopeContext) -> credentials.Credentials:
         return self._credentials(ctx)
 

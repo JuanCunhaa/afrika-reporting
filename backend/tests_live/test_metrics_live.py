@@ -1,8 +1,9 @@
-"""F04 — homologação REAL opt-in da Findings API e do motor de indicadores (mesmo portão de test_veracode_live).
+"""F04/F04.1 — homologação REAL opt-in do motor de indicadores (mesmo portão de test_veracode_live).
 
-Somente GET. Amostra PEQUENA: até 3 aplicações com scan concluído (Policy STATIC/SCA + até 2 sandboxes cada).
-Imprime apenas contagens, nomes de chaves do schema e valores de enumerações — nunca nomes, IDs, CWEs, CVEs,
-caminhos ou descrições do tenant. Nada é gravado. Rodar SEPARADO da suíte unitária:
+Somente GET. Amostra PEQUENA: até 3 aplicações com scan concluído. Exercita o pipeline completo da coleta
+(sandboxes, Summary Report, SCA Agent, Findings com pré-checagem SCA, passada adiada para HTTP 500 e circuit
+breaker) e o cálculo. Imprime apenas contagens, estados e códigos — nunca nomes, IDs, CWEs, CVEs ou caminhos.
+Nada é gravado. Rodar SEPARADO da suíte unitária:
 
     python -m pytest backend/tests_live/test_metrics_live.py -q -s -rs --run-veracode-live
 """
@@ -23,91 +24,51 @@ from app.veracode.http import CollectionRun, VeracodeHttpPool
 from test_veracode_live import _settings
 
 SAMPLE_APPS = 3
-MAX_SANDBOXES = 2
-BUDGET = 80
+BUDGET = 60
 
 
-def _keys(dicts):
-    return sorted({k for d in dicts if isinstance(d, dict) for k in d})
-
-
-def test_live_findings_format_and_metric_pipeline(veracode_live_gate):
+def test_live_metric_pipeline_with_alternative_sources(veracode_live_gate):
     gate = veracode_live_gate
     creds = credentials.resolve(gate.credential_ref)
-    settings = replace(_settings(), metrics_max_requests=BUDGET, metrics_timeout=300.0, cache_ttl=0, page_size=100)
+    settings = replace(_settings(), metrics_max_requests=BUDGET, metrics_timeout=300.0, cache_ttl=0,
+                       circuit_breaker_threshold=4)
 
     async def main():
         pool = VeracodeHttpPool(settings)
         try:
-            run = CollectionRun(pool, creds, gate.region, max_requests=BUDGET)
+            run = CollectionRun(pool, creds, gate.region)
             apps = await adapters.fetch_applications(run)
             assert apps.complete, apps.error
             scanned = [a for a in apps.items if a['last_completed_scan_date']][:SAMPLE_APPS]
-            raw = {}
-            for a in scanned:
-                sbs = await adapters.fetch_sandboxes(run, a['guid'])
-                contexts = [None] + [s['guid'] for s in sbs.items[:MAX_SANDBOXES]]
-                for sb in contexts:
-                    for st in adapters.FINDING_SCAN_TYPES:
-                        params = {'scan_type': st, **({'context': sb} if sb else {})}
-                        col = await run.paginate(adapters.FINDINGS.format(guid=a['guid']), 'findings',
-                                                 label=f'live:findings:{st}', id_field='issue_id', params=params,
-                                                 page_size=settings.findings_page_size)
-                        raw[(a['guid'], sb, st)] = col
-            # pipeline completo do motor sobre a mesma amostra (população sintética = amostra)
             service = DiscoveryService(settings, pool, DiscoveryCache(0, 1))
             ctx = ScopeContext('client', uuid.uuid4(), 'amostra', uuid.uuid4(), uuid.uuid4(), 'live', gate.region,
                                gate.credential_ref, 'client')
             outcome = await collector.collect(service, ctx, scanned)
-            return apps, scanned, raw, outcome, run.requests
+            return apps, scanned, outcome
         finally:
             await pool.aclose()
 
-    apps, scanned, raw, outcome, requests = asyncio.run(main())
-    print(f'\naplicações no tenant={len(apps.items)} amostra={len(scanned)} requisições_diretas={requests} '
-          f'requisições_motor={outcome.requests} retries_motor={outcome.retries}')
-    by_kind = Counter()
-    for (app, sb, st), col in raw.items():
-        by_kind[(st, 'SANDBOX' if sb else 'POLICY', 'complete' if col.complete else f'incomplete:{col.error.code}')] += 1
-    print(f'contextos: {dict(sorted(by_kind.items()))}')
-    items = [i for col in raw.values() for i in col.items]
-    print(f'findings brutos={len(items)} chaves={_keys(items)}')
-    print(f'finding_status chaves={_keys(i.get("finding_status") for i in items)}')
-    for st in adapters.FINDING_SCAN_TYPES:
-        sub = [i for i in items if i.get('scan_type') == st]
-        details = [i.get('finding_details') for i in sub]
-        print(f'{st}: n={len(sub)} finding_details chaves={_keys(details)}')
-        norm = [adapters.normalize_finding(i) for i in sub]
-        for field in ('status', 'resolution', 'resolution_status', 'context_type', 'severity'):
-            print(f'  {field}: {dict(Counter(n[field] for n in norm))}')
-        print(f'  sem first_found_date={sum(n["first_found_date"] is None for n in norm)} '
-              f'first_found_date_com_fuso={sum(1 for n in norm if (n["first_found_date"] or "").endswith(("Z", "+00:00")))}')
-        if st == 'SCA':
-            print(f'  metadata tipos={dict(Counter(type((d or {}).get("metadata")).__name__ for d in details))} '
-                  f'sca_dep_mode={dict(Counter(n.get("sca_dep_mode") for n in norm))} '
-                  f'sca_scan_mode={dict(Counter(n.get("sca_scan_mode") for n in norm))} '
-                  f'sem_component_id={sum(not n.get("component_id") for n in norm)} '
-                  f'sem_vulnerability_id={sum(not n.get("vulnerability_id") for n in norm)}')
-    # Evidência (não prova) de identidade entre contextos: mesmo issue_id em Policy e sandbox da mesma aplicação
-    same, diff = 0, 0
-    for (app, sb, st), col in raw.items():
-        if sb is None or st != 'STATIC':
-            continue
-        policy = {i['issue_id']: adapters.normalize_finding(i) for i in raw[(app, None, 'STATIC')].items}
-        for i in col.items:
-            p = policy.get(i['issue_id'])
-            if p is not None:
-                n = adapters.normalize_finding(i)
-                same += (p['cwe_id'], p['severity']) == (n['cwe_id'], n['severity'])
-                diff += (p['cwe_id'], p['severity']) != (n['cwe_id'], n['severity'])
-    print(f'issue_id repetido Policy×Sandbox: mesmo CWE+severidade={same} diferente={diff}')
-
-    comp = parse('2026-09')
+    apps, scanned, outcome = asyncio.run(main())
+    s = outcome.summary()
+    print(f'\naplicações no tenant={len(apps.items)} amostra={len(scanned)}')
+    print(f"coleta: requisições={s['requests']} retries={s['retries']} contextos={s['by_state']} "
+          f"passada_adiada={s['retry_pass']} circuitos={s['circuits_opened']} limite={s['limit_reached']}")
+    print(f"summary_reports_falhos={s['summary_reports_failed']} sca_agent_falhos={s['sca_project_lookups_failed']} "
+          f"listas_sandbox_falhas={s['sandbox_listings_failed']}")
+    print('scans[] no perfil:', dict(Counter(f"{x['scan_type']}:{x['status']}" for a in scanned
+                                             for x in a['scans'] or [])))
+    sca_flags = Counter(collector.no_sca_components(f) for f in outcome.summaries.values())
+    print(f'Summary Report sem componentes SCA (pré-checagem): {dict(sca_flags)}')
+    print('estado por (tipo, contexto):', dict(Counter((c.scan_type, c.context, c.state.value, c.upstream_status,
+                                                         c.retried) for c in outcome.contexts)))
     pop = Population(PopulationStatus.OK, applications=scanned, total_available=len(apps.items))
-    results = engine.compute_all(engine.Context(comp, pop, outcome, {}, datetime.now(timezone.utc).isoformat(),
-                                                'client'))
-    print('status por indicador (amostra): ' + ', '.join(f'{m.metric_id}={m.status.value}'
-                                                         + (f'[{",".join(r.code for r in m.reasons)}]'
-                                                            if m.reasons else '') for m in results))
+    results = engine.compute_all(engine.Context(parse('2026-09'), pop, outcome, {},
+                                                datetime.now(timezone.utc).isoformat(), 'client'))
+    recon = next(m for m in results if m.metric_id == 'sast.policy.reconciliation')
+    print('reconciliação Findings × Summary:', {k: v for k, v in (recon.value or recon.partial or {}).items()
+                                               if k != 'items'})
+    print('status por indicador (amostra): ' + ', '.join(
+        f'{m.metric_id}={m.status.value}' + (f'[{",".join(r.code for r in m.reasons)}]' if m.reasons else '')
+        for m in results))
     assert outcome.requests <= BUDGET
-    assert all(col.complete or col.error is not None for col in raw.values())
+    assert all(c.state.value in {x.value for x in collector.CollectState} for c in outcome.contexts)

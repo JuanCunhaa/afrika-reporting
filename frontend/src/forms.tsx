@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-  ClientInput, Connection, ConnectionInput, REGION_LABEL, REPORT_MODE_LABEL, Region, ReportMode, SubclientInput,
+  ClientInput, Connection, ConnectionInput, DEFAULT_TIMEZONE, REGION_LABEL, REPORT_MODE_LABEL, Region, ReportMode,
+  SubclientInput,
 } from './api';
 import { Field, FieldErrors, apiFieldErrors } from './ui';
 
@@ -94,6 +95,7 @@ export function ClientForm(props: {
     is_active: props.initial?.is_active ?? true,
     report_mode: props.initial?.report_mode ?? ('consolidated' as ReportMode),
     connection_id: props.initial?.connection_id ?? '',
+    timezone: props.initial?.timezone ?? DEFAULT_TIMEZONE,
   });
   const { busy, errors, general, submit } = useSubmit(props.onSave);
   const set = (patch: Partial<typeof v>) => setV((old) => ({ ...old, ...patch }));
@@ -110,6 +112,7 @@ export function ClientForm(props: {
         is_active: v.is_active,
         report_mode: v.report_mode,
         connection_id: v.connection_id || null,
+        timezone: v.timezone.trim() || DEFAULT_TIMEZONE,
       },
       e,
     );
@@ -157,6 +160,14 @@ export function ClientForm(props: {
             </option>
           ))}
         </select>
+      </Field>
+      <Field
+        id="client-timezone"
+        label="Fuso horário das competências"
+        error={errors.timezone}
+        hint="Nome IANA (regras históricas). Padrão: America/Sao_Paulo. Subclientes herdam."
+      >
+        <input value={v.timezone} onChange={(e) => set({ timezone: e.target.value })} />
       </Field>
       <label className="inline">
         <input type="checkbox" checked={v.is_active} onChange={(e) => set({ is_active: e.target.checked })} />

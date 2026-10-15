@@ -14,6 +14,11 @@ from app.veracode import adapters
 TOP_N = 10
 _APPS_EP = f'GET {adapters.APPLICATIONS}'
 _FINDINGS_EP = f'GET {adapters.FINDINGS}'
+_SUMMARY_EP = f'GET {adapters.SUMMARY_REPORT}'
+_SCA_AGENT_EP = f'GET {adapters.SCA_APP_PROJECTS}'
+_REPORTING_EP = 'POST /appsec/v1/analytics/report + GET /appsec/v1/analytics/report/{id}'
+_REPORTING_BLOCKED = ('Fonte oficial com o dado (Reporting API), mas a geração do relatório exige POST: bloqueada '
+                      'pela política GET-only')
 
 _CURRENT_STATE_NOTE = ('Estado ATUAL na data da coleta: não representa o fechamento da competência; o valor no '
                        'fechamento só existe por snapshot aprovado (F05) ou entrada manual')
@@ -59,6 +64,25 @@ def _findings(metric_id: str, name: str, description: str, domain: Domain, conte
         **defaults)
 
 
+def _alt(metric_id: str, name: str, description: str, domain: Domain, source: Source, endpoint: str, shape: Shape,
+         unit: Unit, formula: str, *, status_criterion=StatusCriterion.NOT_APPLICABLE,
+         severity_criterion=SeverityCriterion.NOT_APPLICABLE, temporal=TemporalMode.CURRENT_STATE,
+         date_field=DateField.NONE, scan_type=ScanType.NOT_APPLICABLE, context=ScanContext.NOT_APPLICABLE,
+         limitations=(), rules=()) -> MetricContract:
+    """Indicadores de fontes alternativas (F04.1): Summary Report, perfil da aplicação (`scans[]`, políticas) e
+    SCA Agent. População = escopo de aplicações do dono; agregação por aplicação (sem identidade de finding)."""
+    return MetricContract(
+        metric_id=metric_id, version=1, name=name, description=description, domain=domain, source=source,
+        endpoint=endpoint, context=context, scan_type=scan_type, temporal_mode=temporal, date_field=date_field,
+        status_criterion=status_criterion, severity_criterion=severity_criterion, dedup=Dedup.APPLICATION_GUID,
+        identity_proof=IdentityProof.NOT_REQUIRED, unit=unit, shape=shape, formula=formula,
+        completeness_rules=_APP_RULES + rules,
+        limitations=((_CURRENT_STATE_NOTE,) if temporal == TemporalMode.CURRENT_STATE else ()) + limitations)
+
+
+_SUMMARY_RULES = ('Summary Report coletado para todas as aplicações da população',)
+
+
 def _gap(metric_id: str, name: str, domain: Domain, reason: str, *, temporal=TemporalMode.CURRENT_STATE,
          date_field=DateField.NONE, source=Source.NONE, endpoint=None, scan_type=ScanType.NOT_APPLICABLE,
          context=ScanContext.NOT_APPLICABLE, unit=Unit.FINDINGS) -> MetricContract:
@@ -96,6 +120,16 @@ CONTRACTS: tuple[MetricContract, ...] = (
     _apps('apps.unclassified', 'Aplicações não classificadas',
           'Universo do cliente menos as aplicações de subclientes ativos na mesma conexão (só cliente principal)',
           Shape.SCALAR, 'count(universe − ∪ subclientes ativos shared)'),
+    _alt('apps.by_policy_compliance', 'Aplicações por conformidade de política',
+         'Aplicações por policy_compliance_status do perfil (uma política por aplicação)', Domain.APPLICATIONS,
+         Source.APPLICATIONS_API, _APPS_EP, Shape.BREAKDOWN, Unit.APPLICATIONS,
+         'count(distinct guid) group by profile.policies[0].policy_compliance_status',
+         limitations=('Aplicação sem política ou com várias políticas => indeterminada (INCOMPLETE)',)),
+    _alt('apps.loc.total', 'Linhas de código (LOC) analisadas', 'Soma do LOC dos módulos da última análise estática '
+         'da Policy (Summary Report)', Domain.APPLICATIONS, Source.SUMMARY_REPORT_API, _SUMMARY_EP, Shape.SCALAR,
+         Unit.LINES_OF_CODE, 'Σ static_analysis.modules.module[].loc', rules=_SUMMARY_RULES,
+         limitations=('Só aplicações com análise estática; demais são contadas à parte (não viram zero)',
+                      'LOC por módulo pode ficar vazio para módulos não debug (especificação) => INCOMPLETE')),
     _gap('apps.total.at_period_end', 'Aplicações no fechamento da competência', Domain.APPLICATIONS,
          'O perfil de aplicações é estado atual (BU/Teams/exclusões mudam): ' + _HISTORY,
          temporal=TemporalMode.STATE_AT_PERIOD_END, source=Source.APPLICATIONS_API, endpoint=_APPS_EP,
@@ -144,14 +178,30 @@ CONTRACTS: tuple[MetricContract, ...] = (
               'Findings SAST abertos em Policy agrupados pelo mês (no fuso da competência) de first_found_date',
               Domain.SAST, ScanContext.POLICY, Shape.BREAKDOWN, 'count(findings) group by month(first_found_date)',
               date_field=DateField.FIRST_FOUND_DATE),
+    _alt('sast.policy.summary.by_severity', 'SAST por severidade — Policy (Summary Report)',
+         'Findings da última análise estática da Policy por severidade, segundo o Summary Report (fonte alternativa '
+         'à Findings API)', Domain.SAST, Source.SUMMARY_REPORT_API, _SUMMARY_EP, Shape.BY_SEVERITY, Unit.FINDINGS,
+         'Σ static_analysis.modules.module[].numflawssev0..5', scan_type=ScanType.STATIC, context=ScanContext.POLICY,
+         status_criterion=StatusCriterion.SUMMARY_REPORT_LATEST_BUILD, severity_criterion=SeverityCriterion.ALL_0_TO_5,
+         rules=_SUMMARY_RULES,
+         limitations=('Definição do relatório: findings do build mais recente; tratamento de mitigados não '
+                      'documentado (pode diferir de "aberto" da Findings API)',
+                      'Aplicação sem análise estática conta à parte (não vira zero)')),
+    _alt('sast.policy.reconciliation', 'Reconciliação SAST Policy: Findings API × Summary Report',
+         'Por aplicação, compara os findings OPEN da Findings API (Policy, STATIC) por severidade com o Summary Report',
+         Domain.SAST, Source.SUMMARY_REPORT_API, f'{_FINDINGS_EP} + {_SUMMARY_EP}', Shape.BREAKDOWN,
+         Unit.APPLICATIONS, 'count(apps) where findings_open_by_severity == summary_static_by_severity',
+         scan_type=ScanType.STATIC, context=ScanContext.POLICY, rules=_SUMMARY_RULES,
+         limitations=('Concordância entre duas fontes oficiais NÃO é equivalência com o dashboard',
+                      'Compara OPEN com qualquer estado de mitigação (o relatório não separa mitigados)')),
     _gap('sast.policy.open.at_period_end', 'SAST abertos no fechamento da competência', Domain.SAST, _HISTORY,
          temporal=TemporalMode.STATE_AT_PERIOD_END, source=Source.FINDINGS_API, endpoint=_FINDINGS_EP,
          scan_type=ScanType.STATIC, context=ScanContext.POLICY),
     _gap('sast.policy.resolved_in_period', 'SAST resolvidos na competência', Domain.SAST,
-         'A Findings API não expõe data de resolução/fechamento (só first_found_date e last_seen_date); '
-         'last_seen_date não é data de resolução. Fonte alternativa (Reporting/Analytics) não homologada',
+         'A Findings API não expõe data de resolução/fechamento (só first_found_date e last_seen_date; last_seen_date '
+         'não é data de resolução). ' + _REPORTING_BLOCKED + ' (campos resolved_date/fixed_date)',
          temporal=TemporalMode.EVENT_IN_PERIOD, date_field=DateField.RESOLUTION_DATE, scan_type=ScanType.STATIC,
-         context=ScanContext.POLICY),
+         context=ScanContext.POLICY, source=Source.REPORTING_API, endpoint=_REPORTING_EP),
 
     # ------------------------------------------------------------------ SCA
     _findings('sca.policy.open.by_severity', 'SCA abertos — Policy (produção)',
@@ -184,6 +234,19 @@ CONTRACTS: tuple[MetricContract, ...] = (
               'Findings SCA abertos em Policy por sca_dep_mode (DIRECT/TRANSITIVE/BOTH/UNKNOWN)', Domain.SCA,
               ScanContext.POLICY, Shape.BREAKDOWN, 'count(findings) group by metadata.sca_dep_mode',
               limitations=('Formato de `metadata` (string na especificação) não homologado',)),
+    _alt('sca.policy.summary.components', 'Componentes de terceiros — Policy (Summary Report)',
+         'Componentes de terceiros e componentes que violam a política SCA, por aplicação, segundo o Summary Report',
+         Domain.SCA, Source.SUMMARY_REPORT_API, _SUMMARY_EP, Shape.BREAKDOWN, Unit.COMPONENTS,
+         'Σ software_composition_analysis.third_party_components; Σ components_violated_policy',
+         scan_type=ScanType.SCA, context=ScanContext.POLICY, rules=_SUMMARY_RULES,
+         limitations=('Especificação descreve third_party_components como "vulnerable third party components"; '
+                      'semântica exata não homologada',)),
+    _alt('sca.agent.linked_projects', 'Projetos do SCA Agent vinculados', 'Aplicações com projetos do SCA Agent '
+         'vinculados (por GUID) e total de projetos', Domain.SCA, Source.SCA_AGENT_API, _SCA_AGENT_EP,
+         Shape.BREAKDOWN, Unit.PROJECTS, 'count(apps) where linked_projects != []; Σ linked_projects',
+         scan_type=ScanType.SCA, rules=('consulta de projetos vinculados completa para todas as aplicações',),
+         limitations=('Projetos de workspace não vinculados a aplicação ficam fora (invisíveis por aplicação)',
+                      'Issues do agente (workspaces/{id}/projects/{id}/issues) não coletadas')),
     _gap('sca.policy.open.at_period_end', 'SCA abertos no fechamento da competência', Domain.SCA, _HISTORY,
          temporal=TemporalMode.STATE_AT_PERIOD_END, source=Source.FINDINGS_API, endpoint=_FINDINGS_EP,
          scan_type=ScanType.SCA, context=ScanContext.POLICY),
@@ -192,15 +255,24 @@ CONTRACTS: tuple[MetricContract, ...] = (
          'biblioteca (especificação): semântica ambígua para "identificados no mês"',
          temporal=TemporalMode.EVENT_IN_PERIOD, date_field=DateField.FIRST_FOUND_DATE, source=Source.FINDINGS_API,
          endpoint=_FINDINGS_EP, scan_type=ScanType.SCA, context=ScanContext.POLICY),
-    _gap('sca.agent.projects', 'Projetos do SCA Agent', Domain.SCA,
-         'SCA Agent (workspaces/projetos, /srcclr) não homologado nem autorizado na allowlist; a Findings API não '
-         'informa o projeto do agente', scan_type=ScanType.SCA),
+    _gap('sca.agent.issues', 'Issues do SCA Agent', Domain.SCA,
+         'Issues por projeto do agente (GET /srcclr/v3/workspaces/{id}/projects/{projectId}/issues) existem na '
+         'especificação, mas não foram homologadas nem incluídas na allowlist; findings SCA de agente VINCULADO já '
+         'aparecem na Findings API (sca_scan_mode=AGENT)', scan_type=ScanType.SCA, source=Source.SCA_AGENT_API),
 
     # ------------------------------------------------------------------ scans e licenças
     _gap('scans.count', 'Scans na competência', Domain.SCANS,
-         'Nenhuma API de scans/builds homologada (Applications API só traz last_completed_scan_date)'),
-    _gap('scans.covered_apps', 'Aplicações com scan na competência', Domain.SCANS,
-         'Exige histórico de scans por aplicação (API não homologada); last_completed_scan_date é só o último'),
+         'O perfil da aplicação só traz o ÚLTIMO scan por tipo. ' + _REPORTING_BLOCKED + ' (relatório SCANS)',
+         temporal=TemporalMode.EVENT_IN_PERIOD, source=Source.REPORTING_API, endpoint=_REPORTING_EP),
+    _alt('scans.covered_apps', 'Aplicações com scan estático publicado na competência',
+         'Aplicações cujo último scan STATIC publicado cai na competência; se houver scan posterior ao período, o '
+         'scan do período pode estar oculto (indeterminada)', Domain.SCANS, Source.APPLICATIONS_API, _APPS_EP,
+         Shape.BREAKDOWN, Unit.APPLICATIONS, 'count(apps) where scans[STATIC,PUBLISHED].modified_date ∈ competência',
+         temporal=TemporalMode.EVENT_IN_PERIOD, date_field=DateField.SCAN_PUBLISHED_DATE,
+         status_criterion=StatusCriterion.PUBLISHED_SCAN, scan_type=ScanType.STATIC,
+         limitations=('Só o último scan por tipo é visível: competências antigas tendem a INCOMPLETE '
+                      '(limite inferior em partial)', 'Contexto (Policy/Sandbox) de scans[] não documentado',
+                      'scans[] real não lista SCA (homologação F04.1)')),
     _gap('licenses.usage', 'Licenças consumidas', Domain.LICENSES,
          'Nenhuma API de licenças homologada; pode exigir entrada manual (F05)'),
 )

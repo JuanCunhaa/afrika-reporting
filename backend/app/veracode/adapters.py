@@ -4,6 +4,8 @@ Especificações oficiais (SwaggerHub, organização Veracode):
 - Applications API 1.0: https://app.swaggerhub.com/apis/Veracode/veracode-applications-api-specification/1.0
 - Identity API 1.5:     https://app.swaggerhub.com/apis/Veracode/veracode-identity_api/1.5
 - Findings API 2.1 (F04): https://app.swaggerhub.com/apis/Veracode/veracode-findings_api_specification/2.1
+- Summary Report API v2 (F04.1): https://app.swaggerhub.com/apis/Veracode/veracode-summary_report_api/v2
+- SCA Agent API 3.0 (F04.1): https://app.swaggerhub.com/apis/Veracode/veracode-sca_agent_api_specification/3.0
 
 Só campos necessários para descoberta/filtros futuros são mantidos (minimização de dados pessoais:
 e-mail, telefone, IP, login etc. de usuários são descartados na normalização).
@@ -24,7 +26,11 @@ TEAMS = '/api/authn/v2/teams'
 TEAM_DETAIL = '/api/authn/v2/teams/{team_id}'
 USERS = '/api/authn/v2/users'
 FINDINGS = '/appsec/v2/applications/{guid}/findings'
-FINDING_SCAN_TYPES = ('STATIC', 'SCA')  # SCA não pode ser combinado com outros tipos (documentação oficial)
+SUMMARY_REPORT = '/appsec/v2/applications/{guid}/summary_report'
+SCA_APP_PROJECTS = '/srcclr/v3/applications/{guid}/projects'
+FINDING_SCAN_TYPES = ('STATIC', 'SCA')
+# Homologação F04.1: o 500 da Findings API não se resolve em segundos (passa após ~20 s ou é persistente).
+FINDINGS_NO_RETRY = frozenset({500})  # SCA não pode ser combinado com outros tipos (documentação oficial)
 
 
 def _str(v) -> str | None:
@@ -47,6 +53,7 @@ def normalize_application(raw: dict) -> dict:
     teams = _list_or_none(profile.get('teams'))
     custom = _list_or_none(profile.get('custom_fields'))
     policies = _list_or_none(profile.get('policies'))
+    scans = _list_or_none(raw.get('scans'))
     return {
         'guid': raw.get('guid'),
         'legacy_id': raw.get('id'),
@@ -67,6 +74,10 @@ def normalize_application(raw: dict) -> dict:
         'created': _str(raw.get('created')),
         'modified': _str(raw.get('modified')),
         'last_completed_scan_date': _str(raw.get('last_completed_scan_date')),
+        # F04.1: último scan por tipo no perfil (Applications API `scans[]`); scan_url/internal_status descartados.
+        'scans': None if scans is None else [
+            {'scan_type': _upper(s.get('scan_type')), 'status': _upper(s.get('status')),
+             'modified_date': _str(s.get('modified_date'))} for s in scans if isinstance(s, dict)],
     }
 
 
@@ -189,6 +200,95 @@ def normalize_finding(raw: dict) -> dict:
     return out
 
 
+def _keys_underscore(v):
+    # Relato da comunidade Veracode: o Swagger do Summary Report usa '-' onde a documentação usa '_'. Aceita ambos.
+    if isinstance(v, dict):
+        return {k.replace('-', '_'): _keys_underscore(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_keys_underscore(x) for x in v]
+    return v
+
+
+def _nonneg(v) -> int | None:
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, str) and v.strip().isdigit():
+        return int(v)
+    return v if isinstance(v, int) and v >= 0 else None
+
+
+def _items(v, key: str) -> list[dict] | None:
+    """`{"module": [...]}` / `{"component": [...]}` (formato do relatório) ou lista direta."""
+    if isinstance(v, dict):
+        v = v.get(key)
+    if v is None:
+        return None
+    if isinstance(v, dict):
+        v = [v]
+    return [x for x in v if isinstance(x, dict)] if isinstance(v, list) else None
+
+
+def normalize_summary_report(raw: dict) -> dict:
+    """Agregados do Summary Report (um build). Minimização: nomes de pessoas (submitter, business_owner), nome da
+    aplicação, Teams, BU, tags, campos personalizados e descrições/caminhos de componentes NÃO saem daqui."""
+    r = _keys_underscore(raw)
+    static = r.get('static_analysis') if isinstance(r.get('static_analysis'), dict) else None
+    modules = _items(static.get('modules'), 'module') if static else None
+    severity = {}
+    sev_raw = r.get('severity')
+    if isinstance(sev_raw, list):
+        for level in sev_raw:
+            if not isinstance(level, dict) or _severity(level.get('level')) is None:
+                continue
+            cats = level.get('category') if isinstance(level.get('category'), list) else []
+            counts = [_nonneg(c.get('count')) for c in cats if isinstance(c, dict)]
+            severity[str(level['level'])] = None if any(c is None for c in counts) else sum(counts)
+    flaw = r.get('flaw_status') if isinstance(r.get('flaw_status'), dict) else {}
+    sca = r.get('software_composition_analysis') if isinstance(r.get('software_composition_analysis'), dict) \
+        else None
+    components = _items(sca.get('vulnerable_components'), 'component') if sca else None
+    return {
+        'build_id': _nonneg(r.get('build_id')), 'analysis_id': _nonneg(r.get('analysis_id')),
+        'is_latest_build': r.get('is_latest_build') if isinstance(r.get('is_latest_build'), bool) else None,
+        'sandbox_id': _nonneg(r.get('sandbox_id')),
+        'generation_date': _str(r.get('generation_date')), 'last_update_time': _str(r.get('last_update_time')),
+        'policy_compliance_status': _str(r.get('policy_compliance_status')),
+        'total_flaws': _nonneg(r.get('total_flaws')), 'flaws_not_mitigated': _nonneg(r.get('flaws_not_mitigated')),
+        'severity': severity if isinstance(sev_raw, list) else None,
+        'flaw_status': {k: _nonneg(flaw.get(k)) for k in ('_new', 'new', 'reopen', 'open', 'fixed', 'total',
+                                                           'not_mitigated') if k in flaw} or None,
+        'static': None if static is None else {
+            'published_date': _str(static.get('published_date')), 'submitted_date': _str(static.get('submitted_date')),
+            'modules': None if modules is None else len(modules),
+            'loc': None if modules is None or any(_nonneg(m.get('loc')) is None for m in modules)
+            else sum(_nonneg(m.get('loc')) for m in modules),
+            'flaws_by_severity': None if modules is None else {
+                str(s): (None if any(_nonneg(m.get(f'numflawssev{s}')) is None for m in modules)
+                         else sum(_nonneg(m.get(f'numflawssev{s}')) for m in modules)) for s in range(6)},
+        },
+        'sca': None if sca is None else {
+            # real (F04.1): presente, mas não booleano JSON => aceita também 'true'/'false' em texto
+            'sca_service_available': {'true': True, 'false': False}.get(str(sca.get('sca_service_available')).lower()),
+            'third_party_components': _nonneg(sca.get('third_party_components')),
+            'components_violated_policy': _nonneg(sca.get('components_violated_policy')),
+            'blacklisted_components': _nonneg(sca.get('blacklisted_components')),
+            'vulnerable_components': None if components is None else len(components),
+            'vulnerabilities': None if components is None or any(_nonneg(c.get('vulnerability')) is None
+                                                                 for c in components)
+            else sum(_nonneg(c.get('vulnerability')) for c in components),
+        },
+    }
+
+
+def normalize_sca_app_projects(raw: dict) -> dict:
+    """Projetos do SCA Agent vinculados a UMA aplicação (por GUID). Nomes de projeto/workspace descartados."""
+    projects = _list_or_none(raw.get('linked_projects'))
+    return {'linked_projects': None if projects is None else [
+        {'project_id': _str(p.get('id')),
+         'workspace_id': _str((p.get('workspace') or {}).get('id')) if isinstance(p.get('workspace'), dict) else None,
+         'last_scan_date': _str(p.get('last_scan_date'))} for p in projects if isinstance(p, dict)]}
+
+
 def _normalized(col: Collection, fn) -> Collection:
     col.items = [fn(i) for i in col.items]
     return col
@@ -215,8 +315,21 @@ async def fetch_findings(run: CollectionRun, application_guid: str, scan_type: s
     params = {'scan_type': scan_type, **({'context': sandbox_guid} if sandbox_guid else {})}
     col = await run.paginate(FINDINGS.format(guid=quote(application_guid, safe='')), 'findings',
                              label=f'findings:{scan_type.lower()}', id_field='issue_id', params=params,
-                             page_size=run.settings.findings_page_size)
+                             page_size=run.settings.findings_page_size, no_retry_status=FINDINGS_NO_RETRY)
     return _normalized(col, normalize_finding)
+
+
+async def fetch_summary_report(run: CollectionRun, application_guid: str,
+                               sandbox_guid: str | None = None) -> Collection:
+    """Summary Report do build mais recente da Policy (sem `context`) ou de um sandbox."""
+    col = await run.get_one(SUMMARY_REPORT.format(guid=quote(application_guid, safe='')), label='summary_report',
+                            params={'context': sandbox_guid} if sandbox_guid else None)
+    return _normalized(col, normalize_summary_report)
+
+
+async def fetch_sca_app_projects(run: CollectionRun, application_guid: str) -> Collection:
+    col = await run.get_one(SCA_APP_PROJECTS.format(guid=quote(application_guid, safe='')), label='sca_app_projects')
+    return _normalized(col, normalize_sca_app_projects)
 
 
 async def fetch_business_units(run: CollectionRun) -> Collection:

@@ -73,7 +73,7 @@ class Run:
 
 def input_hash(owner: dict, competence: Competence, scope_refs: list[dict]) -> str:
     payload = {'owner': [owner['kind'], owner['id']], 'competence': competence.label,
-               'utc_offset': competence.utc_offset, 'scope_refs': scope_refs,
+               'timezone': competence.timezone, 'scope_refs': scope_refs,
                'contracts': {c.metric_id: c.version for c in CONTRACTS}, 'engine': ENGINE_VERSION}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 

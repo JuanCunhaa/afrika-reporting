@@ -56,6 +56,7 @@ class Inputs:
     target: OwnerRule
     subs: list[OwnerRule]
     finding_rules: dict[str, list[OwnerRule]]  # 'scans'|'sca' -> regras que se aplicam aos findings
+    timezone: str = 'America/Sao_Paulo'        # fuso do cliente (subclientes herdam)
 
 
 def load_inputs(session: Session, kind: str, owner_id: uuid.UUID) -> Inputs:
@@ -71,7 +72,8 @@ def load_inputs(session: Session, kind: str, owner_id: uuid.UUID) -> Inputs:
         t = c if kind == 'client' else next(s for s in ss if s.owner.id == owner_id)
         applicable = [t] if (kind == 'client' or target.mode == 'separate') else [c, t]
         finding_rules[domain] = applicable
-    return Inputs(kind, owner_id, owner.name, client_ctx, target_ctx, client, target, subs, finding_rules)
+    return Inputs(kind, owner_id, owner.name, client_ctx, target_ctx, client, target, subs, finding_rules,
+                  owner.client.timezone)
 
 
 def scope_ref(o: OwnerRule, domain: str) -> dict:

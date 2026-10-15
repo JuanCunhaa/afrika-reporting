@@ -30,6 +30,9 @@ class Domain(StrEnum):
 class Source(StrEnum):
     APPLICATIONS_API = 'Veracode Applications API 1.0'
     FINDINGS_API = 'Veracode Findings API 2.1'
+    SUMMARY_REPORT_API = 'Veracode Summary Report API v2'
+    SCA_AGENT_API = 'Veracode SCA Agent API 3.0'
+    REPORTING_API = 'Veracode Reporting API 1.12 (POST + GET — bloqueada pela política GET-only)'
     NONE = 'nenhuma fonte homologada'
 
 
@@ -55,6 +58,7 @@ class TemporalMode(StrEnum):
 class DateField(StrEnum):
     NONE = 'NONE'
     FIRST_FOUND_DATE = 'finding_status.first_found_date'
+    SCAN_PUBLISHED_DATE = 'applications[].scans[].modified_date (publicação do ÚLTIMO scan do tipo)'
     RESOLUTION_DATE = 'resolution_date (inexistente na Findings API)'
 
 
@@ -63,6 +67,9 @@ class StatusCriterion(StrEnum):
     # status OPEN e mitigação NÃO aprovada (resolution_status != APPROVED)
     OPEN_EXCLUDING_APPROVED_MITIGATIONS = 'OPEN_EXCLUDING_APPROVED_MITIGATIONS'
     ANY_STATUS = 'ANY_STATUS'
+    # contagem do Summary Report do build mais recente (definição Veracode; tratamento de mitigados não documentado)
+    SUMMARY_REPORT_LATEST_BUILD = 'SUMMARY_REPORT_LATEST_BUILD'
+    PUBLISHED_SCAN = 'PUBLISHED_SCAN'
 
 
 class SeverityCriterion(StrEnum):
@@ -91,6 +98,9 @@ class IdentityProof(StrEnum):
 class Unit(StrEnum):
     APPLICATIONS = 'applications'
     FINDINGS = 'findings'
+    LINES_OF_CODE = 'lines_of_code'
+    COMPONENTS = 'components'
+    PROJECTS = 'projects'
 
 
 class Shape(StrEnum):

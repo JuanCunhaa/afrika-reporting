@@ -14,7 +14,7 @@ from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
-from app.metrics.collector import CollectionOutcome, CollectState, ContextData
+from app.metrics.collector import NOT_COLLECTED, CollectionOutcome, CollectState, ContextData
 from app.metrics.competence import Competence, parse_timestamp
 from app.metrics.contracts import (
     SEVERITY_LABELS, Dedup, Domain, IdentityProof, MetricContract, MetricResult, MetricStatus, Reason, ScanContext,
@@ -110,7 +110,9 @@ def _temporal(c: MetricContract, ctx: Context) -> dict:
             'historical_state': False,
             'note': {TemporalMode.CURRENT_STATE: _CURRENT_NOTE,
                      TemporalMode.EVENT_IN_PERIOD: f'Filtro: {c.date_field.value} dentro da competência '
-                                                   f'(fuso {ctx.competence.utc_offset}); demais datas ignoradas',
+                                                   f'(fuso {ctx.competence.timezone}, intervalo UTC '
+                                                   f'{ctx.competence.utc_start.isoformat()} – '
+                                                   f'{ctx.competence.utc_end.isoformat()}); demais datas ignoradas',
                      TemporalMode.STATE_AT_PERIOD_END: 'Estado no fechamento da competência (histórico)'}
             [c.temporal_mode]}
 
@@ -239,6 +241,7 @@ def _collection_check(ctx: Context, c: MetricContract, selected: list[ContextDat
                                                 'aplicação(ões): contextos de desenvolvimento desconhecidos')
     if out.limit_reached:
         b.add('collection_limit_exceeded', f'Limite da coleta atingido ({out.limit_reached}): agregados parciais')
+    coverage['contexts_retried'] = sum(x.retried for x in selected)
     unsupported = states.get(CollectState.UNSUPPORTED, 0)
     if unsupported and unsupported == len(selected):
         return coverage, False, True
@@ -246,11 +249,19 @@ def _collection_check(ctx: Context, c: MetricContract, selected: list[ContextDat
         b.add('context_unsupported', f'{unsupported} contexto(s) recusado(s) pela Veracode (HTTP 400)')
     bad = states.get(CollectState.INCOMPLETE, 0) + states.get(CollectState.FAILED, 0)
     if bad:
-        codes = sorted({x.error for x in selected if x.state in (CollectState.INCOMPLETE, CollectState.FAILED)
-                        and x.error})
+        codes = sorted({f'{x.error}' + (f'/{x.upstream_status}' if x.upstream_status else '') for x in selected
+                        if x.state in (CollectState.INCOMPLETE, CollectState.FAILED) and x.error})
         b.add('findings_collection_incomplete', f'{bad} contexto(s) com coleta incompleta ou falha '
                                                 f'({", ".join(codes)})')
-    failed_all = bool(selected) and states.get(CollectState.FAILED, 0) == len(selected)
+    circuit = states.get(CollectState.CIRCUIT_OPEN, 0)
+    if circuit:
+        b.add('circuit_open', f'{circuit} contexto(s) não requisitado(s): circuito aberto após falhas 5xx '
+                              f'consecutivas ({", ".join(out.circuits_opened)})')
+    no_sca = states.get(CollectState.NO_SCA_COMPONENTS, 0)
+    if no_sca:
+        b.add('sca_absence_inferred', f'{no_sca} aplicação(ões) sem componentes de terceiros no Summary Report: '
+                                      'Findings SCA não consultada; zero INFERIDO, não comprovado')
+    failed_all = bool(selected) and all(x.state in NOT_COLLECTED for x in selected)
     return coverage, failed_all, False
 
 
@@ -484,6 +495,204 @@ _FINDING_COMPUTE = {
 }
 
 
+# ---------------------------------------------------------------- fontes alternativas (F04.1)
+
+def _per_app(ctx: Context, group: str, b: Blockers, label: str) -> tuple[dict[str, dict | None], dict, bool]:
+    """Dados por aplicação de um recurso auxiliar (Summary Report / SCA Agent). (dados, cobertura, falhou_tudo)."""
+    out = ctx.outcome
+    apps = [a['guid'].lower() for a in ctx.population.applications]
+    fetched = getattr(out, group)
+    data, states = {}, Counter()
+    for g in apps:
+        f = fetched.get(g)
+        state = f.state if f else CollectState.FAILED
+        states[state] += 1
+        data[g] = f.data[0] if f and state == CollectState.COMPLETE and f.data else None
+    bad = len(apps) - states.get(CollectState.COMPLETE, 0)
+    if bad:
+        codes = sorted({f.error for f in fetched.values() if f.error})
+        b.add(f'{group}_incomplete', f'{label} indisponível para {bad} aplicação(ões) ({", ".join(codes) or "—"})')
+    if out.limit_reached:
+        b.add('collection_limit_exceeded', f'Limite da coleta atingido ({out.limit_reached}): agregados parciais')
+    coverage = {'applications': len(apps), **{f'{label.split()[0].lower()}_{s.value}': n for s, n in states.items()}}
+    return data, coverage, bool(apps) and states.get(CollectState.COMPLETE, 0) == 0
+
+
+def _alt_metric(c: MetricContract, ctx: Context) -> MetricResult:
+    pop = ctx.population
+    b = _population_blockers(pop)
+    out = ctx.outcome
+    mid = c.metric_id
+    if mid in ('apps.by_policy_compliance', 'scans.covered_apps'):
+        value = (_policy_compliance if mid == 'apps.by_policy_compliance' else _covered_apps)(ctx, b)
+        return _finish(c, ctx, value, b, coverage={'applications': len(pop.applications)})
+    if out is None or out.skipped_reason:
+        reason = out.skipped_reason if out else 'collection_not_run'
+        return _result(c, ctx, MetricStatus.INCOMPLETE, reasons=b.reasons + [Reason(
+            'source_not_collected', f'Fonte não coletada: {reason}')], coverage={'applications': len(pop.applications)})
+    group, label = ('sca_projects', 'SCA Agent') if mid == 'sca.agent.linked_projects' else ('summaries',
+                                                                                               'Summary Report')
+    data, coverage, failed_all = _per_app(ctx, group, b, label)
+    if failed_all:
+        return _finish(c, ctx, None, b, coverage=coverage, failed=True)
+    value = _ALT_COMPUTE[mid](ctx, data, b, coverage)
+    return _finish(c, ctx, value, b, coverage=coverage)
+
+
+def _policy_compliance(ctx: Context, b: Blockers) -> dict:
+    counts, unknown = Counter(), 0
+    for a in ctx.population.applications:
+        policies = a.get('policies')
+        status = policies[0].get('compliance_status') if policies and len(policies) == 1 else None
+        if status is None:
+            unknown += 1
+        else:
+            counts[status] += 1
+    if unknown:
+        b.add('policy_compliance_unknown', f'{unknown} aplicação(ões) sem política única com status de conformidade')
+    return {'items': [{'status': s, 'applications': n} for s, n in sorted(counts.items())], 'unknown': unknown,
+            'distinct_applications': len(ctx.population.applications)}
+
+
+def _covered_apps(ctx: Context, b: Blockers) -> dict:
+    covered = not_covered = hidden = unknown = 0
+    for a in ctx.population.applications:
+        scans = a.get('scans')
+        if scans is None:
+            unknown += 1
+            continue
+        static = [s for s in scans if s.get('scan_type') == 'STATIC']
+        dates = [(s.get('status'), parse_timestamp(s.get('modified_date'))) for s in static]
+        if any(d is None for _, d in dates):
+            unknown += 1
+        elif any(st == 'PUBLISHED' and ctx.competence.contains(d) for st, d in dates):
+            covered += 1
+        elif any(d >= ctx.competence.utc_end for _, d in dates):
+            hidden += 1          # scan posterior ao período pode esconder um scan dentro dele
+        else:
+            not_covered += 1
+    if unknown:
+        b.add('scan_metadata_missing', f'{unknown} aplicação(ões) sem scans[] ou sem data de publicação')
+    if hidden:
+        b.add('later_scan_hides_period', f'{hidden} aplicação(ões) com scan posterior à competência: o perfil só '
+                                         'mostra o último scan; cobertura do período indeterminada')
+    return {'covered': covered, 'not_covered': not_covered, 'indeterminate': hidden + unknown}
+
+
+def _summary_by_severity(ctx, data, b, coverage) -> dict:
+    acc = empty_severity()
+    without_static = 0
+    for g, s in data.items():
+        if s is None:
+            continue
+        static = s.get('static')
+        if static is None or static.get('flaws_by_severity') is None:
+            without_static += 1
+            continue
+        for level, n in static['flaws_by_severity'].items():
+            if n is None:
+                b.add('summary_severity_missing', 'Contagem por severidade ausente em módulo do Summary Report')
+                continue
+            acc[SEVERITY_LABELS[int(level)]] += n
+            acc['total'] += n
+    coverage['applications_without_static_analysis'] = without_static
+    return acc
+
+
+def _reconciliation(ctx, data, b, coverage) -> dict:
+    findings = {x.app_guid: x for x in ctx.outcome.contexts if x.context == 'POLICY' and x.scan_type == 'STATIC'}
+    names = {a['guid'].lower(): a.get('name') for a in ctx.population.applications}
+    compared = matching = 0
+    mismatches, not_comparable = [], 0
+    for g, s in data.items():
+        x = findings.get(g)
+        static = (s or {}).get('static') if s else None
+        if x is None or x.state != CollectState.COMPLETE or static is None or static.get('flaws_by_severity') is None:
+            not_comparable += 1
+            continue
+        api = Counter(str(f.get('severity')) for f in x.findings if f.get('status') == 'OPEN')
+        api = {str(k): api.get(str(k), 0) for k in range(6)}
+        rep_ = {str(k): static['flaws_by_severity'].get(str(k)) for k in range(6)}
+        compared += 1
+        if api == rep_:
+            matching += 1
+        else:
+            mismatches.append({'application_guid': g, 'name': names.get(g), 'findings_api': api,
+                               'summary_report': rep_})
+    if not_comparable:
+        b.add('reconciliation_not_comparable', f'{not_comparable} aplicação(ões) sem as duas fontes completas')
+    if mismatches:
+        b.add('sources_disagree', f'{len(mismatches)} aplicação(ões) com contagens diferentes entre Findings API e '
+                                  'Summary Report (investigar; nenhuma fonte é corrigida)')
+    return {'compared': compared, 'matching': matching, 'mismatching': len(mismatches),
+            'not_comparable': not_comparable, 'items': mismatches[:TOP_N]}
+
+
+def _loc_total(ctx, data, b, coverage) -> dict | int:
+    total, scanned, without_static = 0, 0, 0
+    for s in data.values():
+        if s is None:
+            continue
+        static = s.get('static')
+        if static is None or static.get('modules') is None:
+            without_static += 1
+            continue
+        if static.get('loc') is None:
+            b.add('loc_missing', 'LOC ausente em módulo do Summary Report')
+            continue
+        total += static['loc']
+        scanned += 1
+    coverage.update(applications_with_static_analysis=scanned, applications_without_static_analysis=without_static)
+    return total
+
+
+def _sca_components(ctx, data, b, coverage) -> dict:
+    third = violated = with_c = without_c = unknown = 0
+    for s in data.values():
+        if s is None:
+            continue
+        sca = s.get('sca') or {}
+        n = sca.get('third_party_components')
+        if n is None:
+            unknown += 1
+            continue
+        third += n
+        violated += sca.get('components_violated_policy') or 0
+        with_c += n > 0
+        without_c += n == 0
+    if unknown:
+        b.add('sca_summary_missing', f'{unknown} aplicação(ões) sem dados SCA no Summary Report')
+    return {'third_party_components': third, 'components_violated_policy': violated,
+            'applications_with_components': with_c, 'applications_without_components': without_c}
+
+
+def _agent_projects(ctx, data, b, coverage) -> dict:
+    apps_with = projects = 0
+    workspaces = set()
+    for d in data.values():
+        if d is None:
+            continue
+        linked = d.get('linked_projects')
+        if linked is None:
+            b.add('sca_agent_shape_unknown', 'Resposta do SCA Agent sem linked_projects')
+            continue
+        apps_with += bool(linked)
+        projects += len(linked)
+        workspaces |= {p['workspace_id'] for p in linked if p.get('workspace_id')}
+    return {'applications_with_linked_projects': apps_with, 'linked_projects': projects,
+            'workspaces': len(workspaces)}
+
+
+_ALT_COMPUTE = {
+    'sast.policy.summary.by_severity': _summary_by_severity,
+    'sast.policy.reconciliation': _reconciliation,
+    'apps.loc.total': _loc_total,
+    'sca.policy.summary.components': _sca_components,
+    'sca.agent.linked_projects': _agent_projects,
+}
+_ALT_IDS = set(_ALT_COMPUTE) | {'apps.by_policy_compliance', 'scans.covered_apps'}
+
+
 # ---------------------------------------------------------------- orquestração
 
 def compute_all(ctx: Context) -> list[MetricResult]:
@@ -499,6 +708,8 @@ def compute_all(ctx: Context) -> list[MetricResult]:
         elif pop.status in (PopulationStatus.UNAVAILABLE, PopulationStatus.FAILED):
             status = MetricStatus.UNAVAILABLE if pop.status == PopulationStatus.UNAVAILABLE else MetricStatus.FAILED
             out.append(_result(c, ctx, status, reasons=pop.reasons))
+        elif c.metric_id in _ALT_IDS:
+            out.append(_alt_metric(c, ctx))
         elif c.domain == Domain.APPLICATIONS:
             out.append(_apps_metric(c, ctx))
         else:

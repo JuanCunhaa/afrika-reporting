@@ -44,20 +44,29 @@ Sandbox = desenvolvimento; SAST e SCA nunca somados nem com a mesma identidade.
 | sca.policy.open.top_components | SCA | Policy | estado atual | component_id | biblioteca + versão |
 | sca.policy.open.top_vulnerabilities | SCA | Policy | estado atual | cve.name | pode não ser CVE |
 | sca.policy.open.by_dependency_mode | SCA | Policy | estado atual | — | `metadata.sca_dep_mode` |
+| **F04.1** apps.by_policy_compliance | apps | Policy | estado atual | GUID | perfil `policies[]`; 0 ou >1 política ⇒ INCOMPLETE |
+| **F04.1** apps.loc.total | apps | Policy | estado atual (último build) | GUID | Summary Report; só apps com análise estática |
+| **F04.1** sast.policy.summary.by_severity | SAST | Policy | estado atual (último build) | — | Summary Report — fonte alternativa à Findings |
+| **F04.1** sast.policy.reconciliation | SAST | Policy | estado atual | — | Findings × Summary Report por app; divergência ⇒ INCOMPLETE (nenhuma fonte é corrigida) |
+| **F04.1** sca.policy.summary.components | SCA | Policy | estado atual (último build) | — | componentes de terceiros e que violam política |
+| **F04.1** sca.agent.linked_projects | SCA | — | estado atual | GUID | SCA Agent, projetos vinculados por GUID |
+| **F04.1** scans.covered_apps | scans | (não documentado) | evento na competência | GUID | último scan STATIC publicado; scan posterior ao período ⇒ indeterminado |
 
 ## Não suportados / indisponíveis (lacunas explícitas)
 | ID | Status | Motivo |
 |---|---|---|
 | *.at_period_end (apps, SAST, SCA) | UNAVAILABLE | fonte só expõe estado atual; fechamento de competência = snapshot aprovado (F05) ou entrada manual |
-| sast.policy.resolved_in_period | UNSUPPORTED | Findings API sem data de resolução (`last_seen_date` não é resolução) |
+| sast.policy.resolved_in_period | UNSUPPORTED | Findings API sem data de resolução; Reporting API tem `resolved_date`/`fixed_date` mas exige **POST** |
 | sca.policy.new_in_period | UNSUPPORTED | `first_found_date` do SCA pode ser data de publicação da vulnerabilidade (spec) |
-| sca.agent.projects | UNSUPPORTED | SCA Agent (`/srcclr`) não homologado nem na allowlist; Findings API não traz projeto |
-| scans.count, scans.covered_apps | UNSUPPORTED | nenhuma API de scans/builds homologada |
+| sca.agent.issues | UNSUPPORTED | issues por projeto do agente existem (GET) mas não foram homologadas/allowlist |
+| scans.count | UNSUPPORTED | perfil só traz o último scan; relatório SCANS da Reporting API exige **POST** |
 | licenses.usage | UNSUPPORTED | nenhuma API de licenças homologada (provável entrada manual) |
-| compliance.by_status, loc.total, density.*, trend.monthly | não registrados | próximas iterações (fontes a homologar; tendência depende de snapshots F05) |
+| density.*, trend.monthly | não registrados | densidade exige definição oficial do denominador; tendência depende de snapshots F05 |
 
 ## Temporalidade
-Competência `YYYY-MM`, sempre mês **fechado** (`[1º dia 00:00, 1º dia do mês seguinte)`), fuso por deslocamento fixo
-`±HH:MM` (padrão `+00:00`; sem horário de verão — decisão de fuso padrão pendente com o PO). Cada resultado traz
-`as_of` (data da coleta), período, campo de data aplicado e `historical_state=false`. Estado atual **não** representa
-o fechamento de competências anteriores.
+Competência `YYYY-MM`, sempre mês **fechado** no fuso do cliente (`[1º dia 00:00, 1º dia do mês seguinte)` local).
+**F04.1:** fuso IANA por cliente (padrão `America/Sao_Paulo`; subclientes herdam; sobrescrita opcional por execução)
+com regras históricas (`zoneinfo` + `tzdata`, ex.: horário de verão até 2019). Cada resultado distingue competência,
+fuso, intervalo local, **intervalo UTC** efetivamente comparado, `as_of` (data da coleta), campo de data aplicado e
+`historical_state=false`. Estado atual **não** representa o fechamento de competências anteriores.
+Fontes e definições por indicador: `docs/API_SOURCE_MATRIX.md`.

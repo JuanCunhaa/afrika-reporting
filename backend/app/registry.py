@@ -182,7 +182,8 @@ def create_client(session: Session, data: schemas.ClientCreate) -> schemas.Clien
     _ensure_client_name_free(session, data.name)
     _resolve_connection(session, data.connection_id)
     client = Client(name=data.name, display_name=data.display_name or data.name, description=data.description,
-                    is_active=data.is_active, report_mode=data.report_mode.value, connection_id=data.connection_id)
+                    is_active=data.is_active, report_mode=data.report_mode.value, connection_id=data.connection_id,
+                    timezone=data.timezone)
     session.add(client)
     _commit(session)
     session.refresh(client)

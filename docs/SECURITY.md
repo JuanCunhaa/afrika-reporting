@@ -50,3 +50,13 @@
 - **Abuso/custo**: execuções só por ação explícita; no máximo 3 simultâneas (429), orçamento/prazo por execução e teto
   de aplicações; cancelamento explícito. Homologação real só opt-in (`tests_live/test_metrics_live.py`), amostra
   pequena, imprimindo só contagens, chaves e enums.
+
+## Controles implementados na F04.1 (fontes alternativas)
+- **Allowlist**: + `GET /appsec/v2/applications/{guid}/summary_report` e `GET /srcclr/v3/applications/{guid}/projects`
+  (ambos GET na especificação oficial; testes de bloqueio para Reporting API, issues/workspaces do agente e caminhos
+  derivados). Política GET-only inalterada; nenhum POST, cookie, sessão de navegador ou endpoint interno de UI.
+- **Minimização**: Summary Report descarta `submitter`, `business_owner`, nome da aplicação, Teams, BU, tags, campos
+  personalizados e dados de componentes; SCA Agent guarda só IDs de projeto/workspace e data do último scan.
+- **Fuso do cliente**: nome IANA validado contra a lista oficial instalada antes de abrir a zona (sem caminho de arquivo).
+- **Custo/abuso**: 500 sem retry imediato, passada adiada única e circuit breaker limitam requisições repetindo a mesma
+  falha. Repositório de referência sem licença: estudado, nenhum trecho copiado.

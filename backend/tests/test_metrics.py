@@ -94,7 +94,9 @@ class Env:
         self.ids = ids(tenant)
 
     def client(self, name='Cliente Métricas', ref='env:VC_GAMMA', **kw):
+        # Valores-ouro do tenant gamma são em UTC; o padrão real (America/Sao_Paulo) tem teste próprio.
         conn = self.connection(ref)
+        kw.setdefault('timezone', 'UTC')
         r = self.api.post('/api/clients', json={'name': name, 'connection_id': conn['id'], **kw})
         assert r.status_code == 201, r.text
         return r.json()
@@ -122,9 +124,11 @@ class Env:
         self.scope('clients', client_id, 'applications',
                    {'field': 'business_unit.id', 'cmp': 'in', 'values': self.ids['bu']})
 
-    def run(self, kind, owner_id, competence='2026-09', utc_offset='+00:00', timeout=20.0):
-        r = self.api.post('/api/metrics/runs', json={'owner_kind': kind, 'owner_id': owner_id,
-                                                    'competence': competence, 'utc_offset': utc_offset})
+    def run(self, kind, owner_id, competence='2026-09', tz=None, timeout=20.0):
+        body = {'owner_kind': kind, 'owner_id': owner_id, 'competence': competence}
+        if tz is not None:
+            body['timezone'] = tz
+        r = self.api.post('/api/metrics/runs', json=body)
         assert r.status_code == 202, r.text
         return self.wait(r.json()['run_id'], timeout)
 
@@ -196,8 +200,7 @@ def test_catalog_contracts_are_typed_unique_and_complete(api):
         if m['support'] == 'UNSUPPORTED' or m['temporal_mode'] == 'STATE_AT_PERIOD_END':
             assert m['unsupported_reason']
     # Lacunas declaradas, nunca implementadas por suposição
-    for gap in ('scans.count', 'scans.covered_apps', 'licenses.usage', 'sca.agent.projects',
-                'sast.policy.resolved_in_period'):
+    for gap in ('scans.count', 'licenses.usage', 'sca.agent.issues', 'sast.policy.resolved_in_period'):
         assert REGISTRY[gap].support.value == 'UNSUPPORTED'
     assert all(c.homologation.value != 'MATCHES_DASHBOARD' for c in CONTRACTS)  # sem comparação real
 
@@ -223,18 +226,56 @@ def test_competence_format_is_strict(label):
 
 def test_competence_must_be_closed_month_and_has_exact_bounds():
     with pytest.raises(comp.CompetenceError) as exc:
-        comp.parse('2026-10', now=NOW)
+        comp.parse('2026-10', 'UTC', now=NOW)
     assert exc.value.code == 'competence_not_closed'
-    c = comp.parse('2026-09', now=NOW)
+    c = comp.parse('2026-09', 'UTC', now=NOW)
     assert (c.start.isoformat(), c.end.isoformat()) == ('2026-09-01T00:00:00+00:00', '2026-10-01T00:00:00+00:00')
     assert c.contains(comp.parse_timestamp('2026-09-30T23:59:59.999Z'))
     assert not c.contains(comp.parse_timestamp('2026-10-01T00:00:00.000Z'))
-    dec = comp.parse('2025-12', '-03:00', now=NOW)
-    assert dec.end.isoformat() == '2026-01-01T00:00:00-03:00'
     assert comp.parse_timestamp('2026-09-30T23:59:59') is None  # sem fuso => desconhecido, não presumido UTC
-    for bad in ('-3:00', 'UTC', '+15:00', '03:00'):
-        with pytest.raises(comp.CompetenceError):
+    assert comp.parse_timestamp('2026-08-11 17:53:42 UTC').isoformat() == '2026-08-11T17:53:42+00:00'  # Summary
+    for bad in ('-03:00', 'BRT', 'America/Nowhere', '../etc/passwd', 'America/Sao_Paulo/..', 'x' * 70, ''):
+        with pytest.raises(comp.CompetenceError) as exc:
             comp.parse('2026-09', bad, now=NOW)
+        assert exc.value.code == 'invalid_timezone'
+
+
+def test_default_timezone_is_sao_paulo_with_utc_interval():
+    c = comp.parse('2026-09', now=NOW)
+    assert c.timezone == comp.DEFAULT_TIMEZONE == 'America/Sao_Paulo'
+    d = c.as_dict()
+    assert d['period_start'] == '2026-09-01T00:00:00-03:00' and d['period_end_exclusive'] == '2026-10-01T00:00:00-03:00'
+    assert (d['utc_start'], d['utc_end_exclusive']) == ('2026-09-01T03:00:00+00:00', '2026-10-01T03:00:00+00:00')
+    assert c.contains(comp.parse_timestamp('2026-10-01T02:59:59.999Z'))      # 30/09 23:59:59 em São Paulo
+    assert not c.contains(comp.parse_timestamp('2026-09-01T02:59:59Z'))      # 31/08 23:59:59 em São Paulo
+    # mês "aberto" é avaliado no fuso do cliente: 2026-09 em Kiritimati (UTC+14) fecha antes de em São Paulo
+    almost = datetime(2026, 10, 1, 2, 0, tzinfo=timezone.utc)
+    with pytest.raises(comp.CompetenceError):
+        comp.parse('2026-09', now=almost)
+    assert comp.parse('2026-09', 'Pacific/Kiritimati', now=almost).label == '2026-09'
+
+
+@pytest.mark.parametrize('label, start, end, hours', [
+    # horário de verão de 2017/2018: 15/10/2017 a 18/02/2018 (-02:00)
+    ('2018-02', '2018-02-01T00:00:00-02:00', '2018-03-01T00:00:00-03:00', 28 * 24 + 1),
+    ('2017-10', '2017-10-01T00:00:00-03:00', '2017-11-01T00:00:00-02:00', 31 * 24 - 1),
+    # 2018/2019: início em 04/11/2018, fim em 17/02/2019
+    ('2018-11', '2018-11-01T00:00:00-03:00', '2018-12-01T00:00:00-02:00', 30 * 24 - 1),
+    ('2019-02', '2019-02-01T00:00:00-02:00', '2019-03-01T00:00:00-03:00', 28 * 24 + 1),
+    # horário de verão abolido a partir de 2019 (Decreto 9.772/2019): dezembro sem mudança
+    ('2019-12', '2019-12-01T00:00:00-03:00', '2020-01-01T00:00:00-03:00', 31 * 24),
+])
+def test_sao_paulo_historical_dst_rules(label, start, end, hours):
+    c = comp.parse(label, 'America/Sao_Paulo', now=NOW)
+    assert (c.start.isoformat(), c.end.isoformat()) == (start, end)
+    assert (c.utc_end - c.utc_start).total_seconds() == hours * 3600
+
+
+def test_nonexistent_local_midnight_moves_to_first_valid_instant():
+    # Asia/Tehran não tem mudança à meia-noite; America/Havana iniciava o horário de verão às 00:00 (ex.: 2012-04-01).
+    c = comp.parse('2012-04', 'America/Havana', now=NOW)
+    assert c.start.isoformat() == '2012-04-01T01:00:00-04:00'
+    assert c.utc_start.isoformat() == '2012-04-01T05:00:00+00:00'
 
 
 def test_api_rejects_open_or_malformed_competence(env):
@@ -245,8 +286,8 @@ def test_api_rejects_open_or_malformed_competence(env):
         r = env.api.post('/api/metrics/runs', json={'owner_kind': 'client', 'owner_id': c['id'], 'competence': label})
         assert r.status_code == 422 and r.json()['error']['code'] == code
     r = env.api.post('/api/metrics/runs', json={'owner_kind': 'client', 'owner_id': c['id'], 'competence': '2026-09',
-                                               'utc_offset': 'BRT-03'})
-    assert r.status_code == 422
+                                               'timezone': 'BRT-03'})
+    assert r.status_code == 422 and r.json()['error']['code'] == 'invalid_timezone'
     assert env.fake.requests == []  # nada coletado com entrada inválida
 
 
@@ -472,10 +513,11 @@ def test_first_found_date_defines_period_not_update_date(client_run):
     assert m['coverage']['outside_period'] == 3
 
 
-def test_period_boundaries_follow_utc_offset(env):
-    c = env.client()
+def test_period_boundaries_follow_client_timezone(env):
+    c = env.client(timezone='America/Sao_Paulo')
+    assert c['timezone'] == 'America/Sao_Paulo'
     env.universe(c['id'])
-    run = env.run('client', c['id'], utc_offset='-03:00')
+    run = env.run('client', c['id'])                       # sem override: fuso do cliente
     m = M(run, 'sast.policy.new_in_period.by_severity')
     # período = [09-01T03:00Z, 10-01T03:00Z): #1 sai; #5 (10-01T00:00Z = 09-30 21:00 local) entra
     assert m['value'] == sev(HIGH=1, MEDIUM=1, LOW=1, INFORMATIONAL=1)

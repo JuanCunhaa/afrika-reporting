@@ -3,6 +3,7 @@
 Código: `backend/app/veracode/` + `backend/app/api_veracode.py`; UI: `frontend/src/pages/VeracodePage.tsx`.
 Estado: **homologada contra tenant REAL de testes em 2026-10-14 (F02.1, somente GET)** — matriz em “Homologação real (F02.1) — resultado”.
 F04: Findings API (STATIC) homologada em formato no mesmo tenant; SCA bloqueado por HTTP 500 da Veracode — ver “Homologação real (F04) — resultado”.
+F04.1: + Summary Report e SCA Agent (projetos vinculados); diagnóstico dos 500 e confiabilidade — ver “F04.1”. Matriz completa: `docs/API_SOURCE_MATRIX.md`.
 
 ## Autenticação (HMAC)
 - Esquema `VERACODE-HMAC-SHA-256`, implementado a partir da documentação oficial
@@ -28,6 +29,8 @@ Especificações oficiais: [Applications API 1.0](https://app.swaggerhub.com/api
 | Detalhe do Team | `/api/authn/v2/teams/{team_id}` | — | `users[]` (UserTeam) → relação usuário↔Team; `relationship` real = objeto `{name, display_name}` (spec: string; ambos aceitos); `user_count` ausente na API real ⇒ conferência só quando presente |
 | Usuários | `/api/authn/v2/users?page&size` | `users` | parâmetros padrão da API (`deleted`/`inactive` = false); **sem `account_type` na lista real** |
 | Teste de conexão | os 4 endpoints de lista com `size=1` | — | identifica permissão por domínio |
+| **Summary Report (F04.1)** | `/appsec/v2/applications/{guid}/summary_report[?context={sandbox_guid}]` | — | build mais recente; chave real `flaw-status` (hífen) e `sca_service_available` não booleano ⇒ normalização tolerante; nomes de pessoas/aplicação/Teams descartados |
+| **SCA Agent (F04.1)** | `/srcclr/v3/applications/{guid}/projects` | — | `{application, linked_projects[]}`; só IDs de projeto/workspace e data do último scan |
 | **Findings (F04)** | `/appsec/v2/applications/{guid}/findings?scan_type=STATIC` ou `SCA` `[&context={sandbox_guid}]&page&size` | `findings` | [Findings API 2.1](https://app.swaggerhub.com/apis/Veracode/veracode-findings_api_specification/2.1); papel *Results API*; sem `context` = Policy; SCA nunca combinado com outros tipos; `size` próprio (`FINDINGS_PAGE_SIZE`=50) |
 
 Campos mantidos após normalização (minimização): aplicações (guid, id legado, nome, BU, Teams, tags, criticidade,
@@ -152,12 +155,36 @@ suíte + diagnóstico de 5xx). Contagens não versionadas.
 |---|---|---|
 | Autenticação/permissão Findings API | VERIFIED_REAL | 200 em STATIC (Policy e Sandbox) |
 | Formato STATIC | VERIFIED_REAL | chaves `issue_id, scan_type, context_type, context_guid, violates_policy, count, build_id, description, finding_status{first_found_date,last_seen_date,status,resolution,resolution_status,new,mitigation_review_status}, finding_details{severity,cwe,finding_category,file_*,module,procedure,relative_location,exploitability,attack_vector}`; datas com `Z`; enums observados `OPEN`, `UNRESOLVED`, `NONE`, `APPLICATION` |
-| Paginação findings | VERIFIED_REAL | `page` snake_case + `_links`; **`size=100` ⇒ HTTP 500** em aplicação com mais de uma página de 50 findings, `size=50` ⇒ 200; **sem `size` a API usou 20** (spec diz 50) ⇒ `FINDINGS_PAGE_SIZE=50` |
+| Paginação findings | VERIFIED_REAL | `page` snake_case + `_links`; sem `size` a API usou 20 (spec diz 50). **Correção F04.1:** a conclusão "size=100 ⇒ 500" era intermitência — o mesmo `size=50` alternou 500/200 na mesma aplicação. `FINDINGS_PAGE_SIZE=50` mantido (padrão documentado), não como correção do 500 |
 | Erros 5xx da Findings API | BLOCKED_EXTERNAL | uma aplicação: 500 em STATIC com qualquer `size` (1/10/50); SCA: 500 (corpo vazio) intermitente/persistente em todas as aplicações testadas; um timeout de 60 s. O motor reporta INCOMPLETE/FAILED — nunca zero |
 | Formato SCA | NOT_VERIFIED | uma resposta 200 (estrutura HAL normal, página cheia) obtida; chaves dos itens não inspecionadas (chamadas seguintes 500). Na 2ª execução 3 contextos SCA deram `invalid_response` (200 rejeitado pelo validador; hipótese não confirmada: item sem `issue_id`) |
 | Identidade Policy × Sandbox | NOT_PROVEN | todos os `issue_id` repetidos entre Policy e sandbox da mesma aplicação (amostra) tinham o mesmo CWE e severidade — indício, não prova |
 | Fechados retornados por padrão | NOT_VERIFIED | amostra só com `OPEN` |
 | Comparação com o dashboard | NOT_RUN | nenhum agregado comparado com a plataforma; exige conferência humana com os mesmos filtros |
+
+## F04.1 — diagnóstico dos HTTP 500 e confiabilidade
+Amostras de 3–7 aplicações, só GET, sem retry nos diagnósticos (≈ 150 GETs na fase, incluindo 2 execuções do
+pipeline). Hipóteses testadas:
+| # | Hipótese | Resultado |
+|---|---|---|
+| H1 | 500 quando não há scan publicado do tipo (`scans[]`) | **refutada**: `scans[]` real nunca lista SCA, e houve SCA 200 com findings |
+| H2 | `size=100` causa o 500 | **refutada**: `size=50` também deu 500 e depois 200 na mesma aplicação |
+| H3 | Summary Report responde onde a Findings falha | **confirmada**: 200 em todas as aplicações testadas; contagens iguais à Findings onde ambas responderam |
+| H4 | permissão/papel | **refutada**: as mesmas credenciais obtêm 200 na mesma aplicação minutos depois; 401/403 nunca ocorreram |
+| H5 | "aquecimento": 500 rápido (~3,3 s; sucesso leva 0,6–1,5 s) até o resultado ficar pronto | **confirmada para STATIC** (500 → 200 após ~20 s; repetição imediata 200); retries em segundos não resolvem |
+| H6 | SCA 500 quando a aplicação não tem componentes (`third_party_components=0`) | **inconclusiva**: todas as observações sem componentes deram 500, mas uma aplicação com componentes também alternou 200/500 |
+Conclusão: o 500 é do lado da Veracode, intermitente, com padrão de tempo-limite interno (~3 s); **não** comprova
+licença nem permissão. Mecanismos implementados (`backend/app/metrics/collector.py`):
+- 500 da Findings **sem retry imediato** (`FINDINGS_NO_RETRY`); **passada adiada única** para contextos com 500
+  (`AFRIKA_VERACODE_FINDINGS_RETRY_PASS_DELAY`=20 s após o primeiro 500).
+- **Circuit breaker** por (recurso, tipo, contexto): `AFRIKA_VERACODE_CIRCUIT_BREAKER_THRESHOLD`=5 falhas de servidor
+  consecutivas ⇒ restante não requisitado (`circuit_open`, indicador INCOMPLETE/FAILED).
+- **Pré-checagem SCA** (`AFRIKA_VERACODE_SCA_PRECHECK`=`verify`|`skip`|`off`): Summary Report com
+  `third_party_components=0` ⇒ 500 persistente vira `no_sca_components` (ausência **inferida**, indicador INCOMPLETE;
+  não alimenta o circuito). `verify` ainda chama e tenta de novo; `skip` economiza a chamada.
+- Execução real do pipeline após as mudanças (3 apps): 31 GETs, 0 retries imediatos, 47 s (F04: 73 GETs, 48 retries,
+  ~300 s); passada adiada recuperou 1 de 3; circuitos de Sandbox abriram. Indicadores do Summary Report, SCA Agent,
+  conformidade, LOC e cobertura de scans: VALIDATED na amostra; Findings: INCOMPLETE (500).
 
 ## Fica para as próximas fases
 - F03: **entregue** — `docs/SCOPES.md`.

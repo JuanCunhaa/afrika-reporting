@@ -39,21 +39,30 @@ class VeracodeSettings:
     # Findings API: padrão documentado = 50. Homologação real (F04): size=100 => HTTP 500 numa aplicação com 52
     # findings, enquanto size=50 respondeu 200. Teto 500 (documentado).
     findings_page_size: int = 50
+    # F04.1 — confiabilidade da coleta de findings (evidência real: 500 "frio" passa após ~20 s; 500 persistente no
+    # SCA de aplicações sem componentes de terceiros).
+    circuit_breaker_threshold: int = 5      # falhas 5xx consecutivas por (recurso, tipo) => circuito aberto
+    findings_retry_pass_delay: float = 20.0 # s, espera mínima antes da passada única de nova tentativa
+    # Summary Report sem componentes de terceiros: 'verify' (padrão) chama a Findings SCA uma vez e, se vier 500,
+    # registra ausência INFERIDA; 'skip' nem chama; 'off' ignora a pré-checagem.
+    sca_precheck: str = 'verify'
     read_only: bool = True                 # VERACODE_READ_ONLY; somente True é aceito
 
     def __post_init__(self):
         if self.read_only is not True:
             raise SettingsError(f'{READ_ONLY_VAR} deve ser true: a integração Veracode é somente leitura')
+        if self.sca_precheck not in ('verify', 'skip', 'off'):
+            raise SettingsError('AFRIKA_VERACODE_SCA_PRECHECK deve ser verify, skip ou off')
         if self.mode not in MODES:
             raise SettingsError(f'AFRIKA_VERACODE_MODE deve ser um de {MODES}')
         positive = ('connect_timeout', 'read_timeout', 'backoff_base', 'backoff_max', 'max_retry_after',
                     'max_concurrency', 'max_requests_per_collection', 'collection_timeout', 'page_size',
                     'cache_max_entries', 'metrics_max_requests', 'metrics_timeout', 'metrics_max_applications',
-                    'findings_page_size')
+                    'findings_page_size', 'circuit_breaker_threshold')
         for name in positive:
             if getattr(self, name) <= 0:
                 raise SettingsError(f'{name} deve ser > 0')
-        if self.max_retries < 0 or self.cache_ttl < 0:
+        if self.max_retries < 0 or self.cache_ttl < 0 or self.findings_retry_pass_delay < 0:
             raise SettingsError('max_retries e cache_ttl não podem ser negativos')
         if self.page_size > 500 or self.findings_page_size > 500:
             raise SettingsError('page_size máximo documentado pela Veracode é 500')
@@ -73,6 +82,11 @@ class VeracodeSettings:
             if raw is None or raw.strip() == '':
                 continue
             try:
+                if f.type == 'bool':
+                    if raw.strip().lower() not in ('true', 'false', '1', '0'):
+                        raise ValueError
+                    values[f.name] = raw.strip().lower() in ('true', '1')
+                    continue
                 values[f.name] = raw.strip() if f.type == 'str' else (int(raw) if f.type == 'int' else float(raw))
             except ValueError:
                 raise SettingsError(f'AFRIKA_VERACODE_{f.name.upper()} inválido') from None

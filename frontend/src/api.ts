@@ -23,6 +23,7 @@ export type Client = {
   report_mode: ReportMode;
   connection_id: string | null;
   connection: ConnectionSummary | null;
+  timezone: string;
   subclient_count: number;
   active_subclient_count: number;
   created_at: string;
@@ -50,7 +51,9 @@ export type ClientInput = {
   is_active: boolean;
   report_mode: ReportMode;
   connection_id: string | null;
+  timezone?: string;
 };
+export const DEFAULT_TIMEZONE = 'America/Sao_Paulo';
 export type SubclientInput = { name: string; display_name: string; is_active: boolean; connection_id: string | null };
 export type ConnectionInput = { name: string; description: string | null; region: Region; credential_ref: string };
 
@@ -447,7 +450,7 @@ export type MetricRow = {
     as_of: string;
     historical_state: boolean;
     note: string;
-    period: { period_start: string; period_end_inclusive: string; utc_offset: string };
+    period: { period_start: string; period_end_inclusive: string; timezone: string; utc_start: string; utc_end_exclusive: string };
   };
   name: string;
   description: string;
@@ -476,7 +479,14 @@ export type MetricRun = {
   run_id: string;
   status: 'pending' | 'running' | 'done' | 'cancelled' | 'failed';
   owner: { kind: 'client' | 'subclient'; id: string; name: string; client_id: string };
-  competence: { competence: string; utc_offset: string; period_start: string; period_end_inclusive: string };
+  competence: {
+    competence: string;
+    timezone: string;
+    period_start: string;
+    period_end_inclusive: string;
+    utc_start: string;
+    utc_end_exclusive: string;
+  };
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
@@ -484,7 +494,7 @@ export type MetricRun = {
   error: MetricReason | null;
   result?: MetricRunResult | null;
 };
-export type MetricRunInput = { owner_kind: 'client' | 'subclient'; owner_id: string; competence: string; utc_offset: string };
+export type MetricRunInput = { owner_kind: 'client' | 'subclient'; owner_id: string; competence: string; timezone?: string };
 
 export const metrics = {
   start: (body: MetricRunInput) => request<MetricRun>('POST', '/api/metrics/runs', body),

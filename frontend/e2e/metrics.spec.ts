@@ -4,6 +4,7 @@ import { SYNTHETIC_SECRET_NAMES, SYNTHETIC_SECRET_VALUES } from './fixture-creds
 // F04: painel de indicadores contra o backend em modo FIXTURE (tenant sintético `alpha`; nenhuma Veracode real).
 // Valores esperados calculados diretamente dos dados brutos do fixture (backend/app/veracode/fixtures.py), sem o
 // motor: universo BU1+BU2 = 60 apps; SAST Policy abertos = 126; ocorrências em sandboxes = 102; SCA Policy = 60.
+// F04.1: Summary Report (52 apps com análise estática) = 123 findings OPEN e LOC 356200; fuso padrão America/Sao_Paulo.
 const run = Date.now().toString(36);
 const bodies: string[] = [];
 
@@ -32,10 +33,11 @@ async function createClient(request: APIRequestContext, name: string) {
   return (await request.post('/api/clients', { data: { name, connection_id: conn.id } })).json();
 }
 
-async function collect(page: Page, clientId: string, competence = '2026-09') {
+async function collect(page: Page, clientId: string, competence = '2026-09', tz = '') {
   await page.goto(`/#/metrics/clients/${clientId}`);
   await expect(page.getByRole('heading', { level: 2 })).toHaveText('Indicadores');
   await page.getByLabel('Competência (mês fechado)').fill(competence);
+  if (tz) await page.getByLabel('Fuso (opcional)').fill(tz);
   await page.getByRole('button', { name: 'Iniciar coleta' }).click();
 }
 
@@ -57,6 +59,7 @@ test('coleta explícita, status, severidades, fonte, filtros e motivos por domí
   await collect(page, client.id);
   await expect(page.getByTestId('run-status')).toContainText('Concluída', { timeout: 20_000 });
   await expect(page.getByTestId('run-status')).toContainText(`${name} · competência 2026-09`);
+  await expect(page.getByTestId('run-status')).toContainText('America/Sao_Paulo; UTC 2026-09-01T03:00:00+00:00');
   await expect(page.getByTestId('run-collected-at')).not.toBeEmpty();
 
   // Aplicações
@@ -64,6 +67,7 @@ test('coleta explícita, status, severidades, fonte, filtros e motivos por domí
   await expect(page.getByTestId('value-apps.total')).toHaveText('60');
   await expect(page.getByTestId('status-apps.total.at_period_end')).toHaveText('Indisponível');
   await expect(card(page, 'apps.total.at_period_end')).toContainText('historical_state_unavailable');
+  await expect(page.getByTestId('value-apps.loc.total')).toHaveText('356200');
 
   // SAST: Policy × Sandbox, severidades, dedup não comprovada
   await page.getByRole('tab', { name: 'SAST', exact: true }).click();
@@ -83,15 +87,21 @@ test('coleta explícita, status, severidades, fonte, filtros e motivos por domí
   await expect(policy).toContainText('context=POLICY');
   await expect(policy).toContainText('status=OPEN_EXCLUDING_APPROVED_MITIGATIONS');
   await expect(page.getByTestId('status-sast.policy.resolved_in_period')).toHaveText('Não suportado');
+  await expect(card(page, 'sast.policy.resolved_in_period')).toContainText('exige POST');
+  await expect(page.getByTestId('total-sast.policy.summary.by_severity')).toHaveText('123');
+  await expect(page.getByTestId('status-sast.policy.reconciliation')).toHaveText('Incompleto');
+  await expect(card(page, 'sast.policy.reconciliation')).toContainText('reconciliation_not_comparable');
 
   // SCA
   await page.getByRole('tab', { name: 'SCA', exact: true }).click();
   await expect(page.getByTestId('total-sca.policy.open.by_severity')).toHaveText('60');
-  await expect(page.getByTestId('status-sca.agent.projects')).toHaveText('Não suportado');
+  await expect(page.getByTestId('status-sca.agent.issues')).toHaveText('Não suportado');
+  await expect(page.getByTestId('status-sca.agent.linked_projects')).toHaveText('Validado');
 
   // Lacunas declaradas
   await page.getByRole('tab', { name: 'Scans e licenças' }).click();
   await expect(page.getByTestId('status-scans.count')).toHaveText('Não suportado');
+  await expect(page.getByTestId('status-scans.covered_apps')).toHaveText('Validado');
   await expect(page.getByTestId('status-licenses.usage')).toHaveText('Não suportado');
 });
 
@@ -102,6 +112,9 @@ test('cliente sem escopo: indisponível com motivo; competência aberta é recus
   await expect(page.getByTestId('status-apps.total')).toHaveText('Indisponível');
   await expect(card(page, 'apps.total')).toContainText('universe_not_defined');
   await expect(page.getByTestId('value-apps.total')).toHaveCount(0);
+
+  await collect(page, client.id, '2026-09', 'UTC');
+  await expect(page.getByTestId('run-status')).toContainText('(UTC; UTC 2026-09-01T00:00:00+00:00', { timeout: 20_000 });
 
   const now = new Date();
   const current = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;

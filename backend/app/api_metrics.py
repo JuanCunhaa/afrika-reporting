@@ -33,7 +33,8 @@ class RunIn(BaseModel):
     owner_kind: Literal['client', 'subclient']
     owner_id: uuid.UUID
     competence: str = Field(min_length=7, max_length=7)
-    utc_offset: str = Field(default='+00:00', min_length=6, max_length=6)
+    timezone: str | None = Field(default=None, min_length=1, max_length=64,
+                                 description='Fuso IANA; padrão = fuso do cliente')
 
 
 def get_runs(request: Request) -> RunManager:
@@ -58,12 +59,6 @@ def catalog():
 
 @router.post('/runs', status_code=202, responses=_ERRORS)
 async def start_run(data: RunIn, request: Request, runs: Runs):
-    try:
-        comp = competence_mod.parse(data.competence, data.utc_offset)
-    except competence_mod.CompetenceError as exc:
-        raise ApiError(422, exc.code, exc.message,
-                       [{'field': 'competence' if 'competence' in exc.code else 'utc_offset',
-                         'message': exc.message, 'type': exc.code}]) from None
     if runs.active() >= runs.max_active:
         raise ApiError(429, 'too_many_metric_runs', 'Há execuções de métricas demais em curso; aguarde ou cancele')
 
@@ -72,6 +67,12 @@ async def start_run(data: RunIn, request: Request, runs: Runs):
             return load_inputs(session, data.owner_kind, data.owner_id)
 
     inputs = await run_in_threadpool(load)
+    try:
+        comp = competence_mod.parse(data.competence, data.timezone or inputs.timezone)
+    except competence_mod.CompetenceError as exc:
+        raise ApiError(422, exc.code, exc.message,
+                       [{'field': 'competence' if 'competence' in exc.code else 'timezone',
+                         'message': exc.message, 'type': exc.code}]) from None
     return runs.start(inputs, comp).public()
 
 

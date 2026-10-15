@@ -196,7 +196,7 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
   const [subs, setSubs] = useState<Subclient[]>([]);
   const [owner, setOwner] = useState('');
   const [competence, setCompetence] = useState(previousMonth);
-  const [offset, setOffset] = useState('+00:00');
+  const [tzOverride, setTzOverride] = useState('');
   const [run, setRun] = useState<MetricRun | null>(null);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<DomainTab>('applications');
@@ -235,7 +235,7 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
         owner_kind: owner ? 'subclient' : 'client',
         owner_id: owner || client,
         competence,
-        utc_offset: offset,
+        timezone: tzOverride.trim() || undefined,
       });
       setRun(r);
       poll(r.run_id);
@@ -294,8 +294,17 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
           <input id="m-competence" type="month" value={competence} onChange={(e) => setCompetence(e.target.value)} required />
         </div>
         <div className="field">
-          <label htmlFor="m-offset">Fuso (UTC±HH:MM)</label>
-          <input id="m-offset" value={offset} onChange={(e) => setOffset(e.target.value)} pattern="[+\-]\d{2}:\d{2}" required />
+          <label htmlFor="m-timezone">Fuso (opcional)</label>
+          <input
+            id="m-timezone"
+            value={tzOverride}
+            onChange={(e) => setTzOverride(e.target.value)}
+            placeholder={clients.data?.items.find((c) => c.id === client)?.timezone ?? 'fuso do cliente'}
+            aria-describedby="m-timezone-hint"
+          />
+          <small id="m-timezone-hint" className="muted">
+            Vazio = fuso do cliente (nome IANA, regras históricas).
+          </small>
         </div>
         <div className="actions">
           <button className="btn primary" type="submit" disabled={!client || running}>
@@ -312,7 +321,7 @@ export function MetricsPage({ clientId }: { clientId?: string }) {
       {run && (
         <div className="panel" aria-label="Execução">
           <p role="status" data-testid="run-status">
-            Execução {RUN_LABEL[run.status]} — {run.owner.name} · competência {run.competence.competence} ({run.competence.utc_offset})
+            Execução {RUN_LABEL[run.status]} — {run.owner.name} · competência {run.competence.competence} ({run.competence.timezone}; UTC {run.competence.utc_start} → {run.competence.utc_end_exclusive})
             {running && ` · ${run.progress.stage} ${run.progress.applications_done}/${run.progress.applications_total ?? '?'} aplicações`}
           </p>
           {run.error && <ErrorBox message={run.error.message} />}

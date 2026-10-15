@@ -12,6 +12,7 @@ from typing import Annotated, ClassVar, Generic, Literal, TypeVar
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from app.metrics.competence import CompetenceError, zone
 from app.orm import ReportMode, VeracodeRegion
 
 _CONTROL_CHARS = re.compile(r'[\x00-\x1f\x7f]')
@@ -121,6 +122,20 @@ class ConnectionOut(ConnectionSummary):
 
 # ---------------------------------------------------------------- clientes
 
+def _check_timezone(v: str | None) -> str | None:
+    if v is None:
+        return v
+    try:
+        zone(v)
+    except CompetenceError as exc:
+        raise ValueError(exc.message) from None
+    return v
+
+
+TimeZoneName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64),
+                         AfterValidator(_check_timezone)]
+
+
 class ClientCreate(StrictInput):
     name: Name
     display_name: DisplayName | None = Field(default=None, description='Padrão: igual a name')
@@ -128,6 +143,7 @@ class ClientCreate(StrictInput):
     is_active: bool = True
     report_mode: ReportMode = ReportMode.CONSOLIDATED
     connection_id: uuid.UUID | None = None
+    timezone: TimeZoneName = Field(default='America/Sao_Paulo', description='Fuso IANA das competências')
 
 
 class ClientUpdate(PatchInput):
@@ -138,6 +154,7 @@ class ClientUpdate(PatchInput):
     is_active: bool | None = None
     report_mode: ReportMode | None = None
     connection_id: uuid.UUID | None = None
+    timezone: TimeZoneName | None = None
 
 
 class ClientOut(ApiOutput):
@@ -149,6 +166,7 @@ class ClientOut(ApiOutput):
     report_mode: ReportMode
     connection_id: uuid.UUID | None
     connection: ConnectionSummary | None
+    timezone: str
     subclient_count: int = 0
     active_subclient_count: int = 0
     created_at: datetime

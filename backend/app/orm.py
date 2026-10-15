@@ -132,6 +132,9 @@ class Client(NamedMixin, TimestampMixin, Base):
     report_mode: Mapped[str] = mapped_column(String(20), nullable=False, default=ReportMode.CONSOLIDATED.value)
     connection_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(), ForeignKey('connections.id', ondelete='RESTRICT'), nullable=True, index=True)
+    # F04.1: fuso IANA das competências do cliente (subclientes herdam).
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default='America/Sao_Paulo',
+                                          server_default='America/Sao_Paulo')
 
     connection: Mapped[Connection | None] = relationship(lazy='joined')
     subclients: Mapped[list[Subclient]] = relationship(back_populates='client', passive_deletes='all')

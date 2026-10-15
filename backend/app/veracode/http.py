@@ -198,7 +198,10 @@ class CollectionRun:
         s = self.settings
         return self._rng.uniform(0, min(s.backoff_max, s.backoff_base * (2 ** attempt)))  # full jitter
 
-    async def get_json(self, path: str, params: dict | None = None, *, label: str) -> dict:
+    async def get_json(self, path: str, params: dict | None = None, *, label: str,
+                       no_retry_status: frozenset[int] = frozenset()) -> dict:
+        """`no_retry_status`: status que NÃO são repetidos de imediato (F04.1: 500 da Findings API só passa após
+        dezenas de segundos — repetir em segundos só gasta orçamento; o coletor faz uma passada adiada)."""
         s = self.settings
         for attempt in range(s.max_retries + 1):
             if self.requests >= self.max_requests:
@@ -232,10 +235,11 @@ class CollectionRun:
                     if not isinstance(data, dict):
                         raise VeracodeError('invalid_response', upstream_status=status)
                     return data
-                if status not in RETRYABLE_STATUS:
+                if status not in RETRYABLE_STATUS or status in no_retry_status:
                     # 3xx: redirects não são seguidos (host fixo por região) => resposta inesperada.
-                    code = _STATUS_ERRORS.get(status) or ('bad_request' if 400 <= status < 500 else
-                                                          'invalid_response' if status < 400 else 'upstream_error')
+                    code = _STATUS_ERRORS.get(status) or ('rate_limited' if status == 429 else 'bad_request'
+                                                          if 400 <= status < 500 else 'invalid_response'
+                                                          if status < 400 else 'upstream_error')
                     logger.warning('veracode recurso=%s status=%s erro=%s', label, status, code)
                     raise VeracodeError(code, upstream_status=status)
                 error = VeracodeError('rate_limited' if status == 429 else 'upstream_error', upstream_status=status)
@@ -261,7 +265,8 @@ class CollectionRun:
         raise AssertionError('inalcançável')
 
     async def paginate(self, path: str, embedded_key: str, *, label: str, id_field: str,
-                       params: dict | None = None, page_size: int | None = None) -> Collection:
+                       params: dict | None = None, page_size: int | None = None,
+                       no_retry_status: frozenset[int] = frozenset()) -> Collection:
         size = page_size or self.settings.page_size
         col = Collection(resource=label)
         start_requests, start_retries = self.requests, self.retries
@@ -270,7 +275,8 @@ class CollectionRun:
         page = 0
         try:
             while True:
-                data = await self.get_json(path, {**(params or {}), 'page': page, 'size': size}, label=label)
+                data = await self.get_json(path, {**(params or {}), 'page': page, 'size': size}, label=label,
+                                           no_retry_status=no_retry_status)
                 total_pages, total_elements = _page_meta(data)
                 batch = _embedded(data, embedded_key, total_elements)
                 col.pages_fetched += 1
