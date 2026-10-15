@@ -11,10 +11,22 @@
 - **F04.1 — fontes alternativas e confiabilidade: DONE — aguardando PO** (commit `0568326` + docs; CI verde run `38681179717`)
 - **F05 — snapshots, histórico, aprovações e Reporting API: DONE_LOCAL — aprovada pelo PO** (commit `ad4b91f` + docs; CI verde run `38746312757`; Reporting API real: HTTP 403 — BLOCKED_EXTERNAL)
 - **F06A — motor de templates e pré-visualização: DONE_LOCAL — aguardando PO** (commit `c160494` + docs; CI verde run `38776201083`; tema demonstrativo neutro PROVISÓRIO)
-- F06B — NOT_STARTED — **não iniciar sem ordem do PO**
+- **F06B.1 — preparação do motor visual oficial: DONE_LOCAL — aguardando PO** (commit `4cc9c61` + referências Linux + docs; CI: ver checkpoint)
+- F06B (reprodução definitiva do template oficial) — NOT_STARTED — **aguarda PPTX de referência aprovado + ordem do PO**
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F06B.1 (2026-10-15)
+- Temas versionados com tokens completos (`themes.py`, migration `0006_themes` append-only, ativos locais por SHA-256 fora do Git, API/CLI); renderizador e CSS só leem tokens; tema por cliente via template. Docs: `docs/THEMES.md`.
+- Compatibilidade F06A: conversão do tema neutro 19/19 idêntica (pixel + manifesto); 3 correções deliberadas com diff (legenda × rodapé, período ISO, gráfico encolhido) + rótulos de mês rarefeitos; hash de `neutral-demo@1` fixado em teste.
+- Inspeção PPTX local (`inspect-pptx`, stdlib, sem conteúdo; `strict`/`structural`; rascunho de tema não aprovado) testada só com PPTX sintético. Doc: `docs/PPTX_INSPECTION.md`.
+- Motor visual próprio (`frontend/visual/`): captura `#/render`, manifesto (geometria, hash de texto, fontes de plataforma via CDP), diff YIQ + antisserrilhado separado, categorias conteúdo/fonte/layout/estilo/rasterização; referências win32 (38 slides, 2 temas) com ruído medido 0. Doc: `docs/VISUAL_REGRESSION.md`.
+- Editor: D1 (edição durante salvamento perdida) e D2 (pré-visualização tardia após Descartar) reproduzidos e corrigidos; releitura falha após 200 informada; duplo clique = 1 PUT. Intermitência F06A: NOT_REPRODUCED (60 s de carga real, 4.335 req., 0 erros, máx. 744 ms; 50/50 repetições E2E).
+- pytest **479 passed** (438 + 41); E2E Chromium **30 passed** (24 + 6) em 3 rodadas completas; motor visual 11/11; build OK; `npm audit` 0; `pip check` OK; gitleaks staged 0; `check_repo`/`check_env_example` OK; migrations CLI OK (`0006_themes`).
+- Nenhuma chamada à Veracode nesta fase.
+
+Próxima autorização esperada: aceite da F06B.1 pelo PO + PPTX de referência aprovado (fora do repo) para a reprodução definitiva.
 
 ## Checkpoint F06A (2026-10-15)
 - `backend/app/presentations/` + migration `0005_presentations` (templates versionados append-only, escolha por dono, apresentações, revisões append-only com hash encadeado; gatilho: só revisão de competência APROVADA). Docs: `docs/PRESENTATIONS.md`, `docs/PRESENTATION_CONTRACTS.md`.

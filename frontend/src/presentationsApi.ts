@@ -117,6 +117,7 @@ export type Theme = {
     point_radius: number;
     point_stroke: number;
     axis_label_offset: number;
+    axis_label_min_gap: number;
     category_label_offset: number;
     value_label_offset: number;
     point_label_offset: number;

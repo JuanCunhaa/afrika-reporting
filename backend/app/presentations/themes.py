@@ -296,6 +296,7 @@ class Charts(_Strict):
     point_radius: Pos = 6
     point_stroke: Px = 2
     axis_label_offset: Px = 10
+    axis_label_min_gap: Px = 4  # folga mínima entre rótulos vizinhos do eixo X (rarefação/truncamento)
     category_label_offset: Px = 22
     value_label_offset: Px = 8
     point_label_offset: Px = 12

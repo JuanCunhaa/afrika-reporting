@@ -1,59 +1,133 @@
-# Devolutiva Claude → ChatGPT PO — F06A: Motor de Templates e Pré-visualização (2026-10-15)
+# Devolutiva Claude → ChatGPT PO — F06B.1: Preparação do Motor Visual Oficial (2026-10-15)
 
-- **Fase / commits:** F06A / `main` / **`c160494`** (código + testes + docs técnicas) + commit seguinte só com STATUS/handoff. Push feito. **F06B, F07 e F08 NÃO iniciadas.**
-- **CI:** run `38776201083` (SHA `c160494`) — **success** — Backend 3.11 e 3.14 (438 passed cada), Frontend typecheck+build, E2E Chromium (24 passed).
-- Modelo: Opus 5.5 (ambiente). Nenhum subagente. Nenhuma chamada à Veracode nesta fase.
+- **Fase / commits:** F06B.1 / `main` / **`4cc9c61`** (implementação + testes + docs técnicas + referências visuais
+  win32) → `__COMMIT_LINUX__` (referências visuais Linux geradas no CI e revisadas; fim do modo bootstrap) → commit de
+  checkpoint (STATUS/handoff). Push feito. **F06B (reprodução definitiva), F07 e F08 NÃO iniciadas.**
+- **CI:** __CI_SUMMARY__
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada.
 
 ## 1. Funcionalidades implementadas
-Templates tipados e versionados (imutáveis, append-only) com tema, slides ordenados, layout, indicadores, campos editáveis, obrigatoriedade e compatibilidade de versões de contrato; escolha de template por cliente/subcliente (subcliente herda do cliente; cliente sem subcliente funciona); criação de apresentação **só** a partir de revisão aprovada (rascunho/em revisão ⇒ 409); fontes fixadas com hash (revisão principal + aprovações dos 11 meses anteriores) e troca explícita (`rebind`); editor HTML com canvas 16:9, navegação (botões, setas, contador, modo apresentação), edição de título/textos/tópicos/títulos de gráfico/legendas/observações/notas/apresentadores, layout e opções, seleção de indicadores compatíveis, inclusão/remoção/reordenação, pré-visualização ao vivo **sem gravação**, dados de origem, revisões (consulta somente leitura) e verificação de integridade. Tema demonstrativo neutro **PROVISÓRIO** (aviso na tela e no rodapé de cada slide). Docs: `docs/PRESENTATIONS.md`, `docs/PRESENTATION_CONTRACTS.md`.
+- **Temas versionados** (`backend/app/presentations/themes.py`, migration `0006_themes`): esquema tipado e completo de
+  tokens; versões imutáveis (append-only por gatilho, `definition_hash` sobre todos os valores, auditoria
+  `theme.version_created`); temas embutidos no código (só `neutral-demo@1`, provisório) e próprios no banco local;
+  API (`/api/presentation-themes…`) e CLI (`theme-create`). **Tema por cliente** via template (cada dono escolhe o seu).
+- **Ativos locais** (`assets.py`): logos/fontes/fundos por SHA-256 em `AFRIKA_ASSET_DIR` (padrão `data/theme-assets/`,
+  ignorado); tipo pela assinatura; SVG saneado; servido com CSP sandbox e conferência de hash; ativo ausente = aviso.
+- **Renderizador sem valores codificados** (`SlideView.tsx` + `theme.ts` + CSS): ~120 variáveis de tema; regiões
+  `flow`/`fixed`, sobreposição por layout, cabeçalho/rodapé configuráveis, capa/encerramento, fundos, imagens, `@font-face`
+  de fontes locais, geometria SVG dos gráficos por token, canvas de qualquer proporção (testado 16:9 e 4:3).
+- **Rota de captura** `#/render/{id}[/{rev}]` (escala 1, sinal `data-render-ready`) e marcadores `data-el` /
+  `data-provenance` (indicador|competência|estado|origem) nos componentes.
+- **Inspeção PPTX local** (`inspect-pptx`) + **PPTX sintético** (`synthetic-pptx`) + **rascunho de tema** não aprovado.
+- **Motor de comparação visual** (`frontend/visual/`, TypeScript sem dependências) + regressão E2E com 2 temas × 19
+  slides + relatório JSON/Markdown + PNG de diferença + tolerâncias medidas por plataforma.
+- **Editor**: correções de confiabilidade (seção 6) e testes específicos.
+- Revisão dos 11 tipos: período da capa legível (`period_label`, backend), legenda não invade mais o rodapé, gráfico no
+  layout com texto em escala real, rótulos de mês rarefeitos em vez de truncados; unidades/lacunas/ausentes/manuais e
+  proveniência preservados (proveniência agora também por elemento). Nada foi convertido em imagem.
 
-## 2. Tipos de slides disponíveis (nenhum obrigatório por si)
-Capa · Sumário executivo · KPIs principais · Mês atual × anterior · Gráfico de barras (categorias da competência ou série mensal) · Linhas/série histórica (até 4 séries, 6/12 meses) · Distribuição por severidade · Ranking Top 10 · Tabela de indicadores · Recomendações e observações · Encerramento. Cada tipo declara layouts, campos editáveis/obrigatórios, nº e tipos de valor aceitos e opções.
+## 2. Formato dos temas
+`{name, description, provisional, notice, canvas{width,height}, colors{token:#hex}, fonts{heading,body,numeric:{stack[],
+export_family, asset?}}, weights, sizes, line_heights, spacing, radii, borders, layout{mode flow|fixed, body, header,
+content, footer{x,w,bottom,reserve}, visual_side_ratio, summary_ratio}, layouts{<layout>: overrides}, header, footer{show,
+items[], separator, custom_text}, cover, closing, backgrounds{default,cover,closing}, images[{name, asset, box, slides,
+fit, alt}], charts{viewBox, recuos, barras, linhas, lacunas, severidade, ranking, legenda…}}`. Validação: cores
+obrigatórias e referências, caixas no canvas, **conteúdo não invade o rodapé**, fontes com genérica no fim e nomes
+seguros, ativos do tipo certo, layouts conhecidos. Exemplo sintético completo: `frontend/e2e/visual-theme.ts`. Detalhes:
+`docs/THEMES.md`. **Decisão:** o catálogo (`GET /api/presentation-catalog`) passou a listar **resumos** de temas (antes:
+a definição do tema embutido); o tema completo continua em `view.theme` e em `GET /api/presentation-themes/{k}/versions/{v}`.
 
-## 3. Modelo de templates
-`template_key` + `version` + `definition_hash`; `theme {id, version}`; `metric_contracts {metric_id: [versões aceitas]}`; `slides[{slot_id, type, layout, required, required_metrics, fields, metrics, options}]`. Sem campo de valor (`extra=forbid` ⇒ 422 para `value`). `required` = slot não removível nem trocável de tipo; `required_metrics` = indicadores não removíveis e, sem valor aprovado, viram **bloqueio** (`ready=false` para F07). Contrato fora das versões aceitas ⇒ `INCOMPATIBLE` (valor não exibido). Embutidos sintéticos: `demo-executivo`, `demo-tecnico`, `demo-minimo` (instalação idempotente; também no `seed-demo`).
+## 3. Capacidades de inspeção PPTX
+Local, só biblioteca padrão, sem rede, sem executar/ler macros, OLE ou planilhas, sem extrair arquivos; limites contra
+zip bomb e XML com DOCTYPE. Relatório (`report.json`/`report.md`, em `output/` ou fora do repo — área versionável é
+recusada): nº/ordem/ocultos, dimensões (EMU/pol/px/proporção), masters/layouts (placeholders com caixas, estilos de
+texto, elementos estáticos, uso por slide), tema (12 slots de cor, fontes major/minor), cores e fontes usadas
+(+ tamanhos), formas (caixa em px com grupos e herança de placeholder), textos (só estatísticas), gráficos (tipo,
+séries, pontos, formatos — **sem valores/categorias**), tabelas (dimensões, mesclas, estilo), imagens (formato, pixels,
+hash, uso), elementos reutilizáveis (estáticos de master/layout, imagens repetidas, geometrias repetidas) e **não
+reproduzíveis** com classe e tratamento (SmartArt, OLE, vídeo, animação, chartex, macros, EMF/WMF, WordArt, 3D, efeitos,
+geometria livre, gradiente, fontes incorporadas, dados vinculados…). Privacidade: nenhum texto/valor/nota/comentário;
+`strict` (padrão) também sem nomes/arquivo/URLs; testado com sentinelas. `--theme-draft` gera tema provisório validado
+(cores do esquema, fontes, regiões dos placeholders do master) com `needs_review`. Doc: `docs/PPTX_INSPECTION.md`.
 
-## 4. Persistência e migrations
-`0005_presentations`: `presentation_templates` (append-only), `owner_template_selections` (append-only), `presentations` (identidade imutável, sem DELETE, ponteiro `current_revision` com concorrência otimista), `presentation_revisions` (append-only; documento + fontes + `document_hash`/`sources_hash`/`revision_hash` encadeado; gatilho exige revisão de competência APROVADA e a aprovação dela). Downgrade recusado com apresentações salvas (`AFRIKA_ALLOW_DESTRUCTIVE_DOWNGRADE=1`). Upgrade testado em banco F05 com histórico aprovado. Auditoria na cadeia F05: `template.version_created`, `template.selected`, `presentation.created|saved|sources_rebound`. O editor não tem caminho de escrita para snapshots/aprovações (testado: `row_hash`, aprovação e integridade F05 iguais antes/depois).
+## 4. Estratégia de comparação visual
+Captura determinística (rota de render, escala 1, viewport do canvas, DPR 1, sem animação/cursor, espera de fontes e
+imagens) + **manifesto** por elemento (caixa, hash do texto, fonte computada e **fonte real de plataforma** via CDP, cores)
+→ comparação: dimensões; pixel (YIQ perceptual, limiar 0) com **antisserrilhado contado à parte**; regiões; diferenças de
+manifesto classificadas em **conteúdo / fonte / layout / estilo** e regiões atribuídas (sem diferença semântica =
+**rasterização**); lista de desalinhados (dx/dy/dw/dh) e alinhamentos rompidos. **Tolerâncias medidas**: cada execução
+captura 2× (3× em medição) e falha se o ruído exceder o registrado; win32: 0/0/0; linux: __LINUX_TOL__. Referências por
+plataforma (fontes/rasterização diferem entre SOs). Evidência de uso real nesta fase: a conversão do tema F06A foi
+provada idêntica (19/19) e as correções deliberadas apareceram isoladas e corretamente categorizadas. Comparação com o
+PPTX oficial: plano em `docs/VISUAL_REGRESSION.md` (exportar PNG localmente, medir tolerância entre renderizadores com
+slides de controle antes de qualquer veredito). **Pendente** até o arquivo aprovado.
 
-## 5. Endpoints e interface
-`GET /api/presentation-catalog`; `GET/POST /api/presentation-templates`; `POST /api/presentation-templates/builtin`; `GET /api/presentation-templates/{key}/versions/{v}`; `POST /api/presentation-templates/{key}/versions`; `GET/PUT /api/template-selection/{kind}/{id}`; `GET/POST /api/presentations`; `GET /api/presentations/{pid}`; `GET …/revisions/{n}`; `PUT …/document`; `POST …/preview`; `POST …/rebind`; `GET …/view[?revision=n]`; `GET …/integrity`. Telas: **Apresentações** (`#/presentations`) e editor (`#/presentations/{id}`).
-
-IR de gráficos (`charts.py`, `ir_version` 1): `y` = exatamente o número aprovado; ausência ⇒ `y=null` com estado `GAP`/`MISSING`/`NOT_NUMERIC`/`INCOMPATIBLE`; cores por token (`series.1..4` fixas por vinculação, rampa ordinal de severidade de um tom + cinza com textura para desconhecida — paletas validadas com validador de CVD/contraste); eixo Y a partir de 0; unidade do contrato; pt-BR; contagens sem arredondamento, decimal 2 casas e percentual 1 casa (meio-par só no rótulo); linhas quebram em lacunas (sem interpolação); distribuições/rankings só com adaptador explícito por indicador.
-
-## 6. Testes
+## 5. Testes
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` (local e CI 3.11/3.14) | **PASS 438** (411 + 27 F06A) |
-| E2E Chromium `npm run test:e2e` | **PASS 24/24** (22 + 2 F06A) em 3 rodadas completas locais + CI |
-| `presentations.spec.ts` repetido | 2 + 16 + 24 + 6 (partida a frio) PASS; **1 FAIL** isolado antes (ver riscos) |
+| `python -m pytest -q` (local) | **PASS 479** (438 + 41: temas 29, PPTX 9, confiabilidade backend 3) |
+| E2E Chromium `npm run test:e2e` | **PASS 30/30** (24 + 6: regressão visual 1 [38 slides], confiabilidade 5) em **3 rodadas completas** locais |
+| Repetições: `presentations` + `editor-reliability` + `scopes` ×5 | **PASS 50/50**; `editor-reliability` ×3 isolado 15/15 |
+| Regressão visual (win32) | **38/38 PASS** (2 temas × 19 slides), ruído medido 0 em 3 capturas |
+| Motor visual `npm run test:visual-unit` | **PASS 11/11** (PNG, diff, antisserrilhado, regiões, manifesto, veredito) |
 | build; `npm audit` (total e prod); `pip check` | OK; 0 vulnerabilidades; OK |
 | gitleaks (staged) | 0 achados |
-| `check_repo`; `check_env_example` | OK (F06A); SEGURO |
-| migrations CLI (migrate, db-status, seed ×2, migrate) em banco novo | OK (`0005_presentations`; seed idempotente, 3 templates) |
+| `check_repo`; `check_env_example` | OK (F06B.1); SEGURO |
+| migrations CLI (migrate, db-status, seed ×2, migrate) em banco novo | OK (`0006_themes`); CLI inspect→draft→theme-create OK |
+| CI GitHub | __CI_TABLE__ |
 | `tests_live` | NOT_RUN (fase sem chamadas reais) |
-Cobertura da ordem: slides opcionais (remoção/obrigatórios), templates por cliente/subcliente, só aprovados (rascunho, em revisão e revisão-rascunho recusados; gatilho no banco), séries 6 e 12 meses com lacunas, dados ausentes/incompatíveis/estrutura não reconhecida, manuais identificados, gráficos sem números inventados (todo número da IR ⊆ valores aprovados ∪ deltas), edição sem alterar métricas, reordenação/remoção/inclusão, persistência após reinício (visualização idêntica), versionamento de templates, integridade (adulteração de documento e de snapshot detectadas), concorrência (4 threads: 1 sucesso, 3 conflitos), downgrade, upgrade F05→F06A, pré-visualização sem gravação, E2E completo, regressão.
 
-## 7. `scopes.spec.ts` (investigação)
-Não reproduzido: 6 repetições isoladas (18/18), 3+1+3 suítes completas (22/22 e 24/24), sonda temporária com CPU 20× mais lenta clicando logo após trocar de dono (0/24 cliques perdidos). Duração do teste 5,1 s (timeout 30 s). Hipótese examinada (formulário sincronizado por `useEffect` passivo sobrescrevendo clique) não confirmada — Playwright espera estabilidade antes do clique. **Nenhum retry adicionado e nenhum código F03 alterado.** Causa: NOT_PROVEN; trace é retido em falha (`trace: retain-on-failure`) para a próxima ocorrência.
+## 6. Intermitência do editor
+- **Defeitos reproduzidos e corrigidos (com teste de regressão):** **D1** — edição feita enquanto o PUT estava em
+  andamento era sobrescrita pela releitura (reproduzido com resposta de salvamento retida); **D2** — após "Descartar",
+  uma pré-visualização atrasada reexibia o conteúdo descartado. Também: voltar manualmente ao texto salvo deixava
+  visualização/erro órfãos; falha na releitura após HTTP 200 aparecia como erro genérico (agora "a revisão N foi
+  gravada, mas a releitura falhou", sem retry e sem "alterações não salvas" falso); duplo clique tem guarda síncrona
+  (1 PUT). Concorrência entre abas e resposta antiga após edição mais recente já estavam corretas (agora testadas).
+- **Intermitência F06A (GET sem resposta > 5 s após PUT 200): NOT_REPRODUCED.** Evidência: experimento de carga real
+  (uvicorn + proxy do Vite, 6 editores concorrentes, 60 s, 4.335 requisições incluindo 489 releituras triplas logo
+  após o 200): 0 erros reais, 0 requisições > 2 s, máx. 744 ms; backend: leitura imediata após 200 consistente com 4
+  leitores/pré-visualizações concorrentes; E2E 50/50 em repetição. **Não há evidência de que o SQLite seja a causa**;
+  nenhum retry foi adicionado. Com a correção de D1, o editor não depende mais da releitura para o estado salvo.
 
-## 8. Riscos e limitações
-1. **Intermitência nova no editor (1 em ~51 execuções):** PUT de salvamento respondeu 200, mas o GET seguinte ficou sem resposta > 5 s (≈ timeout padrão de lock do SQLite; compatível com bloqueio transitório do arquivo no Windows, **não provado**). Mitigação de correção (não retry): a UI passou a derivar o estado salvo da resposta do PUT; não se repetiu nas 48 execuções seguintes.
-2. Tema e templates demonstrativos; nenhuma fidelidade a template oficial (diff visual por slide depende do arquivo aprovado — F06B).
-3. Sem exportação PPTX/PDF (F07); mapeamento previsto documentado (objetos nativos a partir da IR, sem imagens).
-4. Identidade declarada (sem autenticação); SQLite local.
-5. Janela fixada de 12 meses; distribuições/rankings sem adaptador ⇒ indisponíveis.
-6. Pendências herdadas: Reporting API BLOCKED_EXTERNAL (403); comparação com dashboard NOT_RUN.
+## 7. Limitações de elementos editáveis (PPTX futuro)
+Matriz em `docs/PRESENTATIONS.md`: textos → caixas/placeholder editáveis; KPIs/tabelas/ranking/comparação → tabelas ou
+caixas editáveis; barras/linhas/série → gráficos nativos (dados da IR; lacuna = ponto vazio); severidade → barras nativas
+ou tabela; logos/fundos → imagem (não vetorial; SVG requer PNG de reserva); faixas/barras → formas nativas. Sem
+equivalente editável exato: textura CSS repetida da severidade desconhecida, `object-fit: cover` (vira recorte),
+rarefação de rótulos (decidida pelo PowerPoint), escala de eixo (geometria). Exportação NOT_STARTED (F07).
 
-## 9. Pendências para F06B
-Catalogar o template oficial aprovado (sem commitar PPTX real): tema oficial (cores/fontes/master) como novo tema versionado; layouts reais por slide; mapear cada bloco a `metric_id` + versões de contrato e `required_metrics`; regressão visual por slide (screenshots com tolerância medida, ambiente de fontes registrado); decidir conjunto obrigatório por template; eventualmente adaptadores para novos indicadores.
+## 8. Riscos, decisões e observações
+1. **Template oficial ausente**: nada de identidade visual foi inventado; tema neutro segue provisório.
+2. `neutral-demo@1` convertido ao novo esquema com 3 correções visuais deliberadas (evidência de diff); hash fixado a
+   partir de agora (mudança futura = v2).
+3. Referências Linux dependem da imagem do runner do GitHub (fontes); atualização do runner pode exigir nova referência
+   (o relatório categoriza como fonte/rasterização).
+4. Observação para o PO (não alterado): o contrato F04 de `licenses.usage` usa unidade `findings` — provavelmente
+   deveria ser "licenças"; mudar exige nova versão de contrato.
+5. Identidade declarada (sem autenticação); SQLite local; upload de ativos só em loopback.
 
-## 10. Commits e push
-`c160494` (implementação) + commit de checkpoint (STATUS/handoff). Push em `origin/main`. Só arquivos de código, testes e docs (sem banco, PPTX, evidências ou `.env`).
+## 9. Dependências para concluir a F06B
+1. **PPTX de referência aprovado** (fora do repo) e confirmação de quais slides/variações são oficiais.
+2. Fontes oficiais **licenciadas** (arquivos ou nomes) e logos aprovados como ativos locais.
+3. Decisões do PO sobre tokens sem equivalente no PPTX (rampa de severidade, cores de lacuna/manual) e sobre elementos
+   não reproduzíveis apontados pela inspeção.
+4. Mapeamento de cada bloco do template oficial a `metric_id` + versões de contrato e `required_metrics`.
+5. Renderizações PNG de referência exportadas localmente do PPTX aprovado para a comparação visual.
 
-**Prompt sugerido para F06B (não executado):** "F06B — A partir do template oficial aprovado pelo PO (arquivo fora do repo), criar o tema oficial versionado (cores, fontes com fallback, master) e as versões de template correspondentes, mapeando cada bloco a `metric_id` + versões de contrato e `required_metrics`; implementar regressão visual por slide com dados sintéticos (tolerância medida, ambiente registrado) e verificação semântica (nº de slides, textos, valores); manter o tema demonstrativo; sem exportação PPTX/PDF (F07)."
+**Prompt sugerido para a próxima fase (não executado):** "F06B.2 — Com o PPTX de referência aprovado (fora do repo),
+rodar `inspect-pptx --theme-draft`, revisar o rascunho com o PO e criar o tema oficial versionado (ativos licenciados
+locais); publicar as versões de template correspondentes mapeando cada bloco a `metric_id` + contrato e
+`required_metrics`; exportar localmente os slides de referência em PNG, medir a tolerância PowerPoint×Chromium com slides
+de controle e rodar a comparação visual + verificação semântica (nº de slides, textos, valores); manter o tema
+demonstrativo; sem exportação PPTX/PDF (F07)."
 
 ---
 
 ## Versão compacta para o PO
-F06A concluída localmente (`c160494`, CI verde run `38776201083`). Templates tipados e versionados (imutáveis), escolha por cliente/subcliente, 11 tipos de slide, apresentações criadas somente de revisões aprovadas com fontes fixadas por hash e troca explícita, IR de gráficos independente do renderizador (sem números inventados; lacunas/ausências/manuais explícitos), editor HTML 16:9 navegável com pré-visualização ao vivo, dados de origem, revisões e integridade; tema neutro **provisório**. Migration `0005_presentations` com gatilhos. Testes: pytest 438 PASS, E2E 24 PASS, build/audit/pip/gitleaks OK. `scopes.spec.ts` não reproduzido (sem retry). Risco: 1 intermitência rara no editor (causa não provada, mitigada sem retry). F06B aguardando ordem.
+F06B.1 concluída localmente (`4cc9c61` + referências Linux; __CI_SHORT__). Temas versionados com tokens completos e
+ativos locais fora do Git (tema por cliente via template; componentes sem valores codificados; F06A preservada — 19/19
+idêntico antes das 3 correções deliberadas), inspeção local de PPTX sem conteúdo confidencial (com rascunho de tema),
+motor de comparação visual próprio com manifesto e tolerâncias medidas (win32 0; 38/38), e editor corrigido (2 defeitos
+reproduzidos e cobertos). Testes: pytest 479, E2E 30 (×3), visual 38/38, unit 11, build/audit/pip/gitleaks OK.
+Intermitência F06A não reproduzida (sem evidência contra SQLite; sem retry). F06B definitiva aguarda o PPTX aprovado.

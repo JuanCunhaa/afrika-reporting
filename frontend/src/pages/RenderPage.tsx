@@ -21,9 +21,12 @@ export function RenderPage({ pid, revision }: { pid: string; revision?: number }
     if (!view) return;
     let alive = true;
     const images = Array.from(document.querySelectorAll<HTMLImageElement>('.render-stack img'));
-    Promise.all([document.fonts.ready, ...images.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))]).then(() => {
-      if (alive) document.documentElement.dataset.renderReady = '1';
-    });
+    Promise.all([document.fonts.ready, ...images.map((img) => (img.complete ? Promise.resolve() : img.decode().catch(() => undefined)))])
+      // dois quadros: o re-render pós-fontes (medição de rótulos) precisa estar pintado antes do sinal de pronto
+      .then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+      .then(() => {
+        if (alive) document.documentElement.dataset.renderReady = '1';
+      });
     return () => {
       alive = false;
       delete document.documentElement.dataset.renderReady;

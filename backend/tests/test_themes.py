@@ -16,7 +16,7 @@ from app.presentations import assets, themes
 from conftest import error_code
 from test_presentations import Env, OP, slide
 
-NEUTRAL_HASH = '01a285e12fc72c1c13a8b0db74c1b106c87a1ce3093fc84bb057b80c9437abf7'
+NEUTRAL_HASH = '4bec90dedf9791f66ffc53594ec74f33a9d34e7a1f26fbd5b33c935c4ae6fd25'
 
 
 @pytest.fixture(autouse=True)

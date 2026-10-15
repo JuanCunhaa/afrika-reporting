@@ -13,7 +13,7 @@ import {
   Theme,
   ViewSlide,
 } from '../presentationsApi';
-import { ResolvedLayout, assetUrl, backgroundStyle, boxStyle, colorVar, fontFaceCss, layoutFor, slideKind, themeVars } from './theme';
+import { ResolvedLayout, assetUrl, backgroundStyle, boxStyle, colorVar, fontFaceCss, fontStack, layoutFor, slideKind, themeVars } from './theme';
 
 // F06A/F06B.1 — renderizador HTML da IR. Só DESENHA o que veio do backend (valores aprovados + rótulos já formatados);
 // não calcula, soma nem interpola números. Escalas/grades são geometria do desenho, não dados.
@@ -48,9 +48,18 @@ export function SlideCanvas({ view, slide, label }: { view: PresentationView; sl
   );
 }
 
-/** Injeta (uma vez por tema) o @font-face das fontes do tema com arquivo local. */
+/** Injeta (uma vez por tema) o @font-face das fontes do tema com arquivo local e re-renderiza quando as fontes
+ * terminam de carregar (a medição de rótulos dos gráficos usa a fonte real). */
 function useThemeFonts(theme: Theme) {
   const css = fontFaceCss(theme);
+  const [, bump] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    document.fonts?.ready.then(() => alive && bump((n) => n + 1));
+    return () => {
+      alive = false;
+    };
+  }, [theme.id, theme.version]);
   useEffect(() => {
     if (!css) return;
     const id = `theme-fonts-${theme.id}-${theme.version}`;
@@ -531,9 +540,9 @@ function BarChart({ data, withText }: { data: IRChart; withText: boolean }) {
   const iw = plot.w - plot.left - plot.right;
   const step = iw / s.points.length;
   const bw = Math.min(c.bar_max_width, step * c.bar_width_ratio);
-  const charWidth = (t.sizes.axis * 4) / 7; // largura média aproximada de um caractere do eixo
+  const font = axisFont(t);
   const months = data.x_axis.type === 'month';
-  const every = months ? monthLabelEvery(s.points.map((p) => p.x), step, charWidth) : 1;
+  const every = months ? monthLabelEvery(s.points.map((p) => p.x), step, font, c.axis_label_min_gap) : 1;
   return (
     <ChartFrame data={data}>
       <svg viewBox={`0 0 ${plot.w} ${plot.h}`} className="chart-svg" role="img" aria-label={data.title ?? s.label} data-el="plot">
@@ -557,7 +566,7 @@ function BarChart({ data, withText }: { data: IRChart; withText: boolean }) {
                 </text>
               )}
               <text x={cx} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text">
-                {months ? (showMonth(i, s.points.length, every) ? p.x : '') : truncate(p.x, step / charWidth)}
+                {months ? (showMonth(i, s.points.length, every) ? p.x : '') : fitLabel(p.x, step - c.axis_label_min_gap, font)}
               </text>
             </g>
           );
@@ -567,12 +576,28 @@ function BarChart({ data, withText }: { data: IRChart; withText: boolean }) {
   );
 }
 
-const truncate = (s: string, n: number) => (s.length > Math.max(4, n) ? `${s.slice(0, Math.max(3, n - 1))}…` : s);
+// Largura REAL do texto na fonte do eixo (mesma pilha e tamanho do SVG), medida pelo navegador: a decisão de
+// rarefazer/truncar rótulos acompanha a fonte efetiva de cada plataforma (ex.: Segoe UI × DejaVu Sans).
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+function textWidth(text: string, font: string): number {
+  if (measureCtx === undefined) measureCtx = document.createElement('canvas').getContext('2d');
+  if (!measureCtx) return text.length * parseFloat(font) * 0.6; // sem canvas (não ocorre no Chromium)
+  measureCtx.font = font;
+  return measureCtx.measureText(text).width;
+}
+const axisFont = (t: Theme) => `${t.sizes.axis}px ${fontStack(t.fonts.body)}`;
+
+/** Categoria longa: maior prefixo que cabe + "…" (o nome completo fica no <title> do elemento). */
+function fitLabel(label: string, maxWidth: number, font: string): string {
+  if (textWidth(label, font) <= maxWidth) return label;
+  for (let n = label.length - 1; n > 3; n--) if (textWidth(`${label.slice(0, n)}…`, font) <= maxWidth) return `${label.slice(0, n)}…`;
+  return `${label.slice(0, 3)}…`;
+}
 
 /** Eixo de MESES: em vez de truncar ("202…"), mostra um rótulo a cada N meses (sempre o último). */
-function monthLabelEvery(labels: string[], slotWidth: number, charWidth: number): number {
-  const longest = Math.max(1, ...labels.map((l) => l.length));
-  return Math.max(1, Math.ceil(longest / (slotWidth / charWidth)));
+function monthLabelEvery(labels: string[], slotWidth: number, font: string, gap: number): number {
+  const widest = Math.max(1, ...labels.map((l) => textWidth(l, font)));
+  return Math.max(1, Math.ceil((widest + gap) / slotWidth));
 }
 const showMonth = (i: number, n: number, every: number) => (n - 1 - i) % every === 0;
 
@@ -587,7 +612,7 @@ function LineChart({ data, withText }: { data: IRChart; withText: boolean }) {
   const n = data.categories.length;
   const x = (i: number) => plot.left + (n === 1 ? iw / 2 : (iw * i) / (n - 1));
   const y = (v: number) => plot.top + ih - (v / max) * ih;
-  const every = monthLabelEvery(data.categories, iw / Math.max(1, n), (t.sizes.axis * 4) / 7);
+  const every = monthLabelEvery(data.categories, iw / Math.max(1, n), axisFont(t), c.axis_label_min_gap);
   // Segmentos só entre meses CONSECUTIVOS com valor: lacuna quebra a linha (sem interpolação).
   const segments = (pts: IRPoint[]) => {
     const out: string[] = [];
