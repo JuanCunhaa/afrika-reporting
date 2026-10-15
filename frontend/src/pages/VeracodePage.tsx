@@ -225,7 +225,7 @@ function TabContent({ tab, kind, id }: { tab: Tab; kind: ScopeKind; id: string }
           placeholder="Nome da BU"
           columns={[
             ['Nome', (b) => b.name ?? '—'],
-            ['Padrão', (b) => (b.is_default === null ? '?' : b.is_default ? 'Sim' : 'Não')],
+            ['Padrão', (b) => (b.is_default === null ? UNAVAILABLE : b.is_default ? 'Sim' : 'Não')],
             ['Teams', (b) => (b.team_ids === null ? 'não informado' : String(b.team_ids.length))],
           ]}
           rowKey={(b) => b.bu_id}
@@ -242,7 +242,7 @@ function TabContent({ tab, kind, id }: { tab: Tab; kind: ScopeKind; id: string }
           columns={[
             ['Nome', (t) => t.name ?? '—'],
             ['Business Unit', (t) => t.business_unit?.name ?? 'não informada'],
-            ['Usuários', (t) => (t.user_count === null ? '?' : String(t.user_count))],
+            ['Usuários (informado pela API)', (t) => (t.user_count === null ? UNAVAILABLE : String(t.user_count))],
           ]}
           rowKey={(t) => t.team_id}
         />
@@ -258,8 +258,8 @@ function TabContent({ tab, kind, id }: { tab: Tab; kind: ScopeKind; id: string }
           columns={[
             ['Usuário', (u) => u.user_name ?? '—'],
             ['Nome', (u) => [u.first_name, u.last_name].filter(Boolean).join(' ') || '—'],
-            ['Tipo', (u) => u.account_type ?? '?'],
-            ['Ativo', (u) => (u.active === null ? '?' : u.active ? 'Sim' : 'Não')],
+            ['Tipo', (u) => u.account_type ?? UNAVAILABLE],
+            ['Ativo', (u) => (u.active === null ? UNAVAILABLE : u.active ? 'Sim' : 'Não')],
           ]}
           rowKey={(u) => u.user_id}
         />
@@ -320,6 +320,8 @@ function TabContent({ tab, kind, id }: { tab: Tab; kind: ScopeKind; id: string }
                         </div>
                       )),
             ],
+            ['Ativo', (r) => (r.user.active === null ? UNAVAILABLE : r.user.active ? 'Sim' : 'Não')],
+            ['Reconciliação', (r) => RECONCILIATION_LABEL[r.reconciliation] ?? r.reconciliation],
           ]}
           rowKey={(r) => r.user.user_id}
           summaryLabels={{
@@ -328,6 +330,9 @@ function TabContent({ tab, kind, id }: { tab: Tab; kind: ScopeKind; id: string }
             multiple_teams: 'Em 2+ Teams',
             without_team: 'Sem Team',
             members_not_in_user_list: 'Membros fora da lista de usuários',
+            inactive_users: 'Inativos',
+            active_unknown: 'Situação (ativo) indisponível',
+            reconciliation: 'Reconciliação Team (team_count)',
           }}
         />
       );
@@ -526,6 +531,28 @@ function CollectionBanner({ page }: { page: Pick<DiscoveryPage<unknown>, 'comple
   );
 }
 
+// F03: campo sem dado nunca aparece como "?" nem como zero.
+const UNAVAILABLE = 'Indisponível';
+
+const RECONCILIATION_LABEL: Record<string, string> = {
+  verified: 'Comprovada',
+  partial: 'Parcial',
+  unverifiable: 'Não comprovável (sem team_count)',
+  missing_teams: 'Teams não visíveis',
+  inconsistent: 'Inconsistente',
+  mismatch: 'Divergente',
+  collection_incomplete: 'Coleta incompleta',
+};
+
+function summaryValue(v: unknown): string {
+  if (v === null || v === undefined) return UNAVAILABLE;
+  if (typeof v === 'object' && 'status' in (v as Record<string, unknown>)) {
+    const s = (v as { status: string }).status;
+    return RECONCILIATION_LABEL[s] ?? s;
+  }
+  return String(v);
+}
+
 function Summary({
   summary,
   labels,
@@ -538,7 +565,7 @@ function Summary({
       {Object.entries(labels).map(([key, label]) => (
         <div key={key}>
           <dt>{label}</dt>
-          <dd>{summary[key] === null || summary[key] === undefined ? '?' : String(summary[key])}</dd>
+          <dd>{summaryValue(summary[key])}</dd>
         </div>
       ))}
     </dl>

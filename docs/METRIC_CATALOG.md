@@ -2,8 +2,8 @@
 
 | ID | Domínio | Dado desejado | Fonte candidata | Observação |
 |---|---|---|---|---|
-| apps.total | apps | total de aplicações do escopo | Applications API | regras BU/Team; excluídas/arquivadas a definir |
-| users.unique | users | usuários únicos por Team | Identity API | dedup por ID |
+| apps.total | apps | total de aplicações do escopo | Applications API | população = escopo F03 (`docs/SCOPES.md`): universo ∩ critérios do subcliente, dedup por GUID; indeterminados fora; excluídas/arquivadas a definir |
+| users.unique | users | usuários únicos por Team | Identity API | dedup por `user_id`; inativos fora por padrão (configurável); só com vínculos completos; reconciliação `team_count` reportada |
 | scans.count | scans | scans na competência | Reporting/scan metadata | contar eventos, policy/sandbox |
 | scans.covered_apps | scans | apps com ao menos um scan | scan metadata | distinct GUID |
 | sast.open.by_severity | SAST | abertas no corte do mês | Findings/Analytics | validar snapshot retrospectivo |

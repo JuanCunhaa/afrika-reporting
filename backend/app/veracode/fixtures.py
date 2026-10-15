@@ -3,7 +3,8 @@
 - Nenhum dado real: nomes, IDs e credenciais são gerados deterministicamente a partir de rótulos fixos.
 - Valida a assinatura HMAC como a Veracode faria (credencial errada => 401).
 - Formatos seguem o observado na API REAL (homologação F02.1): HAL `_embedded` + `page` em snake_case nas duas
-  APIs; Team sem `user_count`; usuário sem `account_type`; `relationship` do membro como objeto `{name, display_name}`.
+  APIs; Team sem `user_count`; usuário sem `account_type`; `relationship` do membro como objeto `{name, display_name}`;
+  membro do Team com `team_count` (quantidade de Teams do usuário).
   (camelCase, aceito por precaução porque a especificação Identity 1.5 o declara, é coberto em test_veracode_http.)
 Tenants: `alpha` (completo, multi-página), `beta` (outro tenant, para isolamento), `denied` (sem permissão
 na Identity API => 403). Qualquer outra credencial => 401.
@@ -77,7 +78,7 @@ def build_tenant(name: str, *, apps: int, bus: int, teams: int, users: int, labe
         team_idx = [n % teams] + ([(n + 1) % teams] if n % 4 == 0 and teams > 1 else [])
         for k in team_idx:
             members[team_rows[k]['team_id']].append(
-                {'user_id': uid, 'user_name': user['user_name'],
+                {'user_id': uid, 'user_name': user['user_name'], 'team_count': len(team_idx),
                  'relationship': {'name': 'ADMIN', 'display_name': 'Administrador'} if n % 10 == 0 else
                  {'name': 'MEMBER', 'display_name': 'Membro'}})
     t.teams = team_rows

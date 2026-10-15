@@ -13,7 +13,8 @@ from app.main import create_app
 from app.orm import Base
 from conftest import sqlite_url
 
-TABLES = {'connections', 'clients', 'subclients', 'alembic_version'}
+TABLES = {'connections', 'clients', 'subclients', 'scope_definitions', 'scope_versions', 'alembic_version'}
+F01_TABLES = {'connections', 'clients', 'subclients', 'alembic_version'}
 
 
 def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
@@ -22,7 +23,7 @@ def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
     engine = db.make_engine(url)
     try:
         assert set(inspect(engine).get_table_names()) == TABLES
-        assert db.current_revision(engine) == db.head_revision() == '0001_registry'
+        assert db.current_revision(engine) == db.head_revision() == '0002_scopes'
     finally:
         engine.dispose()
 
@@ -114,5 +115,71 @@ def test_integrity_error_message_hides_parameters(db_url):
                               "updated_at) VALUES (:id, 'n', 'n', 'mars', :ref, '2026-01-01', '2026-01-01')"),
                          {'id': uuid.uuid4().hex, 'ref': 'env:SENTINELA_PARAMETRO'})
         assert 'SENTINELA_PARAMETRO' not in str(info.value)
+    finally:
+        engine.dispose()
+
+
+# ---------------------------------------------------------------- F03: escopos
+
+def test_f03_downgrade_to_f01_keeps_registry_and_upgrade_restores(db_url):
+    with TestClient(create_app(db_url)) as api:
+        cid = api.post('/api/clients', json={'name': 'Mantido no downgrade'}).json()['id']
+    db.downgrade(db_url, '0001_registry')
+    engine = db.make_engine(db_url)
+    try:
+        assert set(inspect(engine).get_table_names()) == F01_TABLES
+        with engine.connect() as conn:
+            assert conn.execute(text("SELECT name FROM sqlite_master WHERE type='trigger'")).all() == []
+        db.upgrade(db_url)
+        assert set(inspect(engine).get_table_names()) == TABLES
+    finally:
+        engine.dispose()
+    with TestClient(create_app(db_url)) as api:
+        assert api.get(f'/api/clients/{cid}').status_code == 200
+
+
+def _insert_scope(conn, client_id: str) -> str:
+    def_id = uuid.uuid4().hex
+    now = '2026-01-01 00:00:00'
+    conn.execute(text("INSERT INTO scope_definitions (id, client_id, subclient_id, owner_key, domain, status, "
+                      "created_at, updated_at) VALUES (:id, :cid, NULL, :ok, 'applications', 'active', :now, :now)"),
+                 {'id': def_id, 'cid': client_id, 'ok': f'client:{client_id}', 'now': now})
+    conn.execute(text("INSERT INTO scope_versions (id, definition_id, version, status, rule_json, options_json, "
+                      "rule_hash, connection_mode, coverage_ack, note, created_at) VALUES (:id, :d, 1, 'active', "
+                      "'{\"op\":\"all\"}', '{}', 'h', 'client', 0, NULL, :now)"),
+                 {'id': uuid.uuid4().hex, 'd': def_id, 'now': now})
+    return def_id
+
+
+def test_scope_versions_are_immutable_at_database_level(db_url):
+    engine = db.make_engine(db_url)
+    try:
+        client_id = uuid.uuid4().hex
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO clients (id, name, name_key, display_name, is_active, report_mode, "
+                              "created_at, updated_at) VALUES (:id, 'C', 'c', 'C', 1, 'both', :n, :n)"),
+                         {'id': client_id, 'n': '2026-01-01 00:00:00'})
+            def_id = _insert_scope(conn, client_id)
+        for stmt in ("UPDATE scope_versions SET rule_json = '{}'", "UPDATE scope_versions SET version = 9",
+                     "UPDATE scope_versions SET note = 'x'", 'DELETE FROM scope_versions'):
+            with pytest.raises(IntegrityError, match='scope_version'), engine.begin() as conn:
+                conn.execute(text(stmt))
+        # segunda versão ativa na mesma definição: índice único parcial
+        with pytest.raises(IntegrityError), engine.begin() as conn:
+            conn.execute(text("INSERT INTO scope_versions (id, definition_id, version, status, rule_json, "
+                              "options_json, rule_hash, connection_mode, coverage_ack, created_at) VALUES (:id, :d, 2, "
+                              "'active', '{}', '{}', 'h', 'client', 0, '2026-01-01')"),
+                         {'id': uuid.uuid4().hex, 'd': def_id})
+        # active -> superseded permitido; superseded -> active proibido
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE scope_versions SET status = 'superseded'"))
+        with pytest.raises(IntegrityError, match='scope_version_status_transition'), engine.begin() as conn:
+            conn.execute(text("UPDATE scope_versions SET status = 'active'"))
+        # dono com escopo não pode ser excluído (RESTRICT) e domínio fora da lista é recusado (CHECK)
+        with pytest.raises(IntegrityError), engine.begin() as conn:
+            conn.execute(text('UPDATE clients SET is_active = 0'))
+            conn.execute(text('DELETE FROM clients WHERE id = :id'), {'id': client_id})
+        with pytest.raises(IntegrityError), engine.begin() as conn:
+            conn.execute(text("UPDATE scope_definitions SET domain = 'findings'"))
     finally:
         engine.dispose()

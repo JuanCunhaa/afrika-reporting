@@ -113,6 +113,9 @@ export function ClientDetailPage({ id, navigate }: { id: string; navigate: (path
             <a className="btn" href={`#/veracode/clients/${c.id}`}>
               Veracode
             </a>
+            <a className="btn" href={`#/scopes/clients/${c.id}`}>
+              Escopos
+            </a>
             <button
               type="button"
               className="btn"

@@ -6,7 +6,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import api, api_veracode, errors
+from app import api, api_scopes, api_veracode, errors
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
@@ -17,8 +17,8 @@ from app.veracode.fixtures import FixtureVeracode
 from app.veracode.http import VeracodeHttpPool
 from app.veracode.settings import VeracodeSettings
 
-DESCRIPTION = ('F02: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
-               '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos). '
+DESCRIPTION = ('F03: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
+               '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio. '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -46,21 +46,22 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
             await pool.aclose()
             engine.dispose()
 
-    app = FastAPI(title='Afrika Reporting API', version='0.2.0', description=DESCRIPTION, lifespan=lifespan)
+    app = FastAPI(title='Afrika Reporting API', version='0.3.0', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
 
     origins = [s.strip() for s in os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',') if s.strip()]
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['GET', 'POST', 'PATCH', 'DELETE'],
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
                        allow_headers=['Content-Type'])
     app.add_middleware(LocalOnlyMiddleware)  # mais externo: recusa origem/Host não-loopback antes de tudo
     errors.install(app)
     app.include_router(api.router)
     api_veracode.install(app)
+    app.include_router(api_scopes.router)
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'phase': 'F02', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
+        return {'status': 'ok', 'phase': 'F03', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
 
     @app.get('/api/demo/metrics', response_model=list[MetricSnapshot])
     def demo_metrics():

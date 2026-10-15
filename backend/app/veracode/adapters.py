@@ -28,6 +28,10 @@ def _str(v) -> str | None:
     return v if isinstance(v, str) else None
 
 
+def _int(v) -> int | None:
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
 def _list_or_none(v) -> list | None:
     return v if isinstance(v, list) else None
 
@@ -108,6 +112,7 @@ def normalize_user(raw: dict) -> dict:
         'active': raw.get('active') if isinstance(raw.get('active'), bool) else None,
         'login_enabled': raw.get('login_enabled') if isinstance(raw.get('login_enabled'), bool) else None,
         'account_type': _str(raw.get('account_type')),
+        'team_count': _int(raw.get('team_count')),
     }
 
 
@@ -117,8 +122,9 @@ def _relationship(v) -> str | None:
 
 
 def normalize_membership(raw: dict) -> dict:
+    # `team_count` (API real, F02.1): quantidade de Teams do usuário segundo a Veracode — base da reconciliação.
     return {'user_id': raw.get('user_id'), 'user_name': _str(raw.get('user_name')),
-            'relationship': _relationship(raw.get('relationship'))}
+            'relationship': _relationship(raw.get('relationship')), 'team_count': _int(raw.get('team_count'))}
 
 
 def _normalized(col: Collection, fn) -> Collection:
@@ -181,6 +187,8 @@ async def fetch_team_memberships(run: CollectionRun, teams: list[dict]) -> Colle
         return team, [normalize_membership(u) for u in users], None
 
     results = await asyncio.gather(*(one(t) for t in teams))
+    col.meta['teams_fetched'] = [str(team['team_id']) for team, members, error in results
+                                 if members is not None and error is None]
     for team, members, error in results:
         if members is not None:
             col.pages_fetched += 1

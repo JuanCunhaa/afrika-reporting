@@ -78,6 +78,9 @@ test('BUs, Teams, usuários e relacionamentos (usuário em vários Teams, aplica
   await expect(page.getByRole('table', { name: 'Business Units' }).getByRole('row')).toHaveCount(5);
   await page.getByRole('tab', { name: 'Teams', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Teams' }).getByRole('row')).toHaveCount(9);
+  // F03: campo ausente na API real (user_count) aparece como "Indisponível", nunca "?"
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: 'Indisponível' })).toHaveCount(8);
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: '?', exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: 'Usuários', exact: true }).click();
   await expect(page.getByText('1–25 de 45')).toBeVisible();
   await expect(page.getByRole('tabpanel')).not.toContainText('example.invalid'); // e-mail nunca chega à UI
@@ -119,6 +122,9 @@ test('subclientes: herança, sobrescrita sem permissão (403) e credencial ausen
   await expect(page.getByTestId('vc-source')).toHaveText('Herdada do cliente');
   await page.getByRole('tab', { name: 'Teams', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Teams' }).getByRole('row')).toHaveCount(9);
+  // F03: campo ausente na API real (user_count) aparece como "Indisponível", nunca "?"
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: 'Indisponível' })).toHaveCount(8);
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: '?', exact: true })).toHaveCount(0);
 
   // Sobrescrita: conexão própria cuja credencial não tem permissão na Identity API.
   const denied = await request.post('/api/connections', {
@@ -169,4 +175,7 @@ test('erro de conectividade da API local na área Veracode e recuperação', asy
   await page.unroute('**/api/veracode/**/teams**');
   await alert.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(page.getByRole('table', { name: 'Teams' }).getByRole('row')).toHaveCount(9);
+  // F03: campo ausente na API real (user_count) aparece como "Indisponível", nunca "?"
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: 'Indisponível' })).toHaveCount(8);
+  await expect(page.getByRole('table', { name: 'Teams' }).getByRole('cell', { name: '?', exact: true })).toHaveCount(0);
 });

@@ -126,6 +126,7 @@ class Collection:
     requests: int = 0
     retries: int = 0
     fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    meta: dict = field(default_factory=dict)  # dados auxiliares da coleta (ex.: Teams cujo detalhe foi obtido)
 
     def status(self) -> dict:
         return {

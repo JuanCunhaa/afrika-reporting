@@ -216,22 +216,41 @@ class DiscoveryService:
         return rows, summary, sources
 
     async def user_relationships(self, ctx: ScopeContext) -> tuple[list[dict], dict, list[Result]]:
-        """Usuário -> Teams (0..N) a partir do detalhe de cada Team. Join por user_id, nunca por nome."""
+        """Usuário -> Teams (0..N) a partir do detalhe de cada Team. Join por user_id, nunca por nome.
+
+        Reconciliação (F03): `team_count` informado pela Veracode (no membro do Team ou no usuário) é comparado
+        com os vínculos coletados. Sem `team_count` a completude por usuário NÃO é comprovada (`unverifiable`).
+        Contagens por Team só existem para Teams cujo detalhe foi obtido; nada é estimado.
+        """
         users, teams = await _gather_results(self.users(ctx), self.teams(ctx))
         for r in (users, teams):
             if isinstance(r, VeracodeError):
                 raise r
         members = await self.team_memberships(ctx, teams)
-        by_user: dict = defaultdict(list)
+        by_user: dict = defaultdict(dict)
+        reported: dict = defaultdict(set)
         for m in members.collection.items:
-            by_user[m['user_id']].append({'team_id': m['team_id'], 'team_name': m['team_name'],
-                                          'relationship': m['relationship']})
+            by_user[m['user_id']][m['team_id']] = {'team_id': m['team_id'], 'team_name': m['team_name'],
+                                                   'relationship': m['relationship']}
+            if m.get('team_count') is not None:
+                reported[m['user_id']].add(m['team_count'])
         known = {u['user_id'] for u in users.collection.items}
         reliable = members.collection.complete and teams.collection.complete
-        rows = []
+        rows, counts = [], Counter()
         for u in users.collection.items:
-            memberships = by_user.get(u['user_id'], [])
-            rows.append({'user': u, 'teams': memberships if (memberships or reliable) else None})
+            memberships = list(by_user.get(u['user_id'], {}).values())
+            sources = reported.get(u['user_id']) or ({u['team_count']} if u.get('team_count') is not None else set())
+            status = _reconcile(reliable, len(memberships), sources)
+            counts[status] += 1
+            rows.append({'user': u, 'teams': memberships if (memberships or reliable) else None,
+                         'teams_complete': reliable and status in ('verified', 'unverifiable'),
+                         'reconciliation': status,
+                         'team_count_reported': next(iter(sources)) if len(sources) == 1 else None})
+        fetched = set(members.collection.meta.get('teams_fetched', []))
+        per_team = {str(t['team_id']): (len({m['user_id'] for m in members.collection.items
+                                             if str(m['team_id']) == str(t['team_id'])})
+                                        if str(t['team_id']) in fetched else None)
+                    for t in teams.collection.items}
         summary = {
             'users': len(rows),
             'teams': len(teams.collection.items),
@@ -239,6 +258,11 @@ class DiscoveryService:
             'multiple_teams': sum(len(r['teams'] or []) > 1 for r in rows),
             'without_team': sum(r['teams'] == [] for r in rows) if reliable else None,
             'members_not_in_user_list': len({m['user_id'] for m in members.collection.items} - known),
+            'inactive_users': sum(r['user']['active'] is False for r in rows),
+            'active_unknown': sum(r['user']['active'] is None for r in rows),
+            'members_per_team': per_team,
+            'members_per_team_complete': all(v is not None for v in per_team.values()),
+            'reconciliation': _reconciliation_summary(reliable, counts),
         }
         return rows, summary, [users, teams, members]
 
@@ -282,6 +306,42 @@ async def _gather_results(*coros: Awaitable[Result]) -> list[Result | VeracodeEr
         if isinstance(r, BaseException) and not isinstance(r, VeracodeError):
             raise r
     return results
+
+
+_RECONCILIATION_REASON = {
+    'verified': None,
+    'partial': 'Parte dos usuários não tem team_count informado pela Veracode (completude comprovada só para os demais)',
+    'unverifiable': 'A Veracode não informou team_count: completude dos vínculos usuário–Team não comprovada',
+    'mismatch': 'team_count da Veracode diverge dos vínculos coletados (Teams não visíveis ou dados inconsistentes)',
+    'collection_incomplete': 'Coleta dos Teams ou de seus membros incompleta: vínculos não confiáveis',
+}
+
+
+def _reconcile(reliable: bool, collected: int, reported: set[int]) -> str:
+    if not reliable:
+        return 'collection_incomplete'
+    if not reported:
+        return 'unverifiable'
+    if len(reported) > 1:
+        return 'inconsistent'
+    expected = next(iter(reported))
+    if expected == collected:
+        return 'verified'
+    return 'missing_teams' if expected > collected else 'inconsistent'
+
+
+def _reconciliation_summary(reliable: bool, counts: Counter) -> dict:
+    if not reliable:
+        status = 'collection_incomplete'
+    elif counts['missing_teams'] or counts['inconsistent']:
+        status = 'mismatch'
+    elif counts['unverifiable'] == 0:
+        status = 'verified'
+    else:
+        status = 'unverifiable' if counts['verified'] == 0 else 'partial'
+    return {'status': status, 'reason': _RECONCILIATION_REASON[status],
+            **{k: counts[k] for k in ('verified', 'unverifiable', 'missing_teams', 'inconsistent',
+                                      'collection_incomplete')}}
 
 
 def _index(items: list[dict], key: str) -> dict:

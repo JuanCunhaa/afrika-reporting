@@ -4,7 +4,7 @@
 
 ## Módulos-alvo
 1. Identity/Clients/Connections: gestão de clientes, subclientes e configuração.
-2. Scope Engine: regras tipadas por domínio, resolução e explicação (`why included`).
+2. Scope Engine (F03, `backend/app/scopes/`): regras tipadas por domínio (AST validado, lógica de 3 valores), versões append-only, resolução sobre a descoberta (universo, interseção, sobreposição, não classificadas) — `docs/SCOPES.md`.
 3. Veracode Adapters: limites de taxa, paginação, retries 429/5xx, registro de extração completa.
 4. Metric Registry: contrato versionado, fonte oficial, filtro, data de corte, método de dedup, proveniência.
 5. Snapshot Store: agregados por período, versão, origem `api`/`manual`, auditoria de revisões.

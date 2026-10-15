@@ -1,4 +1,4 @@
-# Afrika Reporting — local-first (F02)
+# Afrika Reporting — local-first (F03)
 
 Plataforma de relatórios AppSec multi-cliente, operada por Claude Code em fases. **Este ZIP é o ponto de partida de desenvolvimento**, não é uma integração Veracode pronta nem um gerador PPTX completo.
 
@@ -37,6 +37,7 @@ Acesse http://localhost:5173 (API http://localhost:8000/docs).
 - **`.env.example`**: `python scripts/check_env_example.py` lista variáveis e classificação sem mostrar valores.
 - **Conexões Veracode**: só metadados + referência `env:NOME` da credencial. Nunca cole API ID/Key na interface. O backend lê `NOME_API_ID` e `NOME_API_KEY` do próprio ambiente (defina no terminal do uvicorn; nunca no Git).
 - **Descoberta Veracode (F02, somente leitura)**: botão **Veracode** no cliente e em cada subcliente — teste de conexão, aplicações/sandboxes, BUs, Teams, usuários, relacionamentos e metadados. Detalhes, limites e variáveis `AFRIKA_VERACODE_*`: `docs/VERACODE_INTEGRATION.md`.
+- **Escopos (F03)**: botão **Escopos** no cliente — universo do cliente e critérios por subcliente para aplicações, usuários, scans e SCA (AND/OR/NOT, modo simples e avançado, versões imutáveis, pré-visualização com não classificadas e sobreposição). Regras e semântica: `docs/SCOPES.md`.
 - **Demo sem Veracode real**: `$env:AFRIKA_VERACODE_MODE = "fixture"` usa um tenant **sintético** em processo (o E2E usa este modo). A conexão do seed (`env:AFRIKA_DEMO_VERACODE`) precisa das credenciais sintéticas de `app.veracode.fixtures.synthetic_credentials("alpha")` — ver comando em `docs/AGENT_HANDOFF.md`.
 - **Loopback**: a API recusa (403) origem não-loopback e `Host` diferente de localhost/127.0.0.1. Não use `--host 0.0.0.0`.
 - **Integração real (opt-in, fora do CI)**: `backend/tests_live/test_veracode_live.py` — só com autorização e credencial de TESTE read-only no `.env` da raiz (`AFRIKA_VC_TEST_*`), `VERACODE_LIVE_TESTS_ENABLED=true` e `python -m pytest backend/tests_live -q -rs --run-veracode-live`. O backend carrega o `.env` da raiz automaticamente (variáveis do sistema prevalecem) e `VERACODE_READ_ONLY` só aceita `true`. Ver `docs/VERACODE_INTEGRATION.md`.
@@ -71,7 +72,7 @@ Para começar com Claude Code, abra a pasta raiz e envie integralmente **`prompt
 
 ## Estado inicial
 
-F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02: conector Veracode somente leitura e descoberta (validado com tenant sintético; integração real NOT_VERIFIED). F03 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
+F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02/F02.1: conector Veracode somente leitura e descoberta (homologado em tenant real de testes). F03: motor de escopos e filtros versionados. F04 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
 
 ## Licença
 

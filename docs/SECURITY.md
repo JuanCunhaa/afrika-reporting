@@ -32,3 +32,11 @@
 - **Minimização**: e-mail/telefone/IP de usuários descartados na normalização; nada coletado vai para disco; cache só em memória com chave sem credenciais.
 - **Fixtures**: tenant sintético gerado em código (`app/veracode/fixtures.py`); credenciais sintéticas derivadas de rótulos fixos — não são chaves reais.
 - **Integração real**: somente opt-in (`backend/tests_live`, `AFRIKA_VERACODE_LIVE=1`) com autorização do operador; nunca no CI.
+
+## Controles implementados na F03 (escopos)
+- **Sem novos endpoints Veracode**: a resolução reutiliza a descoberta F02 (só GET, allowlist inalterada); scans/SCA não consultam nada.
+- **Banco**: só regras (IDs/valores de filtro), opções e metadados de versão — nenhum recurso Veracode, nome de aplicação/usuário ou credencial (teste lê o dump do SQLite). Versões imutáveis por gatilhos; exclusão de dono com escopos bloqueada (RESTRICT).
+- **Anti-abuso**: AST validado antes de avaliar (profundidade, nós, valores, tamanho, chaves e tipos); erros nunca ecoam o corpo além do caminho do campo.
+- **Tenants**: subcliente em outra conexão exige confirmação explícita e nunca entra em interseção/não classificadas do cliente; mudança de conexão invalida a versão para resolução.
+- **Respostas**: pré-visualização devolve no máximo 200 itens de amostra (id + nome) da descoberta em memória; sem credenciais (testado na API e no E2E).
+

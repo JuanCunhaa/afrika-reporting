@@ -176,7 +176,7 @@ export type DiscoveryPage<T> = Page<T> & {
   scope: ScopeInfo;
   complete: boolean;
   collections: CollectionStatus[];
-  summary?: Record<string, number | null | VeracodeErrorInfo>;
+  summary?: Record<string, unknown>;
 };
 export type ConnectionCheck = { check: string; status: 'ok' | 'error'; error: VeracodeErrorInfo | null };
 export type ConnectionTest = { scope: ScopeInfo; status: 'ok' | 'partial' | 'error'; checks: ConnectionCheck[] };
@@ -225,6 +225,9 @@ export type VcAppRelationship = {
 export type VcUserRelationship = {
   user: VcUser;
   teams: { team_id: string; team_name: string | null; relationship: string | null }[] | null;
+  teams_complete: boolean;
+  reconciliation: string;
+  team_count_reported: number | null;
 };
 export type VcMetadata = {
   scope: ScopeInfo;
@@ -259,4 +262,166 @@ export const veracode = {
   sandboxes: (kind: ScopeKind, id: string, appGuid: string) =>
     request<DiscoveryPage<VcSandbox>>('GET', `${vcBase(kind, id)}/applications/${appGuid}/sandboxes?limit=200`),
   metadata: (kind: ScopeKind, id: string) => request<VcMetadata>('GET', `${vcBase(kind, id)}/metadata`),
+};
+
+// ---------------------------------------------------------------- F03: escopos e filtros
+
+export type ScopeDomain = 'applications' | 'users' | 'scans' | 'sca';
+export type OwnerKind = 'client' | 'subclient';
+export type ConnectionMode = 'client' | 'shared' | 'separate' | 'none';
+export type RuleLeaf = {
+  field: string;
+  cmp: string;
+  key?: string;
+  value?: string | boolean;
+  values?: (string | boolean)[];
+};
+export type RuleNode =
+  | { op: 'all' }
+  | { op: 'and' | 'or'; args: RuleNode[] }
+  | { op: 'not'; arg: RuleNode }
+  | RuleLeaf;
+export type FieldSpec = {
+  name: string;
+  label: string;
+  type: 'id' | 'string' | 'enum' | 'bool';
+  multi: boolean;
+  cmps: string[];
+  enum: string[] | null;
+  keyed: boolean;
+  note: string;
+};
+export type FieldsCatalog = {
+  domains: Record<ScopeDomain, { fields: FieldSpec[]; evaluable: boolean }>;
+  limits: Record<string, number>;
+};
+export type ScopeOptions = { inactive_users?: 'exclude' | 'include' };
+export type ScopeVersion = {
+  version: number;
+  status: 'active' | 'superseded';
+  rule: RuleNode;
+  options: ScopeOptions;
+  rule_hash: string;
+  connection_mode: ConnectionMode;
+  coverage_ack: boolean;
+  note: string | null;
+  created_at: string;
+};
+export type ScopeState = {
+  owner: { kind: OwnerKind; id: string; name: string; client_id: string; effective_active: boolean };
+  domain: ScopeDomain;
+  evaluable: boolean;
+  connection_mode: ConnectionMode;
+  defined: boolean;
+  status: 'active' | 'disabled' | 'not_defined';
+  active_version: ScopeVersion | null;
+  latest_version: number;
+  versions?: ScopeVersion[];
+};
+export type ScopeOverview = {
+  client_id: string;
+  domains: ScopeDomain[];
+  owners: {
+    kind: OwnerKind;
+    id: string;
+    name: string;
+    effective_active: boolean;
+    connection_mode: ConnectionMode;
+    scopes: Record<ScopeDomain, ScopeState>;
+  }[];
+};
+export type RuleIssue = { field: string; type: string; message: string };
+export type ValidationResult = {
+  valid: boolean;
+  issues: RuleIssue[];
+  complexity: { nodes: number; depth: number; values: number; limits: Record<string, number> };
+  rule: RuleNode | null;
+  rule_hash: string | null;
+};
+export type SampleItem = { id: string; name: string | null };
+export type UsersPerTeam = {
+  complete: boolean;
+  reason: string | null;
+  teams: { team_id: string; name: string | null; unique_users: number | null }[];
+  unique_users_total: number | null;
+};
+export type OwnerResolution = {
+  kind: OwnerKind;
+  id: string;
+  name: string;
+  effective_active: boolean;
+  connection_mode: ConnectionMode;
+  scope_status: string;
+  version: number | null;
+  draft: boolean;
+  status?: string;
+  defined?: boolean;
+  total_available?: number;
+  included?: number;
+  excluded?: number;
+  undetermined?: number;
+  inactive_excluded?: number;
+  missing_fields?: Record<string, number>;
+  sample?: SampleItem[];
+  users_per_team?: UsersPerTeam | null;
+  intersected?: boolean;
+  outside_universe?: number;
+  tenant?: 'separate';
+  complete?: boolean;
+  error?: VeracodeErrorInfo;
+};
+export type ResolutionWarning = { code: string; message: string; blocking: boolean };
+export type Resolution = {
+  client: ScopeInfo;
+  domain: ScopeDomain;
+  evaluable: boolean;
+  status: 'ok' | 'incomplete' | 'universe_not_defined' | 'deferred_f04';
+  complete: boolean;
+  message?: string;
+  universe: OwnerResolution;
+  subclients: OwnerResolution[];
+  unclassified?: {
+    available: boolean;
+    count: number | null;
+    complete: boolean;
+    reasons: string[];
+    no_subclients: boolean;
+    sample: SampleItem[];
+  };
+  overlap?: {
+    resources_in_multiple: number;
+    pairs: { a: string; b: string; count: number }[];
+    sample: (SampleItem & { subclients: string[] })[];
+  } | null;
+  warnings: ResolutionWarning[];
+  collections: CollectionStatus[];
+  reconciliation?: { status: string; reason: string | null } & Record<string, number | string | null>;
+  members_not_in_user_list?: number;
+};
+export type Draft = { owner_kind: OwnerKind; owner_id: string; rule: RuleNode; options: ScopeOptions; coverage_ack: boolean };
+
+const scopeBase = (kind: OwnerKind, id: string, domain: ScopeDomain) =>
+  `/api/scopes/${kind === 'client' ? 'clients' : 'subclients'}/${id}/${domain}`;
+
+export const scopes = {
+  fields: () => request<FieldsCatalog>('GET', '/api/scopes/fields'),
+  overview: (clientId: string) => request<ScopeOverview>('GET', `/api/scopes/clients/${clientId}`),
+  get: (kind: OwnerKind, id: string, domain: ScopeDomain) => request<ScopeState>('GET', scopeBase(kind, id, domain)),
+  validate: (domain: ScopeDomain, rule: RuleNode, options: ScopeOptions) =>
+    request<ValidationResult>('POST', '/api/scopes/validate', { domain, rule, options }),
+  save: (
+    kind: OwnerKind,
+    id: string,
+    domain: ScopeDomain,
+    body: { rule: RuleNode; options: ScopeOptions; note: string | null; coverage_ack: boolean; expected_version: number },
+  ) => request<ScopeState & { created: boolean }>('PUT', scopeBase(kind, id, domain), body),
+  restore: (kind: OwnerKind, id: string, domain: ScopeDomain, version: number, expected_version: number, coverage_ack: boolean) =>
+    request<ScopeState & { created: boolean }>('POST', `${scopeBase(kind, id, domain)}/versions/${version}/restore`, {
+      expected_version,
+      coverage_ack,
+    }),
+  setStatus: (kind: OwnerKind, id: string, domain: ScopeDomain, status: 'active' | 'disabled') =>
+    request<ScopeState>('PATCH', scopeBase(kind, id, domain), { status }),
+  preview: (clientId: string, domain: ScopeDomain, draft: Draft | null) =>
+    request<Resolution>('POST', `/api/scope-preview/clients/${clientId}`, { domain, draft, sample_limit: 50 }),
 };

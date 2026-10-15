@@ -20,13 +20,14 @@ logger = logging.getLogger('afrika.api')
 
 
 class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str):
+    def __init__(self, status: int, code: str, message: str, details: list[dict] | None = None):
         super().__init__(code)
-        self.status, self.code, self.message = status, code, message
+        self.status, self.code, self.message, self.details = status, code, message, details
 
 
 _NOT_FOUND = {'client': 'Cliente não encontrado', 'subclient': 'Subcliente não encontrado',
-              'connection': 'Conexão não encontrada'}
+              'connection': 'Conexão não encontrada', 'scope': 'Escopo não encontrado',
+              'scope_version': 'Versão de escopo não encontrada'}
 
 
 def not_found(entity: str) -> ApiError:
@@ -52,7 +53,7 @@ def _field(loc: tuple) -> str:
 def install(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api_error(_req: Request, exc: ApiError):
-        return JSONResponse(_body(exc.code, exc.message), status_code=exc.status)
+        return JSONResponse(_body(exc.code, exc.message, exc.details), status_code=exc.status)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_req: Request, exc: RequestValidationError):

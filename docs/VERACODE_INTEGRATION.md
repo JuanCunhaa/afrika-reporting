@@ -40,7 +40,10 @@ custom fields, políticas, datas); usuários (user_id, user_name, nome, ativo, l
 - Aplicação tem **uma** BU no perfil Veracode; "aplicação em várias BUs" só existe entre escopos (subclientes) — regra da F03.
 - Relação usuário↔Team exige 1 requisição por Team (concorrência limitada).
 - Sem `user_count` na API real, a completude da relação usuário↔Team depende só do sucesso de cada detalhe de Team
-  (o detalhe traz `team_count` por usuário — reconciliação adicional possível, não implementada).
+  (o detalhe traz `team_count` por usuário — **F03: reconciliação implementada**, ver `docs/SCOPES.md`).
+- F03 (validação real opt-in, `tests_live/test_scopes_live.py`): `team_count` presente em 100% dos membros de Team
+  e ausente na lista de usuários; reconciliação `verified` para 100% dos usuários do tenant de testes; motor de
+  escopos sem indeterminados em BU/Teams nas aplicações reais. Contagens só no relatório ao PO.
 
 ## Cliente HTTP, paginação, retry e rate limit
 - `httpx.AsyncClient` por região (conexões reutilizadas), TLS validado, sem redirects, sem cookies, **somente GET** em host oficial e endpoint da allowlist (ver “Trava somente leitura”). Páginas calculadas localmente; `_links` não são seguidos.
@@ -117,8 +120,8 @@ Contagens do tenant **não** são versionadas (repo público): ficam no relatór
 
 Diferenças mock × real corrigidas (commit `7c52d57`): `relationship` objeto; Team sem `user_count`; usuário sem
 `account_type`; `page` snake_case na Identity. Campos reais não usados (não normalizados): `scim_team`,
-`member_only`, `deleted`, `features`, `saml_user`, `scim_user`, `team_count`.
+`member_only`, `deleted`, `features`, `saml_user`, `scim_user`. `team_count` passou a ser normalizado na F03.
 
 ## Fica para F03/F04
-- F03: regras de escopo por domínio (applications/users/scans/SCA), AND/OR/NOT, sobreposição entre subclientes, `unclassified`, uso dos metadados descobertos.
+- F03: **entregue** — `docs/SCOPES.md`. Nenhum endpoint novo na allowlist.
 - F04: scans, findings, SCA, Reporting/Analytics, métricas e dedup — nada disso é coletado na F02.
