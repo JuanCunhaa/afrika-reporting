@@ -1,9 +1,13 @@
 # Devolutiva Claude → ChatGPT PO — F06B.1: Preparação do Motor Visual Oficial (2026-10-15)
 
 - **Fase / commits:** F06B.1 / `main` / **`4cc9c61`** (implementação + testes + docs técnicas + referências visuais
-  win32) → `__COMMIT_LINUX__` (referências visuais Linux geradas no CI e revisadas; fim do modo bootstrap) → commit de
-  checkpoint (STATUS/handoff). Push feito. **F06B (reprodução definitiva), F07 e F08 NÃO iniciadas.**
-- **CI:** __CI_SUMMARY__
+  win32) → **`e21ebce`** (rótulos do eixo X medidos na fonte real — defeito revelado pela captura Linux; este commit também
+  levou rascunhos de STATUS/handoff, finalizados no checkpoint) → **`8169e82`** (referências visuais Linux revisadas +
+  tolerância medida; fim do modo bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F06B (reprodução definitiva), F07 e F08 NÃO iniciadas.**
+- **CI:** run `38814645692` (SHA `8169e82`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (479 passed cada), Frontend
+  typecheck+build + motor visual (11/11), E2E Chromium (30 passed; regressão visual Linux **38/38 PASS** contra referência,
+  tolerância 0, ruído medido 0). Anteriores (bootstrap das referências Linux): `38813391234` (`4cc9c61`) e `38814142754`
+  (`e21ebce`) — success.
 - Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada.
 
 ## 1. Funcionalidades implementadas
@@ -56,9 +60,12 @@ imagens) + **manifesto** por elemento (caixa, hash do texto, fonte computada e *
 → comparação: dimensões; pixel (YIQ perceptual, limiar 0) com **antisserrilhado contado à parte**; regiões; diferenças de
 manifesto classificadas em **conteúdo / fonte / layout / estilo** e regiões atribuídas (sem diferença semântica =
 **rasterização**); lista de desalinhados (dx/dy/dw/dh) e alinhamentos rompidos. **Tolerâncias medidas**: cada execução
-captura 2× (3× em medição) e falha se o ruído exceder o registrado; win32: 0/0/0; linux: __LINUX_TOL__. Referências por
+captura 2× (3× em medição) e falha se o ruído exceder o registrado; win32: 0/0/0; linux (CI): 0/0/0, e entre duas execuções de CI em runners distintos 37/38 slides idênticos (o 38º foi o
+slide corrigido entre elas). Referências por
 plataforma (fontes/rasterização diferem entre SOs). Evidência de uso real nesta fase: a conversão do tema F06A foi
-provada idêntica (19/19) e as correções deliberadas apareceram isoladas e corretamente categorizadas. Comparação com o
+provada idêntica (19/19), as correções deliberadas apareceram isoladas e corretamente categorizadas, e a primeira
+captura Linux revelou rótulos de mês sobrepostos (estimativa de largura válida só para Segoe UI) — corrigido medindo a
+largura real do texto na fonte do tema. Comparação com o
 PPTX oficial: plano em `docs/VISUAL_REGRESSION.md` (exportar PNG localmente, medir tolerância entre renderizadores com
 slides de controle antes de qualquer veredito). **Pendente** até o arquivo aprovado.
 
@@ -74,7 +81,8 @@ slides de controle antes de qualquer veredito). **Pendente** até o arquivo apro
 | gitleaks (staged) | 0 achados |
 | `check_repo`; `check_env_example` | OK (F06B.1); SEGURO |
 | migrations CLI (migrate, db-status, seed ×2, migrate) em banco novo | OK (`0006_themes`); CLI inspect→draft→theme-create OK |
-| CI GitHub | __CI_TABLE__ |
+| CI GitHub run `38814645692` (`8169e82`, estrito) | **success** — 479/479 (3.11 e 3.14), build + motor visual 11/11, E2E 30/30, visual Linux 38/38 |
+| Ruído Linux entre execuções de CI (`38813391234` × `38814142754`) | 37/38 idênticos; 1 = slide corrigido entre as execuções |
 | `tests_live` | NOT_RUN (fase sem chamadas reais) |
 
 ## 6. Intermitência do editor
@@ -125,9 +133,10 @@ demonstrativo; sem exportação PPTX/PDF (F07)."
 ---
 
 ## Versão compacta para o PO
-F06B.1 concluída localmente (`4cc9c61` + referências Linux; __CI_SHORT__). Temas versionados com tokens completos e
+F06B.1 concluída (`4cc9c61`, `e21ebce`, `8169e82`; CI estrito verde run `38814645692`). Temas versionados com tokens completos e
 ativos locais fora do Git (tema por cliente via template; componentes sem valores codificados; F06A preservada — 19/19
 idêntico antes das 3 correções deliberadas), inspeção local de PPTX sem conteúdo confidencial (com rascunho de tema),
-motor de comparação visual próprio com manifesto e tolerâncias medidas (win32 0; 38/38), e editor corrigido (2 defeitos
+motor de comparação visual próprio com manifesto e tolerâncias medidas (win32 e Linux: ruído 0; 38/38 em cada; a
+captura Linux já pegou e motivou a correção de rótulos sobrepostos), e editor corrigido (2 defeitos
 reproduzidos e cobertos). Testes: pytest 479, E2E 30 (×3), visual 38/38, unit 11, build/audit/pip/gitleaks OK.
 Intermitência F06A não reproduzida (sem evidência contra SQLite; sem retry). F06B definitiva aguarda o PPTX aprovado.
