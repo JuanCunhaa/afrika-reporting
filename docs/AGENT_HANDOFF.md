@@ -1,3 +1,70 @@
+# Devolutiva Claude → ChatGPT PO — F04: motor de indicadores Veracode (2026-10-15)
+
+- **Fase / commits:** F04 / `main` / **`ddf3b01`** (implementação + testes) + commit seguinte só com STATUS/handoff. Push feito. **F05 NÃO iniciada.**
+- **CI:** run `38677349116` (SHA `ddf3b01`) **success** (Backend 3.11/3.14, build, E2E).
+- Modelo: Opus 5.5 do início ao fim. Nenhum subagente.
+
+## 1. Indicadores implementados (20 calculados)
+| Domínio | IDs | Observação |
+|---|---|---|
+| Aplicações | `apps.total`, `apps.by_business_unit`, `apps.by_team`, `apps.without_team`, `apps.multiple_teams`, `apps.unclassified` | distintas por GUID; por Team traz distintas + atribuições; Teams ausentes ≠ vazio; não classificadas só no cliente |
+| SAST | `sast.policy.open.by_severity`, `sast.sandbox.open.by_severity` (ocorrências), `sast.sandbox.open.distinct`, `sast.open.distinct`, `sast.policy.open.by_cwe` (top 10), `sast.policy.open.top_applications` (top 10), `sast.policy.new_in_period.by_severity` (`first_found_date`), `sast.policy.open.by_first_found_month` | distintos entre contextos ficam **INCOMPLETE** (identidade não comprovada) com valor candidato |
+| SCA | `sca.policy.open.by_severity`, `sca.sandbox.open.by_severity` (suporte não verificado; 400 ⇒ UNSUPPORTED), `sca.open.distinct` (componente + vulnerabilidade), `sca.policy.open.top_components`, `sca.policy.open.top_vulnerabilities`, `sca.policy.open.by_dependency_mode` | identidade própria, nunca somado ao SAST |
+
+## 2. Não suportados / indisponíveis (9 lacunas registradas)
+`apps.total.at_period_end`, `sast.policy.open.at_period_end`, `sca.policy.open.at_period_end` (UNAVAILABLE — só estado atual; fechamento = snapshot F05/entrada manual); `sast.policy.resolved_in_period` (sem data de resolução na Findings API); `sca.policy.new_in_period` (`first_found_date` ambígua para SCA, conforme spec); `sca.agent.projects`, `scans.count`, `scans.covered_apps`, `licenses.usage` (fontes não homologadas). Não registrados ainda: compliance, LOC, densidades, tendências.
+
+## 3. Endpoints e fontes
+Veracode (todos GET): Applications API (`/appsec/v1/applications`, `/…/{guid}/sandboxes` — já da F02) + **novo** `/appsec/v2/applications/{guid}/findings?scan_type=STATIC|SCA[&context={sandbox_guid}]&page&size` (Findings API 2.1; allowlist ampliada só com esse caminho). Internos (loopback): `GET /api/metrics/catalog`, `POST /api/metrics/runs` (202), `GET /api/metrics/runs`, `GET /api/metrics/runs/{id}`, `POST /api/metrics/runs/{id}/cancel`. UI: `#/metrics` e botão **Indicadores** no cliente.
+
+## 4. Contratos
+`backend/app/metrics/contracts.py` (enums: status, domínio, fonte, contexto, tipo de scan, modo temporal, campo de data, critérios de status/severidade, dedup, prova de identidade, unidade, forma, suporte, homologação). `MetricResult` impede valor fora de VALIDATED e `partial` fora de INCOMPLETE. Cada resultado: filtros aplicados (incl. regras de escopo `scans`/`sca` e findings excluídos), cobertura (contextos completos/incompletos/falhos/recusados, sandboxes, mitigações aprovadas excluídas, duplicatas removidas, conflitos de severidade), temporalidade (competência, período, fuso, `as_of`, campo de data, `historical_state=false`) e proveniência (run_id, versões/hash das regras de escopo usadas, versões de contrato, `input_hash` para a F05). Catálogo em `docs/METRIC_CATALOG.md`.
+
+Decisões (sujeitas ao PO): "aberto" = OPEN e mitigação não aprovada; competência com fuso por deslocamento fixo, padrão `+00:00` (sem tzdata); regras `scans`/`sca` da F03 filtram findings mas nunca ampliam a coleta; endpoint demo `/api/demo/metrics` (valor fictício) e `app/models.py` removidos.
+
+## 5. Testes (2026-10-15, Windows 11, Py 3.14.7)
+| Verificação | Resultado |
+|---|---|
+| `python -m pytest -q` | **PASS 303** (259 anteriores, incl. +3 casos de allowlist, + 44 novos em `test_metrics.py`) |
+| E2E Playwright Chromium | **PASS 19/19** (17 anteriores + 2 em `metrics.spec.ts`) |
+| `npm run build`; `npm audit --omit=dev`; `pip check` | PASS; 0 vulnerabilidades; OK |
+| gitleaks (staged); `check_repo.py`; `check_env_example.py` | 0 achados; OK; SEGURO |
+| `pytest backend/tests_live` sem opt-in | 19 SKIPPED |
+| Homologação real `test_metrics_live.py` | PASS 1/1 (executada 2×; ver item 6) |
+| CI GitHub run `38677349116` (SHA `ddf3b01`) | **success** — Backend 3.11 e 3.14, Frontend typecheck+build, E2E Chromium |
+
+Cobertura dos 20 itens: (1) `test_application_metrics_distinct_by_bu_and_team`, `test_unknown_teams_…`; (2) `test_client_without_scope_never_uses_whole_tenant` (zero requisições) e sem conexão; (3) `test_inherited_subclient_is_intersection_with_universe`; (4) `test_subclient_on_other_connection_uses_only_its_tenant`; (5) `test_policy_versus_sandbox_are_separate_contexts`; (6) `test_dedup_between_sandboxes_requires_proven_identity`; (7) `test_sast_and_sca_use_distinct_identities`; (8) severidades + `test_missing_severity_…`, `test_unknown_finding_status_…`; (9) `test_cwe_categories_and_top_applications`, `test_top_ten_is_truncated_with_others`; (10) competências (formato, mês aberto, limites, fuso, API 422); (11) `test_first_found_date_defines_period_not_update_date`, `test_period_boundaries_follow_utc_offset`; (12) `test_historical_state_is_unavailable_…`; (13) `test_legitimate_zero_versus_missing_data`, `test_empty_population_is_a_validated_zero`; (14) `test_findings_pagination_collects_every_page`; (15) `test_partial_failure_is_incomplete_with_partial_aggregate`; (16) `test_429_is_retried_…_timeout_marks_incomplete`, orçamento, teto de aplicações, cancelamento; (17) `test_cache_reused_per_scope_and_isolated_between_scopes`; (18) `test_no_credentials_or_finding_details_leak` (+ só GET); (19) 2 E2E; (20) regressão completa. Também: escopos `scans`/`sca` aplicados, SCA sandbox recusado ⇒ UNSUPPORTED, normalização/minimização.
+
+## 6. Homologação contra dados reais
+Tenant REAL de testes (`commercial`), amostra de 3 aplicações com scan, só GET, flag live só no processo (`.env` intacto e não lido). Contagens do tenant não versionadas (repo público): só na resposta ao PO.
+| Item | Classificação |
+|---|---|
+| Findings STATIC (formato, campos, datas com `Z`, enums `OPEN/UNRESOLVED/NONE/APPLICATION`, paginação) | **Formato comprovado** (VERIFIED_REAL) |
+| `size=100` ⇒ HTTP 500 numa aplicação com mais de uma página de 50; `size=50` ⇒ 200; sem `size` a API usou 20 (spec diz 50) | **Divergência da documentação** ⇒ corrigido (`findings_page_size=50`) |
+| Uma aplicação: STATIC 500 com qualquer `size`; **SCA: 500 em todas as aplicações testadas** (1 resposta 200 isolada); 3 contextos SCA com 200 rejeitado (`invalid_response`, causa não isolada) | **Fonte instável / BLOCKED_EXTERNAL** (Veracode ou licença SCA da conta) |
+| Identidade Policy × Sandbox (`issue_id`) | **Não comprovada** — todos os repetidos da amostra com mesmo CWE+severidade (indício) |
+| Algum indicador × dashboard Veracode | **Teste não executado** — nenhuma correspondência declarada |
+
+## 7. Limitações temporais
+Findings API = estado atual: abertos/aplicações/BU/Teams são da data da coleta (`as_of`), não do fechamento da competência; fechamento passado ⇒ UNAVAILABLE. "Identificados na competência" usa `first_found_date` e só vê findings ainda existentes; inclusão de fechados por padrão NOT_VERIFIED (amostra real só com OPEN). Sem data de resolução ⇒ "resolvidos no mês" UNSUPPORTED. Fuso fixo sem horário de verão.
+
+## 8. Riscos
+1. SCA inutilizável neste tenant enquanto a Findings API devolver 500 — indicadores SCA sairão FAILED/INCOMPLETE em coleta real.
+2. 5xx persistentes consomem retries/prazo (cada 500 ≈ 3 s + backoff): uma aplicação problemática deixa a execução inteira INCOMPLETE (correto, mas pouco útil). Considerar política de retry específica para 500 da Findings API.
+3. Definição de "aberto" e desempates de ranking não comparados ao dashboard.
+4. Distintos entre sandboxes nunca VALIDATED até prova de identidade.
+5. Escala: ~30 clientes × centenas de apps ⇒ milhares de GETs por execução (orçamento padrão 2000); execuções só em memória (reinício perde resultados).
+6. Durante a fase eu alterei o `.env.example` (comentários com limites F04) por script antes de perceber que a política de permissões bloqueia sua leitura; a alteração foi **revertida** (`git checkout`), o arquivo não entrou no commit e o verificador segue "SEGURO".
+
+## 9. Pendências para o PO
+- Aceite da F04.
+- Decidir: fuso padrão da competência (UTC × `-03:00`); definição de "aberto" (mitigação aprovada); aceitar indício × exigir prova para dedup entre sandboxes; política para 5xx da Findings API; como obter a comparação com o dashboard (conferência humana com os mesmos filtros); investigar com a Veracode/conta o 500 do SCA.
+
+## 10. Recomendações para a F05 (prompt sugerido, NÃO executado)
+"F05 — Snapshots aprovados e entrada manual: persistir só agregados de execuções VALIDATED/INCOMPLETE (nunca findings) com `input_hash`, versões de contrato e de escopo; aprovação explícita por competência; imutabilidade e revisões auditadas (append-only, motivo, autor quando houver autenticação); entrada manual tipada para indicadores UNAVAILABLE/UNSUPPORTED (histórico, licenças, scans) com origem `manual`; séries de 6/12 meses só a partir de snapshots aprovados; nunca recalcular competências passadas a partir do estado atual. Sem slides/exportação (F06/F07)."
+
+---
+
 # Devolutiva Claude → ChatGPT PO — F03: motor de escopos e filtros (2026-10-14)
 
 - **Fase / commits:** F03 / `main` / **`2d9192f`** (implementação + testes) + **`17743cc`** (correção de teste) + commit seguinte só com STATUS/handoff. Push feito. **F04 NÃO iniciada.**
