@@ -8,7 +8,7 @@
 3. Veracode Adapters: limites de taxa, paginação, retries 429/5xx, registro de extração completa.
 4. Metric Registry (F04, `backend/app/metrics/`): contratos tipados (enums), registro versionado, competência fechada, população pelos escopos F03, coleta Findings API com orçamento/cache, motor determinístico com status VALIDATED/INCOMPLETE/UNAVAILABLE/UNSUPPORTED/FAILED e proveniência — `docs/METRIC_CATALOG.md`.
 5. Snapshot Store (F05, `backend/app/snapshots/`): competências por dono, revisões DRAFT/READY_FOR_REVIEW/APPROVED com lock otimista, snapshots com fonte preservada e origem VERACODE/MANUAL, aprovações e auditoria append-only com hash encadeado, séries só de aprovados — `docs/SNAPSHOTS.md`.
-6. Presentation Engine: catálogo de blocos com schema, preview fiel, exportadores HTML/PPTX/PDF.
+6. Presentation Engine (F06A, `backend/app/presentations/`): templates tipados e versionados (append-only), escolha por cliente/subcliente, 11 tipos de slide, documento editorial sem números, fontes = revisões aprovadas fixadas com hash, IR de gráficos independente do renderizador, tema neutro provisório (canvas 16:9), pré-visualização HTML — `docs/PRESENTATIONS.md`, `docs/PRESENTATION_CONTRACTS.md`. Exportadores PPTX/PDF: F07.
 7. Validation: unit + API contract mocked + E2E + visual regression + homologação em tenant autorizado.
 
 ## Riscos

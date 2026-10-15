@@ -425,3 +425,102 @@ class AuditEvent(Base):
     details_json: Mapped[str] = mapped_column(Text(), nullable=False, default='{}')
     prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     event_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+# ---------------------------------------------------------------- F06A: templates e apresentações
+
+class TemplateOrigin(str, enum.Enum):
+    BUILTIN = 'BUILTIN'  # template demonstrativo definido no código (dados sintéticos; tema provisório)
+    CUSTOM = 'CUSTOM'    # criado pelo operador
+
+
+class PresentationTemplate(Base):
+    """Versão IMUTÁVEL de um template de apresentação (append-only por gatilho). Sem números: só estrutura,
+    textos editoriais padrão, indicadores por `metric_id` e versões de contrato aceitas."""
+    __tablename__ = 'presentation_templates'
+    __table_args__ = (CheckConstraint(f'origin IN ({_in(TemplateOrigin)})', name='origin'),
+                      CheckConstraint('version >= 1', name='version_positive'),
+                      UniqueConstraint('template_key', 'version',
+                                       name='uq_presentation_templates_template_key_version'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    template_key: Mapped[str] = mapped_column(String(60), nullable=False)
+    version: Mapped[int] = mapped_column(Integer(), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str] = mapped_column(Text(), nullable=False, default='')
+    theme_id: Mapped[str] = mapped_column(String(60), nullable=False)
+    theme_version: Mapped[int] = mapped_column(Integer(), nullable=False)
+    origin: Mapped[str] = mapped_column(String(10), nullable=False)
+    definition_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+class OwnerTemplateSelection(Base):
+    """Escolha de template por cliente/subcliente (append-only: a vigente é a mais recente)."""
+    __tablename__ = 'owner_template_selections'
+
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True, autoincrement=True)
+    owner_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('clients.id', ondelete='RESTRICT'), nullable=False, index=True)
+    subclient_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey('subclients.id', ondelete='RESTRICT'), nullable=True, index=True)
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('presentation_templates.id', ondelete='RESTRICT'), nullable=False)
+    selected_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    selected_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+class Presentation(TimestampMixin, Base):
+    """Apresentação de UMA competência de um dono, a partir de um template. Identidade imutável (gatilho);
+    o conteúdo vive em `presentation_revisions` (append-only). `current_revision` = concorrência otimista."""
+    __tablename__ = 'presentations'
+    __table_args__ = (CheckConstraint('current_revision >= 1', name='current_revision_positive'),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    owner_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('clients.id', ondelete='RESTRICT'), nullable=False, index=True)
+    subclient_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey('subclients.id', ondelete='RESTRICT'), nullable=True, index=True)
+    competence_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('competences.id', ondelete='RESTRICT'), nullable=False, index=True)
+    template_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('presentation_templates.id', ondelete='RESTRICT'), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    current_revision: Mapped[int] = mapped_column(Integer(), nullable=False, default=1)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+
+    revisions: Mapped[list[PresentationRevision]] = relationship(
+        back_populates='presentation', order_by='PresentationRevision.number', passive_deletes='all')
+
+
+class PresentationRevision(Base):
+    """Revisão APPEND-ONLY do conteúdo editorial + fontes fixadas (revisões APROVADAS da F05, com hashes).
+    Encadeada por hash (`previous_hash` -> `revision_hash`). Nunca guarda valores de indicadores."""
+    __tablename__ = 'presentation_revisions'
+    __table_args__ = (CheckConstraint('number >= 1', name='number_positive'),
+                      UniqueConstraint('presentation_id', 'number',
+                                       name='uq_presentation_revisions_presentation_id_number'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    presentation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('presentations.id', ondelete='RESTRICT'), nullable=False)
+    number: Mapped[int] = mapped_column(Integer(), nullable=False)
+    document_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    document_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    sources_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    sources_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    primary_revision_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('competence_revisions.id', ondelete='RESTRICT'), nullable=False, index=True)
+    primary_approval_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('approvals.id', ondelete='RESTRICT'), nullable=False)
+    change_summary: Mapped[str] = mapped_column(Text(), nullable=False, default='')
+    previous_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revision_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+    presentation: Mapped[Presentation] = relationship(back_populates='revisions')

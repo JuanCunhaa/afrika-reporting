@@ -6,6 +6,8 @@ import { ClientsPage } from './pages/ClientsPage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { MetricsPage } from './pages/MetricsPage';
+import { PresentationEditorPage } from './pages/PresentationEditorPage';
+import { PresentationsPage } from './pages/PresentationsPage';
 import { ReportingPage } from './pages/ReportingPage';
 import { ScopesPage } from './pages/ScopesPage';
 import { SnapshotsPage } from './pages/SnapshotsPage';
@@ -30,6 +32,7 @@ function App() {
   const scopesMatch = path.match(/^\/scopes\/clients\/([0-9a-f-]{36})$/i);
   const metricsMatch = path.match(/^\/metrics(?:\/clients\/([0-9a-f-]{36}))?$/i);
   const snapshotsMatch = path.match(/^\/snapshots(?:\/([0-9a-f-]{36})(?:\/(\d+))?)?$/i);
+  const presentationMatch = path.match(/^\/presentations\/([0-9a-f-]{36})$/i);
 
   let page: React.ReactNode;
   if (path === '/connections') page = <ConnectionsPage />;
@@ -44,6 +47,8 @@ function App() {
       />
     );
   else if (path === '/history') page = <HistoryPage />;
+  else if (path === '/presentations') page = <PresentationsPage navigate={navigate} />;
+  else if (presentationMatch) page = <PresentationEditorPage key={presentationMatch[1]} pid={presentationMatch[1]} />;
   else if (path === '/reporting') page = <ReportingPage />;
   else if (veracodeMatch) {
     const kind = veracodeMatch[1] as 'clients' | 'subclients';
@@ -58,7 +63,7 @@ function App() {
       <header>
         <small>AFRIKA / REPORTING</small>
         <h1>Central de relatórios AppSec</h1>
-        <p>F05 — cadastro, descoberta Veracode somente leitura, escopos, indicadores, snapshots aprovados por competência e histórico.</p>
+        <p>F06A — cadastro, descoberta Veracode somente leitura, escopos, indicadores, snapshots aprovados, histórico e apresentações (tema provisório).</p>
         <nav aria-label="Principal">
           <a href="#/clients" aria-current={path.startsWith('/clients') || path.startsWith('/veracode') || path.startsWith('/scopes') ? 'page' : undefined}>
             Clientes
@@ -78,10 +83,13 @@ function App() {
           <a href="#/reporting" aria-current={path === '/reporting' ? 'page' : undefined}>
             Reporting
           </a>
+          <a href="#/presentations" aria-current={path.startsWith('/presentations') ? 'page' : undefined}>
+            Apresentações
+          </a>
         </nav>
       </header>
       {page}
-      <footer>F05 • API local (loopback) sem autenticação — operador/aprovador são declarados, não autenticados • Indicadores não homologados contra o dashboard</footer>
+      <footer>F06A • API local (loopback) sem autenticação — operador/aprovador são declarados, não autenticados • Indicadores não homologados contra o dashboard</footer>
     </main>
   );
 }

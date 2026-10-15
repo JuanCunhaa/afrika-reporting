@@ -6,7 +6,9 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import api, api_metrics, api_reporting, api_scopes, api_snapshots, api_veracode, errors
+from app import (
+    api, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots, api_veracode, errors,
+)
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
@@ -18,7 +20,7 @@ from app.veracode.reporting import ReportingJobs
 from app.veracode.http import VeracodeHttpPool
 from app.veracode.settings import VeracodeSettings
 
-DESCRIPTION = ('F05: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
+DESCRIPTION = ('F06A: cadastro de clientes/subclientes/conexões + descoberta Veracode SOMENTE LEITURA '
                '(aplicações, BUs, Teams, usuários, sandboxes e relacionamentos) + escopos versionados por domínio '
                '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência '
                '+ snapshots por competência, revisões, aprovação auditável e séries históricas '
@@ -54,7 +56,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
             await pool.aclose()
             engine.dispose()
 
-    app = FastAPI(title='Afrika Reporting API', version='0.5.0', description=DESCRIPTION, lifespan=lifespan)
+    app = FastAPI(title='Afrika Reporting API', version='0.6.0', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
 
@@ -69,10 +71,11 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app.include_router(api_metrics.router)
     app.include_router(api_snapshots.router)
     app.include_router(api_reporting.router)
+    app.include_router(api_presentations.router)
 
     @app.get('/api/health')
     def health():
-        return {'status': 'ok', 'phase': 'F05', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
+        return {'status': 'ok', 'phase': 'F06A', 'data': 'local', 'auth': 'none', 'veracode_mode': settings.mode}
 
     return app
 

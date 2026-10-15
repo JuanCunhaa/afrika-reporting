@@ -16,7 +16,8 @@ from conftest import sqlite_url
 F04_TABLES = {'connections', 'clients', 'subclients', 'scope_definitions', 'scope_versions', 'alembic_version'}
 F05_TABLES = {'collection_runs', 'competences', 'competence_revisions', 'metric_snapshots', 'manual_changes',
               'approvals', 'audit_events'}
-TABLES = F04_TABLES | F05_TABLES
+F06_TABLES = {'presentation_templates', 'owner_template_selections', 'presentations', 'presentation_revisions'}
+TABLES = F04_TABLES | F05_TABLES | F06_TABLES
 F01_TABLES = {'connections', 'clients', 'subclients', 'alembic_version'}
 
 
@@ -26,7 +27,7 @@ def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
     engine = db.make_engine(url)
     try:
         assert set(inspect(engine).get_table_names()) == TABLES
-        assert db.current_revision(engine) == db.head_revision() == '0004_snapshots'
+        assert db.current_revision(engine) == db.head_revision() == '0005_presentations'
     finally:
         engine.dispose()
 
@@ -204,7 +205,7 @@ def test_f05_upgrade_on_existing_f04_database_preserves_data(tmp_path):
                               "'America/Sao_Paulo', :n, :n)"), {'id': client_id.hex, 'n': '2026-01-01 00:00:00'})
             _insert_scope(conn, client_id.hex)
         db.upgrade(url)
-        assert db.current_revision(engine) == '0004_snapshots'
+        assert db.current_revision(engine) == '0005_presentations'
         assert set(inspect(engine).get_table_names()) == TABLES
         with engine.connect() as conn:
             views = conn.execute(text("SELECT name FROM sqlite_master WHERE type='view'")).scalars().all()
@@ -236,7 +237,7 @@ def test_f05_downgrade_refuses_to_drop_approved_history(db_url, monkeypatch):
         db.downgrade(db_url, '0003_client_timezone')
     engine = db.make_engine(db_url)
     try:
-        assert db.current_revision(engine) == '0004_snapshots'
+        assert db.current_revision(engine) == '0004_snapshots'  # a 0005 (sem apresentações) desceu; a 0004 recusou
         with engine.connect() as conn:
             assert conn.execute(text('SELECT COUNT(*) FROM approvals')).scalar() == 1
     finally:

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.orm import Client, Connection, ReportMode, Subclient, VeracodeRegion, name_key
+from app.presentations import templates
 
 DEMO_CONNECTION = 'Conexão sintética (demo)'
 DEMO_DESCRIPTION = 'Dados sintéticos (F00) — não representa cliente real'
@@ -44,4 +45,6 @@ def seed_demo(session: Session) -> dict[str, int]:
             created['subclients'] += 1
 
     session.commit()
+    # F06A: templates DEMONSTRATIVOS (sintéticos, tema provisório). Idempotente.
+    created['templates'] = len(templates.install_builtin(session, 'seed-demo')['created'])
     return created

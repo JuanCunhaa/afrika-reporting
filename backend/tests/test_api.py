@@ -11,7 +11,7 @@ def test_health(api):
     assert r.status_code == 200
     body = r.json()
     assert body.pop('veracode_mode') in ('live', 'fixture')
-    assert body == {'status': 'ok', 'phase': 'F05', 'data': 'local', 'auth': 'none'}
+    assert body == {'status': 'ok', 'phase': 'F06A', 'data': 'local', 'auth': 'none'}
 
 
 def test_demo_metric_endpoint_was_removed(api):
@@ -28,9 +28,9 @@ def test_explicit_seed_recreates_f00_demo_clients_idempotently(db_url):
     engine = db.make_engine(db_url)
     try:
         with db.session_factory(engine)() as s:
-            assert seed_demo(s) == {'connections': 1, 'clients': 2, 'subclients': 2}
+            assert seed_demo(s) == {'connections': 1, 'clients': 2, 'subclients': 2, 'templates': 3}
         with db.session_factory(engine)() as s:
-            assert seed_demo(s) == {'connections': 0, 'clients': 0, 'subclients': 0}
+            assert seed_demo(s) == {'connections': 0, 'clients': 0, 'subclients': 0, 'templates': 0}
     finally:
         engine.dispose()
     with TestClient(create_app(db_url)) as api:
