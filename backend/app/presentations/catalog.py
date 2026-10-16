@@ -235,7 +235,8 @@ def public_catalog() -> dict:
         if any(vt in z.value_types for zs in DASHBOARD_LAYOUTS.values() for z in zs.values()):
             slide_types.append(SlideType.DASHBOARD.value)
         metrics.append({'metric_id': mid, 'name': c.name, 'contract_version': c.version, 'value_type': vt.value,
-                        'unit': c.unit.value, 'support': c.support.value, 'slide_types': slide_types})
+                        'unit': c.unit.value, 'support': c.support.value, 'slide_types': slide_types,
+                        'desired_direction': c.desired_direction.value})
     return {'slide_types': [s.public() for s in SLIDE_TYPES.values()], 'metrics': metrics,
             'editorial_fields': list(EDITORIAL_FIELDS), 'options': list(OPTION_NAMES),
             'zone_kinds': [k.value for k in ZoneKind]}

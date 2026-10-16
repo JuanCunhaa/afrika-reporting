@@ -292,6 +292,20 @@ def contract_versions(defn: TemplateDefinition, metric_id: str) -> list[int]:
     return [] if c is None else [c.version]
 
 
+def select_slots(doc: Document, defn: TemplateDefinition, slots: list[str]) -> tuple[Document, list[str]]:
+    """F06C — seleção flexível: mantém só os slots escolhidos (na ordem do template). Slots obrigatórios do template
+    (ex.: capa e encerramento) entram SEMPRE; slot inexistente => 422. Devolve (documento, obrigatórios incluídos)."""
+    known = [s.slot_id for s in defn.slides]
+    unknown = sorted({s for s in slots if s not in known})
+    if unknown:
+        raise ApiError(422, 'invalid_document', 'Slot inexistente no template',
+                       [{'field': 'slots', 'message': s, 'type': 'unknown_slot'} for s in unknown])
+    required = [s.slot_id for s in defn.slides if s.required]
+    chosen = set(slots) | set(required)
+    kept = [s for s in doc.slides if s.template_slot in chosen]
+    return doc.model_copy(update={'slides': kept}), [s for s in required if s not in slots]
+
+
 def initial_document(defn: TemplateDefinition, title: str) -> Document:
     slides = [Slide(slide_id=s.slot_id, template_slot=s.slot_id, type=s.type,
                     layout=s.layout or SLIDE_TYPES[s.type].layouts[0], fields=s.fields.model_copy(deep=True),

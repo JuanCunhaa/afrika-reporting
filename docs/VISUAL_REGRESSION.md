@@ -1,4 +1,4 @@
-# Regressão e comparação visual dos slides (F06B.1 + F06B)
+# Regressão e comparação visual dos slides (F06B.1 + F06B + F06C)
 
 Código: motor em `frontend/visual/` (TypeScript sem dependências: `png.ts`, `diff.ts`, `manifest.ts`, `report.ts`,
 `capture.ts`), testes unitários `frontend/visual/engine.test.ts` (`npm run test:visual-unit`, imagens sintéticas),
@@ -71,6 +71,26 @@ famílias disponíveis também (ex.: `Segoe UI` no Windows); a diferença entre 
 Terceiro caso da regressão: `afrika-modelo@1` + `afrika@1` com dados sintéticos (`frontend/e2e/visual-fixture.ts`,
 `afrikaPresentation`; 16 slides; `apps.unclassified` ausente de propósito). Viewport da captura: 1920×1080 (os temas
 neutro e alternativo continuam idênticos às referências anteriores). Referências: `baselines/{win32,linux}/afrika/`.
+
+## Caso `afrika-v2`, overflow e fontes (F06C)
+- Quarto caso: `afrika-modelo@2` (tema `afrika@2`: severidade por nível, variação comprovada) com **seleção de 8
+  slots** (capa e encerramento automáticos) e ativos **sintéticos** de marca (foto da capa e logotipo dos slides de
+  conteúdo) gravados em tempo de teste na pasta descartável do E2E (`AFRIKA_E2E_BRAND_DIR`); os demais encaixes ficam
+  vazios (fallback neutro). Referências: `baselines/win32/afrika-v2/` (revisadas) e `baselines/linux/afrika-v2/` (CI).
+- Os 54 slides anteriores (neutro, alternativo, afrika v1) continuaram **idênticos** (tolerância 0) depois de todas as
+  mudanças da F06C — prova de que os temas/templates existentes não mudaram de aparência.
+- **Overflow/cortes** (`visual/overflow.ts`): em cada caso, no DOM da plataforma, procura corte (`overflow` oculto),
+  texto mais longo que a própria caixa na direção inline, texto fora da zona do painel ou do slide; qualquer achado
+  (exceto reticências, registradas) reprova. Mesma verificação no Windows (local) e Linux (CI). A direção de bloco é
+  ignorada (entrelinha apertada faz o glifo passar da caixa de linha sem ser estouro). O E2E `f06c.spec.ts` injeta
+  estouros e prova que o detector os encontra.
+- **Fontes de reserva**: nos casos com fontes empacotadas (`afrika`, `afrika-v2`) qualquer fonte de plataforma fora de
+  Montserrat/Poppins/Be Vietnam Pro reprova.
+- Relatório: `overflow[]` e `fallback_fonts[]` em `test-results/visual/report.json`.
+
+## Comparação integral com a referência (F06C, só local)
+`frontend/e2e/reference-integral.spec.ts` — conteúdo sintético equivalente, sem máscara, métricas por categoria e por
+classe de área. Método, resultados e classificação: `docs/VISUAL_FIDELITY.md`.
 
 ## Comparação por slide com a referência real (F06B, só local)
 `frontend/e2e/reference.spec.ts` — pulado sem `AFRIKA_REFERENCE_RENDER`/`AFRIKA_REFERENCE_REPORT` (o arquivo não

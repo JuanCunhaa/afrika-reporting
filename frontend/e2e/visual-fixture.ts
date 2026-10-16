@@ -1,4 +1,7 @@
 import { APIRequestContext, expect } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { type Image, encodePng } from '../visual/png';
 
 // F06B.1 — fixture SINTÉTICA e DETERMINÍSTICA da regressão visual: cliente de nome fixo, 12 competências (duas
 // lacunas: 2026-04 e 2026-07) com valores manuais justificados, template cobrindo os 11 tipos de slide × layouts.
@@ -163,15 +166,78 @@ function afrikaValues(i: number, label: string): Record<string, unknown> {
   return v;
 }
 
-/** Apresentação do template embutido `afrika-modelo@1` para um cliente sintético próprio (apps.unclassified sem valor: mostra "ausente"). */
-export async function afrikaPresentation(request: APIRequestContext): Promise<string> {
+/** Apresentação do template embutido `afrika-modelo@<version>` (padrão v1) com os 16 slots para um cliente sintético próprio (apps.unclassified sem valor: mostra "ausente"). */
+export async function afrikaPresentation(request: APIRequestContext, version = 1): Promise<string> {
   const clientId = await ensureClient(request, AFRIKA_CLIENT);
   let primary = '';
   for (const [i, label] of MONTHS.entries()) {
     const id = await ensureApproved(request, clientId, label, afrikaValues(i, label));
     if (label === PRIMARY) primary = id;
   }
-  const p = await call(request, 'POST', '/api/presentations', { competence_id: primary, template_key: 'afrika-modelo', template_version: 1, title: 'Relatório Afrika sintético', operator: OP });
+  const p = await call(request, 'POST', '/api/presentations', { competence_id: primary, template_key: 'afrika-modelo', template_version: version, title: 'Relatório Afrika sintético', operator: OP });
+  const r1 = await call(request, 'GET', `/api/presentations/${p.id}/revisions/1`);
+  const document = { ...r1.document, presenters: [{ name: 'Pessoa Sintética Um', role: 'Apresentadora' }] };
+  await call(request, 'PUT', `/api/presentations/${p.id}/document`, { document, expected_revision: 1, operator: OP, summary: 'Apresentador sintético' });
+  return p.id;
+}
+
+// ---------------------------------------------------------------- F06C: afrika-modelo@2 (seleção de slots + ativos)
+
+/** Foto SINTÉTICA determinística (faixas diagonais em lilás/roxo) — substitui uma foto de marca nos testes. */
+function syntheticPhoto(w: number, h: number): Image {
+  const data = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const band = Math.floor((x + y) / 90) % 2;
+      const o = (y * w + x) * 4;
+      data[o] = band ? 0x8d : 0xb9;
+      data[o + 1] = band ? 0x5c : 0x9b;
+      data[o + 2] = band ? 0xb0 : 0xd6;
+      data[o + 3] = 255;
+    }
+  return { width: w, height: h, data };
+}
+
+/** Marca SINTÉTICA (círculo + barra, fundo transparente) — substitui um logotipo nos testes. */
+function syntheticMark(w: number, h: number): Image {
+  const data = new Uint8Array(w * h * 4);
+  const r = Math.min(w, h) * 0.36;
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const inCircle = (x - h / 2) ** 2 + (y - h / 2) ** 2 <= r * r;
+      const inBar = x > h && x < w - 4 && y > h * 0.4 && y < h * 0.6;
+      if (!inCircle && !inBar) continue;
+      const o = (y * w + x) * 4;
+      data.set([0x5d, 0x24, 0x82, 255], o);
+    }
+  return { width: w, height: h, data };
+}
+
+/** Grava ativos SINTÉTICOS na pasta descartável de marca do E2E (AFRIKA_E2E_BRAND_DIR): foto da capa e logotipo dos
+ * slides de conteúdo. Os demais encaixes ficam vazios de propósito (prova do fallback neutro). */
+export function ensureSyntheticBrandAssets(): string[] {
+  const dir = process.env.AFRIKA_E2E_BRAND_DIR;
+  if (!dir) return [];
+  const folder = path.join(dir, 'afrika');
+  fs.mkdirSync(folder, { recursive: true });
+  fs.writeFileSync(path.join(folder, 'foto-capa.png'), encodePng(syntheticPhoto(864, 1080)));
+  fs.writeFileSync(path.join(folder, 'logo-conteudo.png'), encodePng(syntheticMark(104, 68)));
+  return ['foto-capa', 'logo-conteudo'];
+}
+
+export const AFRIKA_V2_SLOTS = ['painel-kpis', 'painel-graficos', 'secao-indicadores', 'painel-severidades', 'painel-severidades-dev', 'destaque-vulnerabilidades'];
+
+/** Apresentação de `afrika-modelo@2` (tema afrika@2: severidade por nível, variação comprovada) com SELEÇÃO de slots
+ * (capa e encerramento entram sozinhos) e ativos sintéticos: 8 slides, não 16. */
+export async function afrikaV2Presentation(request: APIRequestContext): Promise<string> {
+  ensureSyntheticBrandAssets();
+  const clientId = await ensureClient(request, AFRIKA_CLIENT);
+  let primary = '';
+  for (const [i, label] of MONTHS.entries()) {
+    const id = await ensureApproved(request, clientId, label, afrikaValues(i, label));
+    if (label === PRIMARY) primary = id;
+  }
+  const p = await call(request, 'POST', '/api/presentations', { competence_id: primary, template_key: 'afrika-modelo', template_version: 2, title: 'Relatório Afrika v2 sintético', slots: AFRIKA_V2_SLOTS, operator: OP });
   const r1 = await call(request, 'GET', `/api/presentations/${p.id}/revisions/1`);
   const document = { ...r1.document, presenters: [{ name: 'Pessoa Sintética Um', role: 'Apresentadora' }] };
   await call(request, 'PUT', `/api/presentations/${p.id}/document`, { document, expected_revision: 1, operator: OP, summary: 'Apresentador sintético' });

@@ -1,7 +1,8 @@
 # Template de referência Afrika (F06B)
 
-Status: **implementado no HTML, PROVISÓRIO** — a identidade visual (`afrika@1`, `provisional: true`) ainda depende de
-homologação do PO. Exportação PPTX/PDF continua fora do escopo (F07).
+Status: **implementado no HTML, PROVISÓRIO** — a identidade visual (`afrika@1`; F06C: `afrika@2` com a semântica de
+cores do PO, ambos `provisional: true`) ainda depende de homologação do PO. Exportação PPTX/PDF continua fora do escopo
+(F07); o contrato está em `docs/F07_EXPORT_READINESS.md`.
 
 ## 1. Proteção do PowerPoint de referência
 - Arquivo **só local** em `references/` (pasta ignorada; `.gitignore` também ignora `*.pptx *.potx *.pptm *.ppt *.ppsx
@@ -126,6 +127,22 @@ contorno (`components.shapes[].path`, comandos absolutos M/L/C/Q/A/Z) mapeiam pa
 `export_family`; gráficos saem da IR (dados aprovados) e podem virar gráficos nativos; zonas são independentes (cada
 uma vira um grupo de formas). Tamanhos adaptativos (container queries) precisam ser calculados pelo exportador a
 partir da mesma regra. Nenhum exportador foi escrito.
+
+## 8.1 F06C — `afrika@2` / `afrika-modelo@2`
+- **Versões novas, v1 intacta**: `afrika@1` e `afrika-modelo@1` mantêm os hashes (fixados em teste); apresentações
+  criadas com a v1 não mudam. `afrika-modelo@2` reutiliza os mesmos 16 slots/zonas (cópia programática) e aponta para
+  `afrika@2`.
+- **Decisões do PO aplicadas** (tokens, nenhum valor fixo em componente): severidade por nível semântico (Crítica
+  vermelho, Alta laranja, Média amarelo, Baixa azul, Informativa cinza) e variação comprovada (melhora verde, piora
+  vermelho, neutra cinza) com direção declarada por indicador (`docs/METRIC_CATALOG.md`). Detalhes: `docs/THEMES.md`.
+- **Seleção flexível**: na criação, slots escolhidos pela disponibilidade dos indicadores aprovados; só capa e
+  encerramento obrigatórios (ex.: o caso visual `afrika-v2` tem 8 slides).
+- **Achados da comparação integral corrigidos** (subtítulo e rótulo da matriz) e demais diferenças classificadas:
+  `docs/VISUAL_FIDELITY.md`.
+- **Ativos**: encaixes `logo-capa`, `foto-capa`, `foto-secao`, `ilustracao-encerramento`, `logo-conteudo`,
+  `icones-laterais` carregados da pasta local autorizada; hoje vazios (fallback neutro).
+- Decisões da §7 resolvidas: cor × severidade (PO) e direção desejável (por indicador). Continuam pendentes:
+  homologação da identidade, ativos oficiais, "Muito baixa" agrupada em Baixa e rótulo "Muito alta" × "Crítica".
 
 ## 9. Reproduzir a comparação localmente
 ```

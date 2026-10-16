@@ -1,4 +1,4 @@
-# Afrika Reporting — local-first (F05)
+# Afrika Reporting — local-first (F06C)
 
 Plataforma de relatórios AppSec multi-cliente, operada por Claude Code em fases. **Este ZIP é o ponto de partida de desenvolvimento**, não é uma integração Veracode pronta nem um gerador PPTX completo.
 
@@ -74,7 +74,7 @@ Para começar com Claude Code, abra a pasta raiz e envie integralmente **`prompt
 
 ## Estado inicial
 
-F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02/F02.1: conector Veracode somente leitura e descoberta (homologado em tenant real de testes). F03: motor de escopos e filtros versionados. F04: motor de indicadores (aplicações, SAST, SCA). F05: snapshots por competência, aprovação auditável, histórico e adaptador da Reporting API. F06 e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
+F00: scaffold executável + contratos. F01: cadastro persistente de clientes, subclientes e conexões. F02/F02.1: conector Veracode somente leitura e descoberta (homologado em tenant real de testes). F03: motor de escopos e filtros versionados. F04: motor de indicadores (aplicações, SAST, SCA). F05: snapshots por competência, aprovação auditável, histórico e adaptador da Reporting API. F06A/F06B.1/F06B/F06C: motor de apresentações HTML (templates e temas versionados, template Afrika provisório, semântica de cores, comparação visual e contrato de exportação). F07 (exportação PPTX/PDF) e seguintes: **não implementadas**. Não tratar demo como homologada. Leia `docs/STATUS.md`.
 
 ## Licença
 

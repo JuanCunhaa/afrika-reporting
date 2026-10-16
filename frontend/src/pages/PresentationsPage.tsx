@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { errorMessage } from '../api';
-import { PresentationMeta, TemplateSummary, presentations } from '../presentationsApi';
+import { PresentationMeta, SlotAvailability, TemplateSummary, presentations } from '../presentationsApi';
 import { Competence, loadOperator, saveOperator, snapshots } from '../snapshotsApi';
 import { Empty, ErrorBox, fmtDate, useLoad } from '../ui';
 import { Owner, OperatorField, OwnerPicker } from './OwnerPicker';
@@ -71,7 +71,29 @@ function OwnerPanel(props: { owner: Owner; templates: TemplateSummary[]; operato
   const [competence, setCompetence] = useState('');
   const [override, setOverride] = useState('');
   const [error, setError] = useState('');
+  // F06C: seleção flexível de slides conforme os indicadores aprovados da competência (obrigatórios travados)
+  const [avail, setAvail] = useState<SlotAvailability | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
   const opValid = operator.trim().length >= 2;
+  const target = override || (sel.data?.template ? `${sel.data.template.key}@${sel.data.template.version}` : '');
+
+  useEffect(() => {
+    let alive = true;
+    setAvail(null);
+    if (!competence || !target) return;
+    const [key, v] = target.split('@');
+    presentations
+      .availability(key, Number(v), competence)
+      .then((a) => {
+        if (!alive) return;
+        setAvail(a);
+        setChosen(new Set(a.slots.map((s) => s.slot_id)));
+      })
+      .catch(() => alive && setAvail(null));
+    return () => {
+      alive = false;
+    };
+  }, [competence, target]);
 
   useEffect(() => {
     const t = sel.data?.template;
@@ -101,6 +123,8 @@ function OwnerPanel(props: { owner: Owner; templates: TemplateSummary[]; operato
         competence_id: competence,
         operator,
         ...(key ? { template_key: key, template_version: Number(v) } : {}),
+        // só envia a seleção se ela difere de "todos" (sem seleção = todos os slots do template)
+        ...(avail && chosen.size < avail.slots.length ? { slots: avail.slots.filter((s) => chosen.has(s.slot_id)).map((s) => s.slot_id) } : {}),
       });
       navigate(`/presentations/${p.id}`);
     } catch (err) {
@@ -162,6 +186,7 @@ function OwnerPanel(props: { owner: Owner; templates: TemplateSummary[]; operato
             ))}
           </select>
         </div>
+        {avail && <SlotPicker avail={avail} chosen={chosen} setChosen={setChosen} />}
         <div className="actions">
           <button type="submit" className="btn primary" disabled={!competence || !opValid}>
             Criar apresentação
@@ -203,3 +228,48 @@ function OwnerPanel(props: { owner: Owner; templates: TemplateSummary[]; operato
   );
 }
 
+
+const STATUS_LABEL: Record<SlotAvailability['slots'][number]['status'], string> = {
+  complete: 'todos os indicadores com valor aprovado',
+  partial: 'parte dos indicadores sem valor aprovado',
+  none: 'nenhum indicador com valor aprovado (mostraria “ausente”)',
+  editorial: 'editorial (sem indicadores)',
+};
+
+function SlotPicker({ avail, chosen, setChosen }: { avail: SlotAvailability; chosen: Set<string>; setChosen: (s: Set<string>) => void }) {
+  const toggle = (id: string) => {
+    const next = new Set(chosen);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setChosen(next);
+  };
+  return (
+    <fieldset className="field slot-picker" aria-label="Slides da apresentação" data-testid="slot-picker">
+      <legend>
+        Slides ({chosen.size} de {avail.slots.length}) — competência {avail.competence.competence}, revisão aprovada {avail.competence.revision}
+      </legend>
+      <div className="toolbar">
+        <button type="button" className="btn" onClick={() => setChosen(new Set(avail.slots.filter((s) => s.suggested).map((s) => s.slot_id)))}>
+          Usar sugestão (indicadores disponíveis)
+        </button>
+        <button type="button" className="btn" onClick={() => setChosen(new Set(avail.slots.map((s) => s.slot_id)))}>
+          Todos
+        </button>
+      </div>
+      <ul className="slot-list">
+        {avail.slots.map((s) => (
+          <li key={s.slot_id}>
+            <label>
+              <input type="checkbox" checked={s.required || chosen.has(s.slot_id)} disabled={s.required} onChange={() => toggle(s.slot_id)} data-testid={`slot-${s.slot_id}`} />
+              {s.title ?? s.slot_id} {s.required && <strong>(obrigatório)</strong>}{' '}
+              <small className={`muted slot-status-${s.status}`} data-testid={`slot-status-${s.slot_id}`}>
+                {STATUS_LABEL[s.status]}
+              </small>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <small className="muted">{avail.policy}</small>
+    </fieldset>
+  );
+}

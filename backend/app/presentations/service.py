@@ -22,7 +22,9 @@ from app.orm import (
     RevisionStatus, utcnow,
 )
 from app.presentations import templates, view
-from app.presentations.document import Document, initial_document, validate_document
+from app.presentations.document import (
+    Document, all_metrics, contract_versions, initial_document, select_slots, validate_document,
+)
 from app.scopes import store
 from app.snapshots import audit, service as snapshots
 from app.snapshots.values import canonical, sha256, snapshot_hash
@@ -120,7 +122,7 @@ def _audit(session: Session, p: Presentation, r: PresentationRevision, event: st
 
 def create(session: Session, competence_id: uuid.UUID, operator: str, *, revision: int | None = None,
            template_key: str | None = None, template_version: int | None = None,
-           title: str | None = None) -> Presentation:
+           title: str | None = None, slots: list[str] | None = None) -> Presentation:
     comp = snapshots.get_competence(session, competence_id)
     rev, appr = _approved_source(session, comp, revision)
     kind, _, oid = comp.owner_key.partition(':')
@@ -133,6 +135,9 @@ def create(session: Session, competence_id: uuid.UUID, operator: str, *, revisio
             raise conflict('template_required', 'Escolha um template para este cliente/subcliente (ou informe um)')
     defn = templates.definition_of(tmpl)
     doc = initial_document(defn, title or f'{defn.name} — {owner.name} — {comp.label}')
+    forced: list[str] = []
+    if slots is not None:  # F06C: seleção flexível (obrigatórios entram sempre)
+        doc, forced = select_slots(doc, defn, slots)
     validate_document(doc, defn)
     p = Presentation(owner_key=comp.owner_key, client_id=comp.client_id, subclient_id=comp.subclient_id,
                      competence_id=comp.id, template_id=tmpl.id, title=doc.title, current_revision=1,
@@ -142,7 +147,9 @@ def create(session: Session, competence_id: uuid.UUID, operator: str, *, revisio
     r = _add_revision(session, p, 1, doc, view.pin_sources(session, comp, rev, appr), operator,
                       'Criada a partir do template', None)
     _audit(session, p, r, 'presentation.created', operator, template=tmpl.template_key, template_version=tmpl.version,
-           competence_revision=rev.number, content_hash=appr.content_hash)
+           competence_revision=rev.number, content_hash=appr.content_hash,
+           **({'selected_slots': [s.slide_id for s in doc.slides], 'required_added': forced}
+              if slots is not None else {}))
     _commit(session)
     logger.info('apresentação criada dono=%s competência=%s template=%s@%s', comp.owner_key, comp.label,
                 tmpl.template_key, tmpl.version)
@@ -266,3 +273,32 @@ def verify(session: Session, p: Presentation) -> dict:
                         'content_ok': content_ok, 'snapshot_hash_mismatches': bad})
     return {'ok': not problems, 'problems': problems, 'revisions_checked': len(p.revisions),
             'sources_checked': checked}
+
+
+# ---------------------------------------------------------------- disponibilidade por slot (F06C)
+
+def slot_availability(session: Session, tmpl: PresentationTemplate, competence_id: uuid.UUID,
+                      revision: int | None = None) -> dict:
+    """Para escolher os slides de um cliente/subcliente: situação de cada slot do template na revisão APROVADA da
+    competência (só leitura; nada é gravado). `complete` = todos os indicadores com valor aprovado; `partial` = parte;
+    `none` = nenhum (o slide mostraria só "ausente"); `editorial` = sem indicadores. Histórico (séries de 6/12 meses)
+    não entra aqui: meses sem aprovação aparecem como LACUNA no slide — nunca preenchidos."""
+    comp = snapshots.get_competence(session, competence_id)
+    rev, appr = _approved_source(session, comp, revision)
+    defn = templates.definition_of(tmpl)
+    entries = {comp.label: (comp, rev, appr)}
+    out = []
+    for slot in defn.slides:
+        metrics = [{'metric_id': m, 'state': view.resolve(entries, comp.label, m, contract_versions(defn, m))['state']}
+                   for m in all_metrics(slot)]
+        with_value = sum(1 for m in metrics if m['state'] == 'VALUE')
+        status = ('editorial' if not metrics else 'complete' if with_value == len(metrics)
+                  else 'none' if with_value == 0 else 'partial')
+        out.append({'slot_id': slot.slot_id, 'type': slot.type.value, 'layout': slot.layout, 'title': slot.fields.title,
+                    'required': slot.required, 'required_metrics': slot.required_metrics, 'status': status,
+                    'metrics': metrics, 'suggested': slot.required or status in ('complete', 'partial', 'editorial')})
+    return {'template': {'key': tmpl.template_key, 'version': tmpl.version},
+            'competence': {'id': str(comp.id), 'competence': comp.label, 'revision': rev.number,
+                           'approval_sequence': appr.sequence},
+            'slots': out,
+            'policy': 'Sugestão apenas: nenhum slide é removido automaticamente; lacunas continuam lacunas.'}

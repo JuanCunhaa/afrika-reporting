@@ -15,12 +15,16 @@ Os componentes (HTML hoje; PPTX/PDF na F07) só leem tokens: nenhum valor visual
 """
 from __future__ import annotations
 
+import copy
 import json
 import math
 import uuid
 from typing import Annotated, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, model_serializer, model_validator
+from pydantic import (
+    BaseModel, ConfigDict, Field, SerializationInfo, StringConstraints, ValidationError, model_serializer,
+    model_validator,
+)
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -54,6 +58,24 @@ LineHeight = Annotated[float, Field(ge=0.8, le=3)]
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+class _OmitNewDefaults(_Strict):
+    """Campos acrescentados depois de versões já publicadas saem do JSON canônico (e do hash) quando estão no padrão:
+    versões antigas (ex.: neutral-demo@1, afrika@1) mantêm exatamente o mesmo hash. `context={'full': True}` devolve
+    tudo (saída pública para o renderizador)."""
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ()
+
+    @model_serializer(mode='wrap')
+    def _omit_new_defaults(self, handler, info: SerializationInfo):
+        data = handler(self)
+        if isinstance(info.context, dict) and info.context.get('full'):
+            return data
+        for name in self._OMIT_IF_DEFAULT:
+            if name in data and getattr(self, name) == type(self).model_fields[name].get_default(
+                    call_default_factory=True):
+                del data[name]
+        return data
 
 
 class Box(_Strict):
@@ -419,7 +441,10 @@ VAlign = Literal['top', 'center', 'bottom']
 ZoneFrame = Literal['band', 'card', 'plain']
 
 
-class Components(_Strict):
+class Components(_OmitNewDefaults):
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('donut_separator', 'subtitle_color', 'subtitle_font',
+                                                   'subtitle_weight', 'subtitle_line_height',
+                                                   'matrix_label_size')  # F06C
     title_color: ColorToken = 'text.primary'
     zone_comparison: Literal['table', 'columns'] = 'table'  # comparação dentro de zonas de painel
     comparison_fill: ColorToken = 'band'  # fundo do painel interno da comparação em colunas
@@ -444,6 +469,60 @@ class Components(_Strict):
     severity_bar_width: Pos = 6
     donut_hole: Annotated[float, Field(ge=0.3, le=0.85)] = 0.6
     dashboards: dict[str, dict[str, Box]] = Field(default_factory=dict)
+    # F06C: filete da cor da superfície entre fatias da rosca (identidade não só por cor; separa níveis com a mesma
+    # cor semântica, ex.: Baixa e Muito baixa). 0 = sem filete (visual F06B).
+    donut_separator: Annotated[float, Field(ge=0, le=12)] = 0
+    # F06C (achados da comparação integral): estilo do subtítulo dos slides de conteúdo e tamanho do rótulo de linha da
+    # matriz. None = visual F06B (subtítulo na fonte do corpo, cor text.secondary; rótulo no tamanho do cabeçalho).
+    subtitle_color: ColorToken | None = None
+    subtitle_font: FontRole | None = None
+    subtitle_weight: Weight | None = None
+    subtitle_line_height: LineHeight | None = None  # None = herdada (mantém a caixa da v1 com a fonte do corpo)
+    matrix_label_size: Pos | None = None
+
+
+# ---------------------------------------------------------------- semântica de cores (F06C; omitida do hash no padrão)
+
+SeverityKey = Literal['VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'VERY_LOW', 'INFORMATIONAL']
+SeverityLevel = Literal['critical', 'high', 'medium', 'low', 'informational']
+SEVERITY_KEYS = ('VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'VERY_LOW', 'INFORMATIONAL')
+SEVERITY_LEVELS = ('critical', 'high', 'medium', 'low', 'informational')
+VARIATION_TOKENS = ('variation.improvement', 'variation.worsening', 'variation.neutral')
+
+
+class SeveritySemantics(_Strict):
+    """Severidade por NÍVEL semântico: cada nível aponta para um token de cor do tema e cada severidade Veracode (5…0)
+    aponta para um nível. Os tokens `severity.<CHAVE>` usados pela IR passam a ser DERIVADOS (não declarados em
+    `colors`), de modo que a cor de cada severidade tem uma única fonte configurável."""
+    levels: dict[SeverityLevel, ColorToken]
+    mapping: dict[SeverityKey, SeverityLevel]
+    unknown: ColorToken  # severidade ausente/desconhecida (desenhada com textura)
+
+
+class VariationSemantics(_Strict):
+    """Cores da variação mensal COMPROVADA (IR `trend`): melhora, piora e neutra (direção não declarada, sem variação
+    comparável ou sem mudança). O texto continua nos tokens de texto; a cor vai no marcador e no fundo da pílula."""
+    improvement: ColorToken
+    worsening: ColorToken
+    neutral: ColorToken
+    tint_opacity: Annotated[float, Field(ge=0, le=1)] = 0.18  # fundo da pílula = cor da tendência nesta opacidade
+
+
+class Semantics(_Strict):
+    severity: SeveritySemantics | None = None  # None = tokens severity.<CHAVE> declarados em colors (F06A/F06B)
+    variation: VariationSemantics | None = None  # None = variação sempre neutra (visual F06B)
+
+
+class AssetSlot(_Strict):
+    """Encaixe de ativo visual AUTORIZADO (logo, foto, ilustração, ícones) carregado de pasta LOCAL fora do Git
+    (`AFRIKA_BRAND_ASSET_DIR/<tema>/<nome>.png|jpg|jpeg|svg`, ver `brand_assets.py`). O tema declara só o nome e a
+    posição; sem o arquivo, o encaixe fica vazio e aparece o que estiver por baixo (fallback neutro: formas do tema).
+    Nunca bloqueia a apresentação."""
+    name: Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=r'^[a-z0-9][a-z0-9-]*$')]
+    box: Box
+    slides: list[SlideScope] = Field(min_length=1, max_length=5)
+    fit: Literal['cover', 'contain'] = 'contain'
+    alt: Text = ''
 
 
 class Canvas(_Strict):
@@ -451,7 +530,7 @@ class Canvas(_Strict):
     height: Annotated[int, Field(ge=180, le=2160)]
 
 
-class ThemeDefinition(_Strict):
+class ThemeDefinition(_OmitNewDefaults):
     name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=120,
                                            pattern=r'^[^\x00-\x1f\x7f<>]*$')]
     description: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] = ''
@@ -477,19 +556,12 @@ class ThemeDefinition(_Strict):
     images: list[ImageSlot] = Field(default_factory=list, max_length=8)
     charts: Charts = Field(default_factory=Charts)
     components: Components = Field(default_factory=Components)
+    semantics: Semantics = Field(default_factory=Semantics)  # F06C
+    asset_slots: list[AssetSlot] = Field(default_factory=list, max_length=12)  # F06C
 
-    # F06B: grupos acrescentados depois da v1 saem do JSON canônico (e do hash) quando estão no padrão — versões
-    # publicadas antes deles (ex.: neutral-demo@1) mantêm exatamente o mesmo hash.
-    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('components',)
-
-    @model_serializer(mode='wrap')
-    def _omit_new_defaults(self, handler):
-        data = handler(self)
-        for name in self._OMIT_IF_DEFAULT:
-            if name in data and getattr(self, name) == type(self).model_fields[name].get_default(
-                    call_default_factory=True):
-                del data[name]
-        return data
+    # F06B/F06C: grupos acrescentados depois da v1 saem do JSON canônico (e do hash) quando estão no padrão — versões
+    # publicadas antes deles (ex.: neutral-demo@1, afrika@1) mantêm exatamente o mesmo hash.
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('components', 'semantics', 'asset_slots')
 
     @model_validator(mode='after')
     def _coherent(self) -> ThemeDefinition:
@@ -504,15 +576,54 @@ def _inside(box: Box, canvas: Canvas) -> bool:
     return box.x + box.w <= canvas.width + 0.01 and box.y + box.h <= canvas.height + 0.01
 
 
+def effective_colors(t: ThemeDefinition) -> dict[str, str]:
+    """Paleta EFETIVA (F06C): `colors` da definição + tokens derivados da semântica — `severity.<CHAVE>` pelo nível
+    semântico e `variation.*` pela semântica de variação (sem ela: neutra = `text.secondary`). É a paleta que o
+    renderizador HTML e o exportador (F07) resolvem; o hash continua sendo o da definição."""
+    out = dict(t.colors)
+    sev = t.semantics.severity
+    if sev:
+        for k in SEVERITY_KEYS:
+            out[f'severity.{k}'] = t.colors[sev.levels[sev.mapping[k]]]
+        out['severity.UNKNOWN'] = t.colors[sev.unknown]
+    var = t.semantics.variation
+    for k, tok in zip(('improvement', 'worsening', 'neutral'), VARIATION_TOKENS):
+        if var:
+            out[tok] = t.colors[getattr(var, k)]
+        else:
+            out.setdefault(tok, t.colors['text.secondary'])
+    return out
+
+
 def theme_errors(t: ThemeDefinition) -> list[str]:
     """Coerência além dos tipos: tokens obrigatórios, referências de cor, regiões dentro do canvas e sem invadir o
     rodapé, pilhas de fonte terminando em família genérica e ativos de fonte só em mídia de fonte."""
     from app.presentations.catalog import SLIDE_TYPES  # import tardio: catalog não depende de temas
 
     out = []
-    missing = [c for c in REQUIRED_COLORS if c not in t.colors]
+    sem = t.semantics
+    derived = set(SEVERITY_TOKENS) if sem.severity else set()
+    missing = [c for c in REQUIRED_COLORS if c not in t.colors and c not in derived]
     if missing:
         out.append('cores obrigatórias ausentes: ' + ', '.join(missing))
+    if sem.severity:
+        declared = sorted(c for c in t.colors if c.startswith('severity.'))
+        if declared:  # fonte única: com semântica, a cor de cada severidade vem do nível (nunca de dois lugares)
+            out.append('semantics.severity: tokens severity.* são derivados; remova de colors: ' + ', '.join(declared))
+        out += [f'semantics.severity.levels: nível "{lv}" ausente' for lv in SEVERITY_LEVELS
+                if lv not in sem.severity.levels]
+        out += [f'semantics.severity.mapping: severidade "{k}" sem nível' for k in SEVERITY_KEYS
+                if k not in sem.severity.mapping]
+        out += [f'semantics.severity.levels.{lv}: cor "{tok}" não definida em colors'
+                for lv, tok in sem.severity.levels.items() if tok not in t.colors]
+        if sem.severity.unknown not in t.colors:
+            out.append(f'semantics.severity.unknown: cor "{sem.severity.unknown}" não definida em colors')
+    if sem.variation:
+        out += [f'semantics.variation.{k}: cor "{tok}" não definida em colors'
+                for k in ('improvement', 'worsening', 'neutral') if (tok := getattr(sem.variation, k)) not in t.colors]
+    if len({s.name for s in t.asset_slots}) != len(t.asset_slots):
+        out.append('asset_slots: nomes repetidos')
+    out += [f'asset_slots.{s.name}: caixa fora do canvas' for s in t.asset_slots if not _inside(s.box, t.canvas)]
     refs = [('header.accent_color', t.header.accent_color), ('cover.band_color', t.cover.band_color)]
     bgs = [('backgrounds.default', t.backgrounds.default), ('backgrounds.cover', t.backgrounds.cover),
            ('backgrounds.closing', t.backgrounds.closing)]
@@ -563,6 +674,8 @@ def theme_errors(t: ThemeDefinition) -> list[str]:
              *((f'components.shapes.{sh.name}.fill', sh.fill) for sh in c.shapes)]
     if c.title_underline:
         crefs.append(('components.title_underline.color', c.title_underline.color))
+    if c.subtitle_color:
+        crefs.append(('components.subtitle_color', c.subtitle_color))
     if c.badge:
         crefs += [(f'components.badge.{k}', getattr(c.badge, k)) for k in ('fill', 'border', 'color', 'year_color')]
     out += [f'{name}: cor "{tok}" não definida em colors' for name, tok in crefs if tok not in t.colors]
@@ -764,7 +877,55 @@ AFRIKA_V1: dict = {
     },
 }
 
-BUILTIN: dict[tuple[str, int], dict] = {('neutral-demo', 1): NEUTRAL_DEMO_V1, ('afrika', 1): AFRIKA_V1}
+def _afrika_v2() -> dict:
+    """F06C — `afrika@2` = `afrika@1` (layout, fontes, contornos, zonas: inalterados) + decisões visuais do PO:
+    severidade por nível semântico (Crítica vermelho, Alta laranja, Média amarelo, Baixa azul, Informativa cinza),
+    variação comprovada (melhora verde, piora vermelho, neutra cinza), filete entre fatias da rosca e encaixes de
+    ativos locais (logo, fotos, ilustração, ícones — vazios sem os arquivos autorizados). Paleta validada com o
+    validador de paleta: separação CVD e de visão normal OK; laranja/amarelo abaixo de 3:1 sobre branco => rótulos
+    sempre visíveis (cartões, legenda e valores). Continua PROVISÓRIO até a homologação da identidade/ativos."""
+    t = copy.deepcopy(AFRIKA_V1)
+    t['description'] = ('Identidade visual Afrika (F06B) com a semântica de cores aprovada pelo PO na F06C: severidade '
+                        'por nível e variação comprovada por direção declarada do indicador.')
+    t['notice'] = 'Tema Afrika v2 — semântica de cores do PO (F06C); identidade e ativos ainda em homologação.'
+    t['colors'] = {k: v for k, v in AFRIKA_V1['colors'].items() if not k.startswith('severity.')}
+    t['colors'].update({
+        'status.critical': '#C00000', 'status.high': '#F26B1D', 'status.medium': '#FFC000', 'status.low': '#2F6FD6',
+        'status.informational': '#8C8C8C', 'status.unknown': '#B5B5B5',
+        'trend.improvement': '#2E9E5B', 'trend.worsening': '#C00000', 'trend.neutral': '#7A7A7A'})
+    t['semantics'] = {
+        'severity': {'levels': {lv: f'status.{lv}' for lv in SEVERITY_LEVELS},
+                     # Veracode 5…0 -> nível do PO. "Muito baixa" (1) não consta da decisão: agrupada em Baixa (azul),
+                     # separada na rosca pelo filete e sempre rotulada — pendência de confirmação do PO.
+                     'mapping': {'VERY_HIGH': 'critical', 'HIGH': 'high', 'MEDIUM': 'medium', 'LOW': 'low',
+                                 'VERY_LOW': 'low', 'INFORMATIONAL': 'informational'},
+                     'unknown': 'status.unknown'},
+        'variation': {'improvement': 'trend.improvement', 'worsening': 'trend.worsening', 'neutral': 'trend.neutral',
+                      'tint_opacity': 0.18}}
+    t['components']['donut_separator'] = 3
+    # achados da comparação integral (F06C): subtítulo declarado na referência em Montserrat Black, roxo de marca;
+    # rótulo de linha da matriz em 22 pt (o HTML usava 14 pt)
+    # (entrelinha 1,5 = caixa do subtítulo da v1: mantém o respiro de ~9 px até o filete, como na referência)
+    t['components'].update(subtitle_color='brand.deep', subtitle_font='heading', subtitle_weight=900,
+                           subtitle_line_height=1.5, matrix_label_size=_pt(22))
+    # caixas medidas na inspeção local (geometria das imagens da referência/master; nenhum arquivo copiado)
+    t['asset_slots'] = [
+        {'name': 'logo-capa', 'box': _box(106, 106, 644, 126), 'slides': ['cover', 'closing'], 'fit': 'contain',
+         'alt': 'Logotipo'},
+        {'name': 'foto-capa', 'box': _box(1056, 0, 864, 1080), 'slides': ['cover'], 'fit': 'cover'},
+        {'name': 'foto-secao', 'box': _box(1056, 0, 864, 1080), 'slides': ['section'], 'fit': 'cover'},
+        {'name': 'ilustracao-encerramento', 'box': _box(1153, 178, 767, 902), 'slides': ['closing'], 'fit': 'cover'},
+        {'name': 'logo-conteudo', 'box': _box(19, 36, 104, 68), 'slides': ['content'], 'fit': 'contain',
+         'alt': 'Logotipo'},
+        {'name': 'icones-laterais', 'box': _box(42, 920, 32, 111), 'slides': ['content'], 'fit': 'contain'},
+    ]
+    return t
+
+
+AFRIKA_V2: dict = _afrika_v2()
+
+BUILTIN: dict[tuple[str, int], dict] = {('neutral-demo', 1): NEUTRAL_DEMO_V1, ('afrika', 1): AFRIKA_V1,
+                                        ('afrika', 2): AFRIKA_V2}
 
 
 # ---------------------------------------------------------------- consulta e escrita
@@ -793,8 +954,10 @@ def aspect_ratio(canvas: Canvas) -> str:
 
 def _public(key: str, version: int, defn: ThemeDefinition, origin: str, extra: dict | None = None) -> dict:
     out = {'id': key, 'version': version, 'origin': origin, 'definition_hash': definition_hash(defn),
-           **defn.model_dump(mode='json'), 'components': defn.components.model_dump(mode='json'), **(extra or {})}
+           **defn.model_dump(mode='json', context={'full': True}), **(extra or {})}
     out['canvas']['aspect_ratio'] = aspect_ratio(defn.canvas)  # derivado (não faz parte da definição/hash)
+    out['colors'] = effective_colors(defn)  # F06C: paleta efetiva (definição + semântica); hash = definição
+    out['declared_colors'] = dict(defn.colors)
     return out
 
 
@@ -840,8 +1003,14 @@ def get_theme(theme_id: str, version: int) -> dict:
 
 def list_all(session: Session) -> list[dict]:
     from app.orm import PresentationTheme
-    out = [{'id': k, 'version': v, 'name': d.name, 'provisional': d.provisional, 'origin': 'BUILTIN',
-            'versions': [v], 'definition_hash': definition_hash(d)} for (k, v), d in _BUILTIN_PARSED.items()]
+    builtin: dict[str, list[int]] = {}
+    for k, v in _BUILTIN_PARSED:
+        builtin.setdefault(k, []).append(v)
+    out = []
+    for k, vs in builtin.items():  # uma linha por chave (versão mais recente + lista de versões), como os próprios
+        d = _BUILTIN_PARSED[(k, max(vs))]
+        out.append({'id': k, 'version': max(vs), 'name': d.name, 'provisional': d.provisional, 'origin': 'BUILTIN',
+                    'versions': sorted(vs), 'definition_hash': definition_hash(d)})
     rows = session.scalars(select(PresentationTheme).order_by(PresentationTheme.theme_key,
                                                               PresentationTheme.version)).all()
     by_key: dict[str, list] = {}

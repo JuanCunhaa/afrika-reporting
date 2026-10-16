@@ -111,3 +111,18 @@
   ausência dos termos da referência no template e no tema).
 - Fontes de terceiros: `@fontsource/montserrat|poppins|be-vietnam-pro@5.3.0` (OFL-1.1), versões exatas, sem scripts de
   instalação, servidas localmente (nenhuma requisição a CDN; E2E falha em requisição externa).
+
+## Controles implementados na F06C (homologação visual e preparação para exportação)
+- Ativos de marca autorizados só em pasta local (`AFRIKA_BRAND_ASSET_DIR`, padrão `data/brand-assets/`, ignorada; o
+  `.gitignore` também ignora qualquer `brand-assets/`). `scripts/check_repo.py` falha se algo sob `brand-assets/` ou
+  `data/` for rastreado. Nenhum ativo oficial foi recebido; testes usam imagens sintéticas geradas em pasta descartável.
+- Leitura do ativo: nome de tema/encaixe restrito a `[a-z0-9-]` (sem separadores nem `..`), caminho resolvido precisa
+  ficar dentro da pasta (links para fora são ignorados), assinatura de bytes, SVG sanitizado (mesmas regras dos ativos
+  de tema), ≤ 5 MB, revalidação a cada leitura; resposta com `nosniff`, CSP `default-src 'none'; sandbox`, `no-cache`.
+  Arquivo inválido nunca é servido.
+- Comparação integral com a referência: só contagens estruturais do relatório `strict` (caracteres/parágrafos/linhas)
+  alimentam o conteúdo sintético equivalente; nenhuma renderização da referência nem PNG de diferença foi aberto por
+  assistente de IA ou enviado a serviço externo — a análise usou só os números agregados. Saídas em `output/`.
+- Plano de exportação (`/export-plan`) é somente leitura e não grava arquivo; segue as mesmas regras de dados (só
+  revisões aprovadas fixadas; lacuna nunca vira zero).
+- Nenhuma chamada à Veracode; nenhuma dependência nova (backend/frontend).

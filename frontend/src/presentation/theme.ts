@@ -108,6 +108,14 @@ export function themeVars(t: Theme): Record<string, string> {
   v['--clo-title-fw'] = k.closing.title_weight ? String(k.closing.title_weight) : 'var(--fw-cover-title)';
   v['--clo-title-size'] = k.closing.title_size ? px(k.closing.title_size) : 'var(--fs-cover-title)';
   v['--clo-justify'] = k.closing.valign === 'top' ? 'flex-start' : 'center';
+  // F06C — semântica de variação (só quando o tema declara; sem ela a pílula continua neutra)
+  if (t.semantics?.variation) v['--trend-tint'] = `${Math.round(t.semantics.variation.tint_opacity * 100)}%`;
+  // F06C — subtítulo e rótulo da matriz (só quando o tema declara; sem eles o CSS cai no visual F06B)
+  if (k.subtitle_color) v['--sub-color'] = colorVar(k.subtitle_color);
+  if (k.subtitle_font) v['--sub-ff'] = `var(--ff-${k.subtitle_font})`;
+  if (k.subtitle_weight) v['--sub-fw'] = String(k.subtitle_weight);
+  if (k.subtitle_line_height) v['--sub-lh'] = String(k.subtitle_line_height);
+  if (k.matrix_label_size) v['--mx-label-size'] = px(k.matrix_label_size);
   return v;
 }
 

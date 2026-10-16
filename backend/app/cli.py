@@ -143,6 +143,10 @@ def main(argv: list[str] | None = None) -> int:
     tc.add_argument('--file', required=True)
     tc.add_argument('--operator', required=True)
     tc.add_argument('--expected-version', type=int)
+    ba = sub.add_parser('brand-assets-status',
+                        help='F06C: encaixes de ativos do tema × arquivos da pasta local (fora do Git); só metadados')
+    ba.add_argument('--theme', required=True)
+    ba.add_argument('--version', type=int, required=True)
     args = parser.parse_args(argv)
 
     load_project_env()
@@ -162,6 +166,18 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps({'asset_id': a['asset_id'], 'media_type': a['media_type'], 'size_bytes': a['size_bytes'],
                           'dir': str(assets.asset_dir())}, ensure_ascii=False))
+        return 0
+    if args.command == 'brand-assets-status':
+        from app.presentations import brand_assets, themes
+        if not themes.builtin_exists(args.theme, args.version):
+            print('Use um tema embutido (temas próprios: GET /api/presentation-themes/{key}/versions/{v}).',
+                  file=sys.stderr)
+            return 1
+        defn = themes.load(None, args.theme, args.version)[0]
+        status = brand_assets.status(args.theme, [s.name for s in defn.asset_slots])
+        print(json.dumps({'dir': str(brand_assets.brand_dir() / args.theme), 'slots': {
+            k: {kk: vv for kk, vv in v.items() if kk in ('status', 'media_type', 'sha256', 'size_bytes', 'message')}
+            for k, v in status.items()}}, ensure_ascii=False, indent=2))
         return 0
     return _db_command(args)
 

@@ -152,9 +152,10 @@ def approved_numbers(values: dict) -> set:
 
 def test_builtin_templates_are_idempotent_versioned_and_immutable_in_db(env, db_url):
     again = env.call('POST', '/api/presentation-templates/builtin', operator=OP)
-    assert again['created'] == [] and len(again['existing']) == 4
+    assert again['created'] == [] and len(again['existing']) == 5  # F06C: + afrika-modelo@2
     items = {t['key']: t for t in env.call('GET', '/api/presentation-templates')['items']}
     assert set(items) == {'demo-executivo', 'demo-tecnico', 'demo-minimo', 'afrika-modelo'}  # F06B: + Afrika
+    assert items['afrika-modelo']['versions'] == [1, 2] and items['afrika-modelo']['version'] == 2
     assert all(t['origin'] == 'BUILTIN' for t in items.values())
     assert {k: t['theme']['id'] for k, t in items.items()} == {'demo-executivo': 'neutral-demo',
                                                                 'demo-tecnico': 'neutral-demo',

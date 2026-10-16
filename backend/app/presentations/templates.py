@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import copy
 import json
 import uuid
 
@@ -204,6 +205,18 @@ BUILTIN[('afrika-modelo', 1)] = {
                               'Dúvidas | Canal de atendimento (editável)', 'Materiais | Onde encontrar os anexos']},
          'options': {'show_presenters': True}},
     ],
+}
+
+
+# F06C — `afrika-modelo@2`: os MESMOS 16 slots/layouts da v1 (copiados, não reescritos), apontando para o tema
+# `afrika@2` (semântica de cores do PO). A v1 continua intacta (hash fixado em teste) e apresentações criadas com ela
+# não mudam. Só `capa` e `encerramento` são obrigatórios: os demais slots podem ser escolhidos na criação
+# (`slots`) conforme os indicadores disponíveis do dono — nenhuma apresentação precisa ter 16 slides.
+BUILTIN[('afrika-modelo', 2)] = {
+    **copy.deepcopy(BUILTIN[('afrika-modelo', 1)]),
+    'description': 'Sequência do template de referência Afrika (16 slots opcionais, exceto capa e encerramento) com o '
+                   'tema afrika@2: severidade por nível semântico e variação comprovada por direção do indicador.',
+    'theme': {'id': 'afrika', 'version': 2},
 }
 
 

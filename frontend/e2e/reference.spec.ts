@@ -71,7 +71,7 @@ test('comparação por slide com a renderização local do PowerPoint de referê
   expect(report.privacy, 'use o relatório em modo strict').toBe('strict');
   const pid = await afrikaPresentation(page.request);
   const slides = await captureSlides(page, pid, 'afrika-referencia');
-  fs.rmSync(OUT, { recursive: true, force: true });
+  for (const f of ['diffs', 'html', 'report.json', 'report.md']) fs.rmSync(path.join(OUT, f), { recursive: true, force: true }); // só os próprios arquivos (F06C: integral.* convive)
   fs.mkdirSync(path.join(OUT, 'diffs'), { recursive: true });
   fs.mkdirSync(path.join(OUT, 'html'), { recursive: true });
   slides.forEach((s, i) => fs.writeFileSync(path.join(OUT, 'html', `slide${String(i + 1).padStart(2, '0')}.png`), encodePng(s.image)));

@@ -8,7 +8,8 @@ import { compareImages } from '../visual/diff';
 import { compareManifests } from '../visual/manifest';
 import { decodePng, encodePng } from '../visual/png';
 import { type SlideComparison, type Tolerances, type VisualReport, compareSlide, renderMarkdown, summarize } from '../visual/report';
-import { afrikaPresentation, visualPresentation } from './visual-fixture';
+import { collectOverflow, type OverflowFinding } from '../visual/overflow';
+import { afrikaPresentation, afrikaV2Presentation, visualPresentation } from './visual-fixture';
 import { ensureAltTheme } from './visual-theme';
 
 // F06B.1 — regressão visual dos slides HTML (fixture SINTÉTICA). Referências por plataforma em
@@ -41,7 +42,15 @@ const CASES: Case[] = [
     name: 'afrika',
     setup: (page) => afrikaPresentation(page.request),
   },
+  {
+    // F06C: afrika-modelo@2 (tema afrika@2: severidade por nível, variação comprovada) com seleção de 8 slots e
+    // ativos SINTÉTICOS de marca (foto da capa e logotipo); demais encaixes vazios = fallback neutro.
+    name: 'afrika-v2',
+    setup: (page) => afrikaV2Presentation(page.request),
+  },
 ];
+// F06C: temas cujas fontes vêm empacotadas (OFL): nenhuma fonte de reserva/sistema pode aparecer na renderização
+const BUNDLED_FONTS: Record<string, string[]> = { afrika: ['Montserrat', 'Poppins', 'Be Vietnam Pro'], 'afrika-v2': ['Montserrat', 'Poppins', 'Be Vietnam Pro'] };
 
 const readTol = (): Tolerances => JSON.parse(fs.readFileSync(TOL_FILE, 'utf8'));
 const baselineDir = (c: string) => path.join(VISUAL, 'baselines', PLATFORM, c);
@@ -80,6 +89,8 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
   const runs = process.env.VISUAL_MEASURE === '1' ? 3 : 2;
   const slides: SlideComparison[] = [];
   const noise = { runs, max_diff_pixels: 0, max_aa_pixels: 0, max_geometry_delta: 0 };
+  const overflow: (OverflowFinding & { case: string })[] = [];
+  const fallbackFonts: string[] = [];
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
@@ -94,6 +105,13 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
     }
     const first = captures[0];
     expect(first.length, 'nenhum slide capturado').toBeGreaterThan(0);
+    // F06C: overflow/cortes medidos no DOM da plataforma atual (a página ainda está na rota de render deste caso)
+    overflow.push(...(await collectOverflow(page)).map((f) => ({ ...f, case: c.name })));
+    const allowed = BUNDLED_FONTS[c.name];
+    if (allowed)
+      for (const s of first)
+        for (const e of s.manifest.elements)
+          for (const f of e.platform_fonts ?? []) if (!allowed.some((a) => f.startsWith(a))) fallbackFonts.push(`${c.name}/${s.name}/${e.key}: ${f}`);
     for (const again of captures.slice(1))
       first.forEach((s, k) => {
         const d = compareImages(s.image, again[k].image, { colorThreshold: tol.comparison.color_threshold, detectAntialiasing: tol.comparison.detect_antialiasing });
@@ -139,6 +157,9 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
     summary: summarize(slides),
     slides,
   };
+  // F06C: overflow e fontes de reserva no relatório (mesmo em modo de atualização de referência)
+  (report as VisualReport & { overflow: unknown; fallback_fonts: unknown }).overflow = overflow;
+  (report as VisualReport & { overflow: unknown; fallback_fonts: unknown }).fallback_fonts = [...new Set(fallbackFonts)];
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   fs.writeFileSync(path.join(OUT, 'report.md'), renderMarkdown(report));
 
@@ -171,6 +192,9 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
   } else {
     expect(missing.map((s) => `${s.case}/${s.name}`), `sem referência para ${PLATFORM} (gere com VISUAL_UPDATE=1 e revise)`).toEqual([]);
   }
+  // F06C: nada estoura nem é cortado (Windows e Linux: o mesmo teste roda nas duas plataformas)
+  expect(overflow.filter((f) => f.kind !== 'ellipsis').map((f) => `${f.case}/${f.slide} ${f.key} ${f.kind} ${f.amount}px`), 'overflow/corte de conteúdo').toEqual([]);
+  expect([...new Set(fallbackFonts)], 'fonte de reserva/sistema num tema com fontes empacotadas').toEqual([]);
   const failing = slides.filter((s) => s.verdict === 'FAIL').map((s) => `${s.case}/${s.name}: ${s.reasons.join('; ')}`);
   expect(failing, 'regressão visual — ver test-results/visual/report.md').toEqual([]);
 });

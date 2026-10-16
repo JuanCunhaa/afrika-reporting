@@ -15,6 +15,7 @@ from __future__ import annotations
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Any
 
+from app.metrics.registry import REGISTRY
 from app.presentations.themes import SERIES_TOKENS
 
 IR_VERSION = 1
@@ -131,6 +132,27 @@ def _signed(delta: int | float, value_type: str) -> str:
     return ('+' if delta > 0 else '−' if delta < 0 else '') + fmt(abs(delta), value_type)
 
 
+TREND_COLOR = {'improvement': 'variation.improvement', 'worsening': 'variation.worsening',
+               'unchanged': 'variation.neutral', 'unknown': 'variation.neutral'}
+
+
+def trend(metric_id: str, delta: int | float | None, unavailable_reason: str | None) -> dict:
+    """Tendência COMPROVADA (F06C): melhora/piora só quando há variação entre aprovados comparáveis E o indicador
+    declara direção desejável. Sem direção declarada (NEUTRAL) ou sem variação comparável => `unknown` (neutra)."""
+    c = REGISTRY.get(metric_id)
+    direction = c.desired_direction.value if c else 'NEUTRAL'
+    if delta is None:
+        value, reason = 'unknown', unavailable_reason or 'no_delta'
+    elif direction == 'NEUTRAL':
+        value, reason = 'unknown', 'direction_not_declared'
+    elif delta == 0:
+        value, reason = 'unchanged', None
+    else:
+        better = delta < 0 if direction == 'LOWER_IS_BETTER' else delta > 0
+        value, reason = ('improvement' if better else 'worsening'), None
+    return {'direction': direction, 'trend': value, 'trend_reason': reason, 'trend_color': TREND_COLOR[value]}
+
+
 def comparison(pairs: list[tuple[dict, dict]], title: str | None = None) -> dict:
     """Mês atual × anterior. Variação só quando ambos aprovados, numéricos, mesmo tipo e versão de contrato."""
     rows, refs = [], []
@@ -151,7 +173,7 @@ def comparison(pairs: list[tuple[dict, dict]], title: str | None = None) -> dict
         rows.append({'metric_id': cur['metric_id'], 'name': cur['name'], 'unit_label': unit_label(cur.get('unit')),
                      'current': point(cur, cur.get('competence')), 'previous': point(prev, prev.get('competence')),
                      'delta': delta, 'delta_label': None if delta is None else _signed(delta, vt),
-                     'delta_unavailable_reason': reason})
+                     'delta_unavailable_reason': reason, **trend(cur['metric_id'], delta, reason)})
     out = _base('comparison', title, refs)
     out['rows'] = rows
     out['current_competence'] = pairs[0][0].get('competence') if pairs else None

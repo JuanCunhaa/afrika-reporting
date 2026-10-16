@@ -11,6 +11,8 @@ REQUIRED=['CLAUDE.md','docs/PRODUCT.md','docs/STATUS.md','prompts/F00_START.md',
           'docs/AFRIKA_TEMPLATE.md','prompts/F06B_AFRIKA_TEMPLATE.md','frontend/visual/reference-map.json',
           'backend/app/presentations/themes.py','backend/app/presentations/assets.py','backend/app/presentations/pptx_inspect.py',
           'frontend/visual/diff.ts','frontend/visual/tolerances.json',
+          'prompts/F06C_VISUAL_HOMOLOGATION.md','docs/VISUAL_FIDELITY.md','docs/F07_EXPORT_READINESS.md',
+          'backend/app/presentations/brand_assets.py','backend/app/presentations/export_plan.py',
           'backend/app/main.py','backend/alembic.ini','backend/migrations/env.py','frontend/package.json']
 for name in REQUIRED:
     if not (root/name).exists():
@@ -27,6 +29,10 @@ FORBIDDEN_EXT = ('.pptx', '.potx', '.pptm', '.ppt', '.ppsx', '.pdf', '.key')
 bad = [t for t in tracked if t.lower().endswith(FORBIDDEN_EXT) or t.startswith('references/')]
 if bad:
     sys.exit(f'ERRO: arquivos de referência rastreados pelo Git (proibido): {bad[:5]}')
+# F06C: ativos de marca autorizados ficam só na pasta local (data/brand-assets/ ou AFRIKA_BRAND_ASSET_DIR)
+brand = [t for t in tracked if '/brand-assets/' in f'/{t}' or t.startswith('data/')]
+if brand:
+    sys.exit(f'ERRO: ativos locais de marca/dados rastreados pelo Git (proibido): {brand[:5]}')
 # F06B: o cliente/unidade do PowerPoint de referência não pode ser citado em nada versionado (só SHA-256 aqui)
 import hashlib, re
 FORBIDDEN_SHA256 = {'50d1e8ab28a0dd129a37e232c47357e20e97bada6fed3737ffa4ddb18dd1f1c3',
@@ -45,4 +51,4 @@ for t in tracked:
 hits = [h for h in hits if h != 'backend/tests/test_afrika_template.py']  # usa um termo genérico para testar o filtro
 if hits:
     sys.exit(f'ERRO: nome do cliente/unidade da referência em arquivo versionado: {hits[:5]}')
-print('Estrutura F06B: OK')
+print('Estrutura F06C: OK')

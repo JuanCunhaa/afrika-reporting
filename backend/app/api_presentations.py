@@ -21,6 +21,9 @@ Nenhum endpoint daqui escreve em snapshots, aprovações ou execuções da F05/F
 - `GET  /api/presentation-themes/{key}/versions/{v}`              tema completo (tokens)
 - `POST /api/presentation-themes/{key}/versions`                  publica nova versão de tema próprio
 - `POST /api/theme-assets` | `GET /api/theme-assets/{sha256}`     ativos locais do tema (logo/fonte; fora do Git)
+- `GET  /api/brand-assets/{tema}/{encaixe}`                       F06C: ativo autorizado da pasta local (fora do Git)
+- `GET  /api/presentation-templates/{key}/versions/{v}/availability?competence_id`  F06C: slots × indicadores
+- `GET  /api/presentations/{pid}/export-plan[?revision=n]`        F06C: contrato de exportação (sem gerar arquivo)
 """
 from __future__ import annotations
 
@@ -32,7 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.api import SessionDep
 from app.errors import ApiError
-from app.presentations import assets, catalog, service, templates, themes, view
+from app.presentations import assets, brand_assets, catalog, export_plan, service, templates, themes, view
 from app.presentations.document import Document, TemplateKey, validate_document
 from app.presentations.themes import ThemeKey
 from app.scopes import store
@@ -79,6 +82,8 @@ class PresentationIn(_Strict):
     template_key: TemplateKey | None = None
     template_version: int | None = Field(default=None, ge=1)
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)] | None = None
+    # F06C: slots do template a incluir (None = todos). Obrigatórios do template entram sempre.
+    slots: list[Annotated[str, StringConstraints(pattern=r'^[a-z0-9][a-z0-9-]*$', max_length=60)]] | None =         Field(default=None, max_length=60)
     operator: Declared
 
 
@@ -166,6 +171,16 @@ def get_asset(asset_id: str):
         'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
 
 
+@router.get('/api/brand-assets/{theme_id}/{slot}', responses=_ERRORS)
+def get_brand_asset(theme_id: str, slot: str):
+    """F06C: ativo AUTORIZADO da pasta local (fora do Git) para um encaixe do tema. Sem arquivo => 404 (fallback
+    neutro no slide). Revalidado a cada leitura; SVG nunca executa script (CSP + sandbox + nosniff)."""
+    data, media_type, digest = brand_assets.read(theme_id, slot)
+    return Response(content=data, media_type=media_type, headers={
+        'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-cache', 'ETag': f'"{digest}"',
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox"})
+
+
 @router.get('/api/presentation-templates')
 def list_templates(session: SessionDep):
     return {'items': templates.list_all(session)}
@@ -185,6 +200,21 @@ def install_builtin(data: OperatorIn, session: SessionDep):
 @router.get('/api/presentation-templates/{key}/versions/{version}', responses=_ERRORS)
 def get_template(key: TemplateKey, version: int, session: SessionDep):
     return templates.template_out(templates.get(session, key, version), with_definition=True)
+
+
+@router.get('/api/presentation-templates/{key}/versions/{version}/availability', responses=_ERRORS)
+def template_availability(key: TemplateKey, version: int, session: SessionDep, competence_id: uuid.UUID,
+                          revision: Annotated[int | None, Query(ge=1)] = None):
+    """F06C: situação de cada slot do template na revisão aprovada da competência (para escolher os slides)."""
+    return service.slot_availability(session, templates.get(session, key, version), competence_id, revision)
+
+
+@router.get('/api/presentations/{pid}/export-plan', responses=_ERRORS)
+def get_export_plan(pid: uuid.UUID, session: SessionDep, revision: Annotated[int | None, Query(ge=1)] = None):
+    """F06C (preparação da F07): como cada elemento do slide SERIA exportado (texto, forma, tabela, gráfico nativo,
+    imagem). Contrato apenas — nenhum arquivo PPTX/PDF é gerado."""
+    p = service.get(session, pid)
+    return export_plan.plan(view.build(session, p, service.get_revision(session, p, revision)))
 
 
 @router.post('/api/presentation-templates/{key}/versions', status_code=201, responses=_ERRORS)
@@ -214,7 +244,8 @@ def list_presentations(session: SessionDep, owner_kind: Kind, owner_id: uuid.UUI
 @router.post('/api/presentations', status_code=201, responses=_ERRORS)
 def create_presentation(data: PresentationIn, session: SessionDep):
     p = service.create(session, data.competence_id, data.operator, revision=data.revision,
-                       template_key=data.template_key, template_version=data.template_version, title=data.title)
+                       template_key=data.template_key, template_version=data.template_version, title=data.title,
+                       slots=data.slots)
     return service.presentation_out(session, p)
 
 

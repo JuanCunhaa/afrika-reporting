@@ -1,4 +1,4 @@
-# Motor de apresentações (F06A + F06B.1 + F06B)
+# Motor de apresentações (F06A + F06B.1 + F06B + F06C)
 
 Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`, `templates.py`, `charts.py`, `view.py`,
 `service.py`), API `backend/app/api_presentations.py`, migration `0005_presentations`; frontend
@@ -32,6 +32,8 @@ Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`,
 3. Criação: `POST /api/presentations {competence_id[, revision][, template_key, template_version][, title], operator}`.
    Exige revisão **APROVADA** (padrão: a oficial); rascunho/em revisão ⇒ 409. Fixa as fontes: revisão principal +
    aprovações vigentes dos 11 meses anteriores (para séries de até 12 meses), cada uma com `content_hash`.
+   F06C: `slots` opcional escolhe os slots do template (obrigatórios entram sempre); a tela "Nova apresentação" mostra
+   a disponibilidade de cada slot na revisão aprovada (`…/availability`) com botão "Usar sugestão" — padrão: todos.
 4. Edição: o editor altera só o documento editorial (título, textos, tópicos, legendas, observações, notas,
    apresentadores, layout, opções, inclusão/remoção/reordenação de slides e escolha de indicadores compatíveis).
    Pré-visualização ao vivo: `POST …/preview` (valida e monta a IR, **nada é gravado**). Salvar:
@@ -93,6 +95,8 @@ auditoria (cadeia F05): `template.version_created`, `template.selected`, `presen
   reinício).
 
 ## Preparação para PPTX/PDF (F07)
+> **F06C:** o mapeamento abaixo virou contrato testado — plano de exportação por elemento e matriz por tipo de slide em
+> `docs/F07_EXPORT_READINESS.md` (`GET /api/presentations/{id}/export-plan`, sem gerar arquivo).
 - A IR já traz tudo que um exportador precisa sem reler snapshots: categorias, séries, `y` bruto, rótulo formatado,
   tokens de cor, eixos, unidade, legenda, lacunas e referências de dados.
 - Mapeamento previsto (a validar por spike na F07): KPI/tabela/ranking/comparação ⇒ tabelas e caixas de texto nativas;

@@ -1,4 +1,4 @@
-# Temas visuais versionados (F06B.1 + F06B)
+# Temas visuais versionados (F06B.1 + F06B + F06C)
 
 Código: `backend/app/presentations/themes.py` (esquema Pydantic `ThemeDefinition`, `extra='forbid'`), ativos locais em
 `backend/app/presentations/assets.py`, migration `0006_themes`, tradução para CSS em `frontend/src/presentation/theme.ts`
@@ -36,7 +36,9 @@ e renderizador `frontend/src/presentation/SlideView.tsx`.
 | `cover`, `closing` | faixa da capa (`left`/`top`/`none`, tamanho, cor), recuos, espaçamentos, alinhamento, caixa alta do sobretítulo | |
 | `backgrounds` | `default`, `cover`, `closing`: `{color token, image asset, fit}` | |
 | `images` | logotipos/imagens: `{name, asset, box, slides: all/cover/closing/content, fit, alt}` | até 8 |
-| `components` (F06B) | aparência de componentes: cor do título, filete sob o título, selo de competência, cartão, faixa, pílula, tabela, seção, encerramento, capa (cores/fontes/alinhamento), formas decorativas `shapes[]` (`{name, box, fill, opacity, path?, radius, slides}`; `path` = contorno SVG absoluto M/L/C/Q/A/Z em px da caixa), alinhamento vertical do título por layout, moldura por zona (`zone_frames`), comparação de zona `table`/`columns`, caixas absolutas por zona de painel (`dashboards`) | omitido do hash quando igual ao padrão (o hash de `neutral-demo@1` não mudou) |
+| `components` (F06B; F06C acrescenta `donut_separator`, `subtitle_color/font/weight/line_height`, `matrix_label_size`, omitidos no padrão) | aparência de componentes: cor do título, filete sob o título, selo de competência, cartão, faixa, pílula, tabela, seção, encerramento, capa (cores/fontes/alinhamento), formas decorativas `shapes[]` (`{name, box, fill, opacity, path?, radius, slides}`; `path` = contorno SVG absoluto M/L/C/Q/A/Z em px da caixa), alinhamento vertical do título por layout, moldura por zona (`zone_frames`), comparação de zona `table`/`columns`, caixas absolutas por zona de painel (`dashboards`) | omitido do hash quando igual ao padrão (o hash de `neutral-demo@1` não mudou) |
+| `semantics` (F06C) | `severity {levels, mapping, unknown}` e `variation {improvement, worsening, neutral, tint_opacity}` — ver "Semântica de cores" | omitido do hash quando ausente |
+| `asset_slots` (F06C) | encaixes de ativos autorizados da pasta local: `{name, box, slides, fit, alt}` (até 12) | omitido do hash quando vazio |
 | `charts` | viewBox (largura cheia e com texto), recuos do gráfico, divisões do eixo, barras (largura máx., proporção, raio), lacunas (tracejado), linhas/pontos, deslocamentos de rótulos, severidade (colunas e altura), ranking, amostras de legenda, textura da severidade desconhecida, posição da legenda (`top`/`bottom`) | |
 
 Validação além dos tipos (`theme_errors`): tokens de cor obrigatórios e referências existentes; caixas dentro do canvas;
@@ -46,6 +48,34 @@ fonte e imagens só em mídia de imagem; layouts conhecidos; `custom_text` exigi
 `invalid_theme` com a lista de campos.
 
 Exemplo sintético completo (4:3, regiões fixas, logotipo, outras fontes): `frontend/e2e/visual-theme.ts` (`altTheme`).
+
+## Semântica de cores (F06C)
+- **Severidade por nível**: o tema declara a cor de cada nível semântico (`critical`, `high`, `medium`, `low`,
+  `informational`) e o nível de cada severidade Veracode (5 Muito alta … 0 Informativa), mais a cor de "Desconhecida".
+  Os tokens `severity.<CHAVE>` consumidos pela IR passam a ser **derivados** — declará-los também em `colors` é erro
+  (fonte única). Trocar a cor de um nível ou o nível de uma severidade = nova versão do tema; nenhum componente muda.
+- **Variação comprovada**: cores de melhora, piora e neutra + opacidade da tinta da pílula. O renderizador usa
+  `variation.<tendência>` no marcador e no fundo da pílula (tinta sobre a superfície) e escreve "melhora"/"piora"/
+  "estável" no texto — identidade nunca só por cor. A tendência vem da IR (`trend`), que só é `improvement`/`worsening`
+  quando o indicador declara direção desejável e a variação é entre aprovados comparáveis.
+- Sem `semantics`, nada muda (temas F06A/F06B: pílula neutra, rampa de severidade de um tom).
+- **Paleta efetiva**: `themes.effective_colors()` resolve os derivados; é a paleta pública (`colors`) usada pelo HTML e
+  pelo plano de exportação. `declared_colors` mostra só o declarado.
+
+## Encaixes de ativos locais (F06C, `brand_assets.py`)
+- Pasta configurável `AFRIKA_BRAND_ASSET_DIR` (padrão `data/brand-assets/`, ignorada pelo Git; `.gitignore` também
+  ignora qualquer `brand-assets/`; `check_repo` falha se algo assim for rastreado). Estrutura:
+  `<pasta>/<tema>/<encaixe>.<png|jpg|jpeg|svg>` — ex.: `data/brand-assets/afrika/logo-capa.png`.
+- O tema declara só nome, caixa, slides e ajuste; o arquivo é procurado a cada visualização (cache por caminho+mtime+
+  tamanho). Validação idêntica aos ativos de tema (assinatura, SVG sanitizado, ≤ 5 MB); link para fora da pasta e nomes
+  fora de `[a-z0-9-]` são recusados. Inválido ⇒ ignorado + aviso; ausente ⇒ **fallback neutro** (o encaixe fica vazio e
+  aparece a forma do tema por baixo) + aviso informativo. Nunca bloqueia.
+- Servido por `GET /api/brand-assets/{tema}/{encaixe}` (revalidado a cada leitura, `nosniff`, CSP `sandbox`,
+  `no-cache` + ETag). A URL da visualização leva `?v=<sha256>` para trocar de arquivo sem cache velho.
+- Operador: `python -m app.cli brand-assets-status --theme afrika --version 2` (só metadados: situação, tipo, SHA-256).
+- Diferença para os ativos de tema da F06B.1 (`images`, endereçados por SHA-256 dentro da definição): os encaixes não
+  exigem nova versão de tema a cada troca de arquivo e funcionam sem o arquivo. Não enviar estes arquivos a serviços
+  externos (inclusive de IA).
 
 ## Ativos locais (`assets.py`)
 - `POST /api/theme-assets` (corpo = bytes; ≤ 5 MB) ou `python -m app.cli theme-asset-add ARQUIVO` ⇒
@@ -86,6 +116,21 @@ Embutido em `themes.py` (`AFRIKA_V1`), derivado **estruturalmente** do PowerPoin
 geometria, contornos — nenhum texto/imagem): canvas 1920×1080 em modo fixo, Montserrat/Poppins/Be Vietnam Pro (OFL,
 `@fontsource/*@5.3.0`), filete e selo de competência, painéis com contorno curvo, caixas absolutas das zonas dos 6
 painéis. `provisional: true` até homologação. Mapeamento, fidelidade medida e limitações: `docs/AFRIKA_TEMPLATE.md`.
+
+## Tema `afrika@2` (F06C, provisório)
+`afrika@2` = `afrika@1` (layout, fontes, contornos, zonas e caixas **inalterados**, copiados programaticamente) +
+decisões do PO + achados da comparação integral (`docs/VISUAL_FIDELITY.md`):
+| Item | Valor |
+|---|---|
+| Severidade | Crítica (Muito alta) `#C00000` · Alta `#F26B1D` · Média `#FFC000` · Baixa e Muito baixa `#2F6FD6` · Informativa `#8C8C8C` · Desconhecida `#B5B5B5` + textura |
+| Variação | melhora `#2E9E5B` · piora `#C00000` · neutra `#7A7A7A` · tinta 18% |
+| Paleta validada | validador de paleta (dataviz): separação CVD e de visão normal OK para severidade e variação; laranja/amarelo < 3:1 sobre branco ⇒ rótulos sempre visíveis (cartões, legenda, valores); cinza da Informativa é intencional (status, não série) |
+| Rosca | filete de 3 px da cor da superfície entre fatias (`components.donut_separator`) — separa Baixa/Muito baixa (mesma cor) |
+| Subtítulo | Montserrat 900, `brand.deep`, entrelinha 1,5 (`components.subtitle_*`) |
+| Matriz | rótulo de linha 22 pt (`components.matrix_label_size`) |
+| Encaixes | `logo-capa`, `foto-capa`, `foto-secao`, `ilustracao-encerramento`, `logo-conteudo`, `icones-laterais` (caixas medidas na inspeção local) |
+`afrika-modelo@2` = os mesmos 16 slots/zonas da v1, apontando para `afrika@2`. Pendências: "Muito baixa" agrupada em
+Baixa (confirmar), rótulos seguem a nomenclatura Veracode ("Muito alta", não "Crítica"), identidade ainda provisória.
 
 ## Fluxo para o tema oficial (quando o PPTX aprovado chegar)
 1. `python -m app.cli inspect-pptx REFERENCIA.pptx --theme-draft` (local; relatório em `output/`) — ver

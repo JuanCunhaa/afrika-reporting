@@ -1,4 +1,4 @@
-# Contratos de templates, documentos e gráficos (F06A + F06B.1 + F06B)
+# Contratos de templates, documentos e gráficos (F06A + F06B.1 + F06B + F06C)
 
 Fonte de verdade do código: `backend/app/presentations/document.py` (esquemas Pydantic, `extra='forbid'`),
 `catalog.py` (tipos de slide) e `charts.py` (IR). Catálogo em tempo de execução: `GET /api/presentation-catalog`.
@@ -38,6 +38,20 @@ e o aviso `theme_asset_missing` se um ativo local faltar. `GET /api/presentation
 (`id, version, name, provisional, origin, versions, definition_hash`) — mudança da F06B.1 (antes: definição do tema
 embutido).
 
+### Semântica de cores e encaixes de ativos (F06C)
+- `theme.semantics.severity` (opcional): `levels {critical, high, medium, low, informational} → token`, `mapping
+  {VERY_HIGH…INFORMATIONAL} → nível`, `unknown → token`. Com ela, os tokens `severity.<CHAVE>` usados pela IR são
+  **derivados** (não podem ser declarados em `colors` — fonte única). `theme.semantics.variation` (opcional):
+  `improvement`, `worsening`, `neutral` (tokens) e `tint_opacity`. Sem semântica, o visual F06B é mantido.
+- Saída pública do tema: `colors` = **paleta efetiva** (definição + derivados, incluindo `variation.*`, que sem
+  semântica valem `text.secondary`); `declared_colors` = o que a definição declara. O hash é o da definição.
+- `theme.asset_slots[]` (opcional): `{name, box, slides, fit, alt}` — encaixes de ativos autorizados carregados da pasta
+  local (`docs/THEMES.md`). A visualização traz `brand_assets {encaixe: {status: available|missing|invalid, media_type,
+  sha256, url}}`; ausente = fallback neutro (aviso `info` `brand_asset_missing`), inválido = ignorado (`warning`
+  `brand_asset_invalid`). Nunca bloqueia.
+- Grupos/campos novos saem do JSON canônico quando no padrão: hashes de `neutral-demo@1`, `afrika@1` e de todos os
+  templates anteriores **inalterados** (fixados em `test_f06c_homologation.py`).
+
 ## Tipos de slide (componentes disponíveis — nenhum é obrigatório por si)
 | Tipo | Layouts | Indicadores | Tipos de valor | IR |
 |---|---|---|---|---|
@@ -72,6 +86,16 @@ Gráfico `combo` (F06B): barras da 1ª série + linha da 2ª, mesmos meses e lac
 Retrocompatibilidade: `zones` vazio não é serializado — documentos e templates F06A mantêm os mesmos hashes (fixados
 em `backend/tests/test_afrika_template.py`).
 
+## Seleção flexível de slides e disponibilidade (F06C)
+- `POST /api/presentations {…, slots?: [slot_id]}`: mantém só os slots escolhidos, na ordem do template; slots
+  `required` (no Afrika: capa e encerramento) entram **sempre**; slot inexistente ⇒ 422 `unknown_slot`. Auditoria
+  `presentation.created` registra `selected_slots` e `required_added`. Sem `slots` = todos (compatível). Depois da
+  criação, o editor continua removendo/reordenando/adicionando slides.
+- `GET /api/presentation-templates/{key}/versions/{v}/availability?competence_id=…[&revision=n]` (somente leitura):
+  por slot, `status` ∈ `complete` (todos os indicadores com valor aprovado), `partial`, `none`, `editorial` (sem
+  indicadores), estados por indicador e `suggested` (obrigatório, completo, parcial ou editorial). É sugestão: nada é
+  removido automaticamente; histórico (6/12 meses) não entra — meses sem aprovação seguem como LACUNA.
+
 ## Documento da apresentação (por revisão)
 `{schema_version: 1, title, presenters[{name, role}], slides[{slide_id, template_slot|null, type, layout, fields,
 metrics[], options, zones?}]}` — sempre revalidado contra a versão do template. Fontes fixadas por revisão:
@@ -94,16 +118,28 @@ Ponto: `{x, y, state, label, value_state, origin, competence, metric_id[, color,
 | kind | Campos específicos |
 |---|---|
 | `kpi` | `items[]` (ponto + `name`, `unit`, `unit_label`, `value_type`) |
-| `comparison` | `rows[{current, previous, delta, delta_label, delta_unavailable_reason}]`; `delta` só entre aprovados numéricos de mesmo tipo e versão de contrato; motivos `gap`, `no_numeric_value`, `value_type_changed`, `contract_version_changed` |
+| `comparison` | `rows[{current, previous, delta, delta_label, delta_unavailable_reason, direction, trend, trend_reason, trend_color}]`; `delta` só entre aprovados numéricos de mesmo tipo e versão de contrato; motivos `gap`, `no_numeric_value`, `value_type_changed`, `contract_version_changed`. F06C: `trend` ∈ `improvement`/`worsening` (só com `delta` e direção declarada no indicador), `unchanged` (delta 0 com direção), `unknown` (sem direção — `trend_reason: direction_not_declared` — ou sem delta — motivo do delta); `trend_color` = `variation.improvement|worsening|neutral` |
 | `bar` / `line` | `x_axis {type: month|category, label}`, `y_axis {label, min: 0, integer}`, `number_format`, `categories[]`, `series[{key, label, metric_id, color, points[]}]`, `legend {show, title}`, `gaps[]`, `show_values` |
 | `severity` | como `bar`, categorias fixas Muito alta → Desconhecida, `color = severity.<CHAVE>`, `total` |
 | `ranking` | `columns[]`, `rows[{rank, label, y, value, extra}]` (ordem da fonte, até `top_n`), `aggregate_rows` ("Outros"), `max_y` |
 | `table` | `rows[{metric_id, name, state, value, y, unit_label, value_state, origin, source}]` |
 
+### Direção desejável (F06C)
+`MetricContract.desired_direction` ∈ `LOWER_IS_BETTER`, `HIGHER_IS_BETTER`, `NEUTRAL` (padrão) + `direction_rationale`;
+declarada num único lugar (`registry.DESIRED_DIRECTIONS`) e exposta no catálogo (`metrics[].desired_direction`).
+Metadado de apresentação: **não** muda `version` do contrato nem valores. Hoje só o backlog de findings ABERTOS (7
+indicadores SAST/SCA, Policy/Sandbox/distintos) declara `LOWER_IS_BETTER`; todo o resto é neutro (pendente de
+confirmação do PO).
+
+### Plano de exportação (F06C — contrato da F07)
+`GET /api/presentations/{id}/export-plan` — ver `docs/F07_EXPORT_READINESS.md` (nenhum arquivo é gerado).
+
 ### Cores
 Tokens do tema; o renderizador resolve (tokens obrigatórios em `docs/THEMES.md`). Séries: `series.1…4` na ordem de vinculação (fixa, nunca por posição de
 ranking; máx. 4 séries por gráfico de linhas). Severidade: rampa ordinal de um tom (`severity.VERY_HIGH` mais escura
-→ `severity.INFORMATIONAL` mais clara) + `severity.UNKNOWN` cinza com textura. Lacuna: `gap` (contorno tracejado).
+→ `severity.INFORMATIONAL` mais clara) + `severity.UNKNOWN` cinza com textura (temas F06A/F06B); no `afrika@2` (F06C),
+por nível semântico do PO — Muito alta=Crítica vermelho, Alta laranja, Média amarelo, Baixa e Muito baixa azul,
+Informativa cinza, Desconhecida cinza claro com textura. Lacuna: `gap` (contorno tracejado).
 Paleta validada com o validador de paleta (categórica 4 slots: PASS, aviso de contraste ⇒ rótulos visíveis; rampa de
 severidade: PASS no modo claro do canvas). Identidade nunca só por cor: rótulos/legenda sempre presentes.
 

@@ -5,9 +5,11 @@ para nunca virarem zero ou estimativa.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from app.metrics.contracts import (
-    DateField, Dedup, Domain, Homologation, IdentityProof, MetricContract, ScanContext, ScanType, SeverityCriterion,
-    Shape, Source, StatusCriterion, Support, TemporalMode, Unit,
+    DateField, Dedup, Direction, Domain, Homologation, IdentityProof, MetricContract, ScanContext, ScanType,
+    SeverityCriterion, Shape, Source, StatusCriterion, Support, TemporalMode, Unit,
 )
 from app.veracode import adapters
 
@@ -277,8 +279,22 @@ CONTRACTS: tuple[MetricContract, ...] = (
          'Nenhuma API de licenças homologada; pode exigir entrada manual (F05)'),
 )
 
+# F06C — direção desejável declarada POR INDICADOR (num só lugar, para revisão do PO). Só o backlog de findings
+# ABERTOS declara direção (menos findings abertos = melhora); todos os demais permanecem NEUTROS (ex.: total de
+# aplicações, LOC, novos na competência — mais achados pode significar mais cobertura de scan). Não altera `version`.
+_OPEN_BACKLOG = ('Backlog de findings abertos: redução = menos vulnerabilidades abertas. A cor indica só a direção '
+                 'da variação comprovada; a causa (correção × menor cobertura de scans) não é inferida')
+DESIRED_DIRECTIONS: dict[str, tuple[Direction, str]] = {
+    m: (Direction.LOWER_IS_BETTER, _OPEN_BACKLOG) for m in (
+        'sast.policy.open.by_severity', 'sast.sandbox.open.by_severity', 'sast.sandbox.open.distinct',
+        'sast.open.distinct', 'sca.policy.open.by_severity', 'sca.sandbox.open.by_severity', 'sca.open.distinct')}
+CONTRACTS = tuple(replace(c, desired_direction=DESIRED_DIRECTIONS[c.metric_id][0],
+                          direction_rationale=DESIRED_DIRECTIONS[c.metric_id][1])
+                  if c.metric_id in DESIRED_DIRECTIONS else c for c in CONTRACTS)
+
 REGISTRY: dict[str, MetricContract] = {c.metric_id: c for c in CONTRACTS}
 assert len(REGISTRY) == len(CONTRACTS), 'metric_id duplicado'
+assert set(DESIRED_DIRECTIONS) <= set(REGISTRY), 'direção declarada para indicador inexistente'
 
 
 def catalog() -> dict:

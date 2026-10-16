@@ -124,6 +124,15 @@ class Homologation(StrEnum):
     SOURCE_NOT_HOMOLOGATED = 'SOURCE_NOT_HOMOLOGATED'
 
 
+class Direction(StrEnum):
+    """Direção desejável da variação (F06C). Metadado de APRESENTAÇÃO: não altera definição, cálculo nem valor do
+    indicador — por isso não muda `version`. Padrão NEUTRAL: sem declaração, a variação nunca é colorida como melhora
+    ou piora (não se presume que reduzir é bom nem que aumentar é ruim)."""
+    LOWER_IS_BETTER = 'LOWER_IS_BETTER'
+    HIGHER_IS_BETTER = 'HIGHER_IS_BETTER'
+    NEUTRAL = 'NEUTRAL'
+
+
 SEVERITY_LABELS = {5: 'VERY_HIGH', 4: 'HIGH', 3: 'MEDIUM', 2: 'LOW', 1: 'VERY_LOW', 0: 'INFORMATIONAL'}
 
 
@@ -156,6 +165,8 @@ class MetricContract:
     completeness_rules: tuple[str, ...] = ()
     limitations: tuple[str, ...] = ()
     unsupported_reason: str | None = None
+    desired_direction: Direction = Direction.NEUTRAL  # F06C: ver Direction (metadado de apresentação)
+    direction_rationale: str | None = None
 
     def public(self) -> dict[str, Any]:
         out = asdict(self)

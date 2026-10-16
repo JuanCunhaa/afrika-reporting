@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Box,
+  ComparisonRow,
   CoverData,
   DashboardData,
   DashboardZone,
@@ -83,6 +84,8 @@ export function SlideSurface({ view, slide, label, scale = 1, testId }: { view: 
   const lay = layoutFor(theme, slide.layout);
   const images = theme.images.filter((img) => img.slides.includes('all') || img.slides.includes(kind));
   const shapes = theme.components.shapes.filter((sh) => sh.slides.includes('all') || sh.slides.includes(kind));
+  // F06C: encaixes de ativos AUTORIZADOS da pasta local; sem arquivo => nada é desenhado (fallback neutro = formas)
+  const brand = (theme.asset_slots ?? []).filter((a) => (a.slides.includes('all') || a.slides.includes(kind)) && view.brand_assets?.[a.name]?.status === 'available');
   const badge = kind === 'content' ? theme.components.badge : null;
   return (
     <ThemeCtx.Provider value={theme}>
@@ -106,6 +109,9 @@ export function SlideSurface({ view, slide, label, scale = 1, testId }: { view: 
         ))}
         {images.map((img) => (
           <img key={img.name} className="slide-image" src={assetUrl(img.asset)} alt={img.alt} style={{ ...boxStyle(img.box), objectFit: img.fit }} data-el={`image:${img.name}`} />
+        ))}
+        {brand.map((a) => (
+          <img key={`brand-${a.name}`} className="slide-image" src={view.brand_assets?.[a.name]?.url} alt={a.alt} style={{ ...boxStyle(a.box), objectFit: a.fit }} data-el={`brand:${a.name}`} />
         ))}
         <SlideBody view={view} slide={slide} lay={lay} />
         {badge && <CompetenceBadge competence={view.competence.competence} />}
@@ -433,7 +439,38 @@ function Kpis({ data, compact }: { data: IRKpi; compact?: boolean }) {
   );
 }
 
+// F06C — variação mensal. Com `theme.semantics.variation`: cor da tendência COMPROVADA (melhora/piora só quando o
+// indicador declara direção desejável e a variação é entre aprovados comparáveis) no marcador e no fundo da pílula, e
+// a palavra ("melhora"/"piora"/"estável") no texto — identidade nunca só por cor. Sem semântica: pílula neutra (F06B).
+const TREND_WORD: Record<string, string> = { improvement: 'melhora', worsening: 'piora', unchanged: 'estável' };
+const TREND_TITLE: Record<string, string> = {
+  improvement: 'Melhora comprovada (direção desejável declarada no indicador)',
+  worsening: 'Piora comprovada (direção desejável declarada no indicador)',
+  unchanged: 'Sem variação entre as competências aprovadas',
+  unknown: 'Neutra: direção desejável não declarada ou variação não comparável',
+};
+
+function DeltaPill({ row, text, elKey }: { row: ComparisonRow; text: string; elKey: string }) {
+  const t = useTheme();
+  if (!t.semantics?.variation)
+    return (
+      <span className="pill" data-el={elKey}>
+        <span className="pill-dot" />
+        {text}
+      </span>
+    );
+  const tr = row.trend ?? 'unknown';
+  const word = TREND_WORD[tr];
+  return (
+    <span className={`pill trend trend-${tr}`} data-el={elKey} data-trend={tr} title={TREND_TITLE[tr]} style={{ '--trend-c': colorVar(row.trend_color ?? 'variation.neutral') } as React.CSSProperties}>
+      <span className="pill-dot" />
+      {word && row.delta_label ? `${text} · ${word}` : text}
+    </span>
+  );
+}
+
 function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
+  const hasTrendColors = !!useTheme().semantics?.variation;
   const reason: Record<string, string> = {
     gap: 'lacuna',
     no_numeric_value: 'sem número',
@@ -460,10 +497,7 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
               <span className="cmp-col-cur">{r.current.label}</span>
             </span>
             <span className="cmp-col-meta">
-              <span className="pill" data-el={`cmp-delta:${r.metric_id}`}>
-                <span className="pill-dot" />
-                {r.delta_label ?? `sem variação (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`}
-              </span>
+              <DeltaPill row={r} elKey={`cmp-delta:${r.metric_id}`} text={r.delta_label ?? `sem variação (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`} />
               <StateTag p={r.current} />
             </span>
             <span className="cmp-col-note">
@@ -487,6 +521,7 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
             <span className="kpi-unit" data-el={`cmp-detail:${r.metric_id}`}>
               {data.previous_competence}: {r.previous.label} · variação {r.delta_label ?? `— (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`}
             </span>
+            {hasTrendColors && r.delta_label && <DeltaPill row={r} elKey={`cmp-delta:${r.metric_id}`} text={r.delta_label} />}
           </div>
         ))}
       </div>
@@ -511,7 +546,7 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
             <td>
               {r.current.label} <StateTag p={r.current} />
             </td>
-            <td>{r.delta_label ?? `— (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`}</td>
+            <td>{hasTrendColors && r.delta_label ? <DeltaPill row={r} elKey={`cmp-delta:${r.metric_id}`} text={r.delta_label} /> : (r.delta_label ?? `— (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`)}</td>
           </tr>
         ))}
       </tbody>
@@ -1102,10 +1137,7 @@ function KpiCards({ data }: { data: IRComparison }) {
           <span className="kpi-card-unit">
             {r.current.state === 'VALUE' ? r.unit_label : 'valor indisponível'} <StateTag p={r.current} />
           </span>
-          <span className="pill" data-el={`pill:${r.metric_id}`}>
-            <span className="pill-dot" />
-            {r.delta_label ? `${r.delta_label} vs ${data.previous_competence}` : `sem variação (${REASON[r.delta_unavailable_reason ?? ''] ?? '—'})`}
-          </span>
+          <DeltaPill row={r} elKey={`pill:${r.metric_id}`} text={r.delta_label ? `${r.delta_label} vs ${data.previous_competence}` : `sem variação (${REASON[r.delta_unavailable_reason ?? ''] ?? '—'})`} />
         </div>
       ))}
     </div>
@@ -1162,7 +1194,7 @@ function Donut({ data }: { data: IRChart }) {
       <svg viewBox="-110 -110 220 220" className="donut-svg" role="img" aria-label={data.title ?? 'Distribuição por severidade'}>
         {total === 0 && <circle r={(R + r) / 2} fill="none" stroke={colorVar('grid')} strokeWidth={R - r} />}
         {arcs.map(({ p, d }) => (
-          <path key={p.x} d={d} fill={colorVar(p.color ?? 'series.1')} fillRule="evenodd" data-el={`slice:${p.x}`} data-provenance={provenance(p)}>
+          <path key={p.x} d={d} fill={colorVar(p.color ?? 'series.1')} fillRule="evenodd" data-el={`slice:${p.x}`} data-provenance={provenance(p)} {...(t.components.donut_separator ? { stroke: colorVar('surface'), strokeWidth: t.components.donut_separator, vectorEffect: 'non-scaling-stroke' } : {})}>
             <title>{`${p.x}: ${p.label}`}</title>
           </path>
         ))}

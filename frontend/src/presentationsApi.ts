@@ -110,6 +110,8 @@ export type Theme = {
   backgrounds: { default: Background; cover: Background | null; closing: Background | null };
   images: { name: string; asset: AssetRef; box: Box; slides: ('all' | 'cover' | 'closing' | 'content' | 'section')[]; fit: 'contain' | 'cover'; alt: string }[];
   components: ThemeComponents;
+  semantics: ThemeSemantics;
+  asset_slots: AssetSlot[];
   charts: {
     plot_width: number;
     plot_height: number;
@@ -176,7 +178,20 @@ export type ThemeComponents = {
   severity_bar_width: number;
   donut_hole: number;
   dashboards: Record<string, Record<string, Box>>;
+  donut_separator: number; // F06C
+  subtitle_color: string | null; // F06C: null = visual F06B
+  subtitle_font: 'heading' | 'body' | 'numeric' | null;
+  subtitle_weight: number | null;
+  subtitle_line_height: number | null;
+  matrix_label_size: number | null;
 };
+// F06C: semântica de cores (severidade por nível; variação comprovada). null = comportamento F06B (neutro).
+export type ThemeSemantics = {
+  severity: { levels: Record<string, string>; mapping: Record<string, string>; unknown: string } | null;
+  variation: { improvement: string; worsening: string; neutral: string; tint_opacity: number } | null;
+};
+export type AssetSlot = { name: string; box: Box; slides: ('all' | 'cover' | 'closing' | 'content' | 'section')[]; fit: 'contain' | 'cover'; alt: string };
+export type BrandAsset = { slot: string; status: 'available' | 'missing' | 'invalid'; media_type?: string; sha256?: string; url?: string; message?: string };
 export type ThemeSummary = { id: string; version: number; name: string; provisional: boolean; origin: 'BUILTIN' | 'CUSTOM'; versions: number[]; definition_hash: string };
 export type Catalog = { slide_types: SlideTypeSpec[]; metrics: CatalogMetric[]; themes: ThemeSummary[] };
 
@@ -235,11 +250,27 @@ export type IRSeries = { key: string; label: string; metric_id: string; color: s
 type IRBase = { ir_version: number; kind: string; available: boolean; title: string | null; reason?: string; message?: string; warnings?: { code: string; message: string }[] };
 export type IRUnavailable = IRBase & { available: false; reason: string; message: string };
 export type IRKpi = IRBase & { kind: 'kpi'; items: (IRPoint & { name: string; unit_label: string })[] };
+// F06C: tendência COMPROVADA (só com variação entre aprovados comparáveis e direção declarada no indicador).
+export type Trend = 'improvement' | 'worsening' | 'unchanged' | 'unknown';
+export type ComparisonRow = {
+  metric_id: string;
+  name: string;
+  unit_label: string;
+  current: IRPoint;
+  previous: IRPoint;
+  delta: number | null;
+  delta_label: string | null;
+  delta_unavailable_reason: string | null;
+  direction?: 'LOWER_IS_BETTER' | 'HIGHER_IS_BETTER' | 'NEUTRAL';
+  trend?: Trend;
+  trend_reason?: string | null;
+  trend_color?: string;
+};
 export type IRComparison = IRBase & {
   kind: 'comparison';
   current_competence: string;
   previous_competence: string;
-  rows: { metric_id: string; name: string; unit_label: string; current: IRPoint; previous: IRPoint; delta: number | null; delta_label: string | null; delta_unavailable_reason: string | null }[];
+  rows: ComparisonRow[];
 };
 export type IRChart = IRBase & {
   kind: 'bar' | 'line' | 'severity' | 'combo';
@@ -297,6 +328,7 @@ export type PresentationView = {
   competence: { id: string; competence: string; timezone: string };
   template: TemplateSummary;
   theme: Theme;
+  brand_assets?: Record<string, BrandAsset>;
   presenters: Presenter[];
   sources: { policy: string; primary: SourceRef; history: Record<string, SourceRef>; history_window: { start: string; end: string }; metrics: Snapshot[] };
   slides: ViewSlide[];
@@ -305,6 +337,13 @@ export type PresentationView = {
   blockers: number;
 };
 export type PresentationIntegrity = { ok: boolean; problems: string[]; revisions_checked: number; sources_checked: { competence: string; revision: number; content_ok: boolean }[] };
+
+export type SlotAvailability = {
+  template: { key: string; version: number };
+  competence: { id: string; competence: string; revision: number; approval_sequence: number };
+  slots: { slot_id: string; type: string; layout: string | null; title: string | null; required: boolean; required_metrics: boolean; status: 'complete' | 'partial' | 'none' | 'editorial'; metrics: { metric_id: string; state: string }[]; suggested: boolean }[];
+  policy: string;
+};
 
 const p = (pid: string) => `/api/presentations/${pid}`;
 
@@ -317,8 +356,11 @@ export const presentations = {
   select: (kind: OwnerKind, id: string, template_key: string, template_version: number, operator: string) =>
     request<Selection>('PUT', `/api/template-selection/${kind}/${id}`, { template_key, template_version, operator }),
   list: (kind: OwnerKind, id: string) => request<{ items: PresentationMeta[] }>('GET', `/api/presentations?owner_kind=${kind}&owner_id=${id}`),
-  create: (body: { competence_id: string; operator: string; template_key?: string; template_version?: number; title?: string }) =>
+  create: (body: { competence_id: string; operator: string; template_key?: string; template_version?: number; title?: string; slots?: string[] }) =>
     request<PresentationMeta>('POST', '/api/presentations', body),
+  // F06C: situação de cada slot do template na revisão aprovada (para escolher os slides; nada é gravado)
+  availability: (key: string, version: number, competenceId: string) =>
+    request<SlotAvailability>('GET', `/api/presentation-templates/${key}/versions/${version}/availability?competence_id=${competenceId}`),
   get: (pid: string) => request<PresentationMeta>('GET', p(pid)),
   revision: (pid: string, n: number) => request<{ document: PresentationDocument; number: number; is_current: boolean }>('GET', `${p(pid)}/revisions/${n}`),
   view: (pid: string, revision?: number) => request<PresentationView>('GET', `${p(pid)}/view${revision ? `?revision=${revision}` : ''}`),

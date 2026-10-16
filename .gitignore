@@ -40,3 +40,6 @@ data/
 *.key
 *.p12
 *.pfx
+
+# F06C: ativos visuais autorizados (logo/fotos/ilustrações) só em pasta local
+brand-assets/

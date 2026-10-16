@@ -80,6 +80,11 @@ jobs:
     env:
       CI: 'true'
       PYTHON: python
+      # F06C — BOOTSTRAP TEMPORÁRIO da referência visual Linux do caso `afrika-v2` (novo): sem referência para a
+      # plataforma, a regressão guarda as capturas como candidatas (artefato) e mede o ruído; os casos que já têm
+      # referência (neutro/alternativo/afrika) continuam comparados. Remover no commit que versiona as referências.
+      VISUAL_BOOTSTRAP: '1'
+      VISUAL_MEASURE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

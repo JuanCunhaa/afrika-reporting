@@ -63,6 +63,17 @@ Sandbox = desenvolvimento; SAST e SCA nunca somados nem com a mesma identidade.
 | licenses.usage | UNSUPPORTED | nenhuma API de licenças homologada (provável entrada manual) |
 | density.*, trend.monthly | não registrados | densidade exige definição oficial do denominador; tendência depende de snapshots F05 |
 
+## Direção desejável (F06C — metadado de apresentação)
+Cada contrato tem `desired_direction` (`LOWER_IS_BETTER`, `HIGHER_IS_BETTER` ou `NEUTRAL`, padrão) e
+`direction_rationale`, declarados num único lugar (`registry.DESIRED_DIRECTIONS`). Não altera definição, valor nem
+`version`. Usado só para colorir variações **comprovadas** (melhora/piora) nas apresentações; sem direção, a variação é
+exibida neutra.
+
+| Indicadores | Direção | Justificativa |
+|---|---|---|
+| `sast.policy.open.by_severity`, `sast.sandbox.open.by_severity`, `sast.sandbox.open.distinct`, `sast.open.distinct`, `sca.policy.open.by_severity`, `sca.sandbox.open.by_severity`, `sca.open.distinct` | `LOWER_IS_BETTER` | backlog de findings abertos; a cor indica só a direção — a causa (correção × menor cobertura de scans) não é inferida |
+| todos os demais (ex.: `apps.total`, `apps.loc.total`, `sast.policy.new_in_period.by_severity`, `apps.without_team`) | `NEUTRAL` | sem decisão do PO (ex.: mais findings novos pode significar mais cobertura) |
+
 ## Temporalidade
 Competência `YYYY-MM`, sempre mês **fechado** no fuso do cliente (`[1º dia 00:00, 1º dia do mês seguinte)` local).
 **F04.1:** fuso IANA por cliente (padrão `America/Sao_Paulo`; subclientes herdam; sobrescrita opcional por execução)

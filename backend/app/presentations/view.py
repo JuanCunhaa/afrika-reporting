@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.metrics.registry import REGISTRY
 from app.orm import Approval, Competence, CompetenceRevision, Presentation, PresentationRevision, PresentationTemplate
-from app.presentations import charts
+from app.presentations import brand_assets, charts
 from app.presentations.catalog import DASHBOARD_LAYOUTS, SLIDE_TYPES, SlideType, ZoneKind
 from app.presentations.document import Document, Slide, TemplateDefinition, Zone, all_metrics, contract_versions
 from app.presentations.templates import definition_of, template_out
@@ -277,6 +277,16 @@ def build(session: Session, p: Presentation, prev: PresentationRevision, draft: 
     checks += [{'level': 'warning', 'code': 'theme_asset_missing', 'metric_id': None,
                 'message': f'Ativo do tema ausente no armazenamento local ({a[:12]}…): o elemento não é exibido.'}
                for a in missing]
+    # F06C: encaixes de ativos autorizados da pasta local (fora do Git); ausência = fallback neutro (informativo)
+    brand = brand_assets.status(tmpl.theme_id, [s.name for s in theme_defn.asset_slots])
+    absent = [s for s, b in brand.items() if b['status'] == 'missing']
+    if absent:
+        checks.append({'level': 'info', 'code': 'brand_asset_missing', 'metric_id': None,
+                       'message': 'Ativos visuais locais ausentes (encaixes vazios, fallback neutro): '
+                                  + ', '.join(absent)})
+    checks += [{'level': 'warning', 'code': 'brand_asset_invalid', 'metric_id': None,
+                'message': f'Ativo visual local "{s}" ignorado: {b["message"]}'}
+               for s, b in brand.items() if b['status'] == 'invalid']
     return {'presentation': {'id': str(p.id), 'title': doc.title, 'current_revision': p.current_revision},
             'draft': draft is not None,
             'revision': {'number': prev.number, 'created_by': prev.created_by,
@@ -286,7 +296,8 @@ def build(session: Session, p: Presentation, prev: PresentationRevision, draft: 
             'owner': {'kind': owner.kind, 'id': str(owner.id), 'name': owner.name, 'key': owner.key},
             'competence': {'id': str(comp.id), 'competence': comp.label, 'timezone': comp.timezone,
                            'period': service.period(comp)},
-            'template': template_out(tmpl), 'theme': theme, 'presenters': [x.model_dump() for x in doc.presenters],
+            'template': template_out(tmpl), 'theme': theme, 'brand_assets': brand,
+            'presenters': [x.model_dump() for x in doc.presenters],
             'sources': {**sources, 'metrics': metrics_out}, 'slides': slides, 'checks': checks,
             'ready': blockers == 0, 'blockers': blockers, 'ir_version': charts.IR_VERSION,
             'data_policy': 'Somente revisões aprovadas fixadas; nenhum número inventado, interpolado ou recalculado.'}

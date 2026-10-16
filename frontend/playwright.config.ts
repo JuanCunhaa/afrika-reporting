@@ -18,6 +18,8 @@ const UI_PORT = 5183;
 // Definido uma vez no processo principal; workers herdam o mesmo valor pelo ambiente.
 process.env.AFRIKA_E2E_DB ??= path.join(here, '.e2e-data', `e2e-${Date.now()}.sqlite3`);
 const dbUrl = `sqlite:///${process.env.AFRIKA_E2E_DB.replace(/\\/g, '/')}`;
+// F06C: pasta descartável de ativos de marca do E2E (só imagens SINTÉTICAS geradas pelos testes; nunca data/)
+process.env.AFRIKA_E2E_BRAND_DIR ??= process.env.AFRIKA_E2E_DB.replace(/\.sqlite3$/, '-brand');
 
 export default defineConfig({
   testDir: './e2e',
@@ -41,6 +43,7 @@ export default defineConfig({
         AFRIKA_DATABASE_URL: dbUrl,
         // F06B.1: ativos de tema (logos/fontes sintéticos) num diretório descartável do E2E, nunca em data/.
         AFRIKA_ASSET_DIR: process.env.AFRIKA_E2E_DB.replace(/\.sqlite3$/, '-assets'),
+        AFRIKA_BRAND_ASSET_DIR: process.env.AFRIKA_E2E_BRAND_DIR,
         CORS_ORIGINS: `http://127.0.0.1:${UI_PORT}`,
       } as Record<string, string>,
       url: `http://127.0.0.1:${API_PORT}/api/health`,
