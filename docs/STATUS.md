@@ -12,7 +12,7 @@
 - **F05 — snapshots, histórico, aprovações e Reporting API: DONE_LOCAL — aprovada pelo PO** (commit `ad4b91f` + docs; CI verde run `38746312757`; Reporting API real: HTTP 403 — BLOCKED_EXTERNAL)
 - **F06A — motor de templates e pré-visualização: DONE_LOCAL — aguardando PO** (commit `c160494` + docs; CI verde run `38776201083`; tema demonstrativo neutro PROVISÓRIO)
 - **F06B.1 — preparação do motor visual oficial: DONE — aguardando PO** (commits `4cc9c61`, `e21ebce`, `8169e82` + docs; CI estrito verde run `38814645692`)
-- **F06B — template de referência Afrika: DONE — aguardando PO** (__COMMITS__; __CI_SHORT__; tema `afrika@1` PROVISÓRIO)
+- **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
 - F07 — exportação HTML/PPTX/PDF: NOT_STARTED
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
@@ -22,8 +22,8 @@
 - Template `afrika-modelo@1` (16 slots) + tema `afrika@1` (provisório): tipos novos `section` e `dashboard` (6 layouts com zonas tipadas e editáveis), layouts `kpi-band`, `severity-cards`, `donut`, `matrix`, gráfico `combo`, comparação em colunas, formas com contorno/opacidade, selo de competência; fontes OFL locais. Doc: `docs/AFRIKA_TEMPLATE.md`.
 - Genérico: placeholders sintéticos, qualquer cliente/subcliente, indicadores por `metric_id` validados por zona, nº de slides configurável (só capa/encerramento obrigatórios). Hashes de `neutral-demo@1` e dos templates F06A inalterados.
 - Fidelidade estrutural medida por slide (conteúdo mascarado): capa 0,1%, seções 0,3%, painéis 0,4–1,8%, matrizes 0,6%, encerramento 0,7% (Δ>0,08); 41/67 pares geométricos em ≤2 px. Limitações: imagens de marca ausentes, cor de variação neutra, severidade × cor a confirmar.
-- pytest **498 passed**; E2E **31 passed + 1 skipped** (comparação local) em 3 rodadas; visual win32 **54/54**; motor visual 12/12; build OK; `npm audit` 0; `pip check` OK; gitleaks staged __GITLEAKS__; `check_repo`/`check_env_example` OK; migrations CLI OK.
-- CI: __CI__
+- pytest **498 passed**; E2E **31 passed + 1 skipped** (comparação local) em 3 rodadas; visual win32 **54/54**; motor visual 12/12; build OK; `npm audit` 0; `pip check` OK; gitleaks staged 0 achados (em cada commit); `check_repo`/`check_env_example` OK; migrations CLI OK.
+- CI: GitHub run `38831748989` (SHA `54d1ba4`, estrito): **success** (Backend 3.11/3.14 498 passed; build + motor visual 12/12; E2E 31 passed + 1 skipped; visual Linux 54/54). Referência Linux do caso `afrika` criada por bootstrap temporário (runs `38829304285`, `38830508073`, `38831429248`), revisada e o bootstrap removido; a 1ª captura Linux revelou estouro no painel de grupos e fonte de reserva na seta — ambos corrigidos antes de versionar.
 - Nenhuma chamada à Veracode nesta fase.
 
 Próxima autorização esperada: aceite da F06B pelo PO (homologação de `afrika@1`, ativos de marca, severidade × cor); F07 só com ordem expressa.

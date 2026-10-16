@@ -1,7 +1,7 @@
 # Devolutiva Claude → ChatGPT PO — F06B: Template de referência Afrika (2026-10-15)
 
-- **Fase / commits:** F06B / `main` / __COMMITS__. Push feito. **F07 e F08 NÃO iniciadas.**
-- **CI:** __CI__
+- **Fase / commits:** F06B / `main` / **`30446df`** (implementação + testes + docs + referências win32; levou rascunhos de STATUS/handoff) → **`edcce8b`** (seta da comparação em SVG — “→” caía em fonte de reserva) → **`aaa54e9`** (zonas adaptativas — estouro no painel de grupos revelado pela 1ª captura Linux) → **`54d1ba4`** (referências visuais Linux do caso `afrika` revisadas + ruído medido; fim do modo bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F07 e F08 NÃO iniciadas.**
+- **CI:** run `38831748989` (SHA `54d1ba4`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (498 passed cada), Frontend typecheck+build + motor visual (12/12), E2E Chromium (31 passed + 1 skipped; regressão visual Linux **54/54 PASS**, tolerância 0, ruído 0). Anteriores (bootstrap da referência Linux do caso `afrika`): `38829304285` (`30446df`), `38830508073` (`edcce8b`), `38831429248` (`aaa54e9`) — success.
 - Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada.
 - **PowerPoint de referência:** só local em `references/` (ignorado, nunca rastreado); original **intacto** (SHA-256
   conferido antes/depois de cada leitura e da renderização); nada enviado a serviços externos; nenhum texto, número,
@@ -56,6 +56,10 @@ completo e tokens: `docs/AFRIKA_TEMPLATE.md`.
 5. **Sem semântica inventada:** pílula de variação neutra (contrato não diz se subir é bom); rosca sem percentuais
    derivados; ausente ≠ zero (estado e motivo explícitos; `required_metrics` vira bloqueio).
 6. Severidade × cor **inferida** da paleta de status — precisa de confirmação do PO.
+7. **Zonas adaptativas** (container queries determinísticas): rótulo da faixa ≤ 7% da largura da coluna, número
+   limitado pelo nº de caracteres, comparação compacta (sem nota) em zonas baixas; seta da comparação desenhada em SVG.
+   Motivo: a 1ª captura Linux (texto ~3–5% mais largo que no Windows) mostrou estouro no painel de grupos e “→” em fonte
+   de reserva — corrigidos antes de versionar as referências. Hoje: 0 fontes de reserva nas duas plataformas.
 
 ## 4. Fidelidade visual alcançada (comparação local por slide, conteúdo mascarado dos dois lados)
 | Slides | Dif. Δ>0,08 (pixels não mascarados) |
@@ -74,15 +78,17 @@ excede o canvas, posição das roscas, alturas variáveis de linhas/gráficos �
 |---|---|
 | `python -m pytest -q` (local) | **PASS 498** (479 + 19: Afrika 17, inspeção PPTX 2) |
 | E2E Chromium `npm run test:e2e` | **PASS 31 + 1 SKIPPED** (afrika +1; `reference.spec.ts` pulado sem o arquivo — esperado) em **3 rodadas completas** |
+| Repetições (após 1 falha intermitente local não identificada — `toContainText`, saída não capturada) | `afrika` ×10 **10/10**; `presentations` + `editor-reliability` ×5 **35/35**; trio ×3 **24/24** — NOT_REPRODUCED |
 | Regressão visual (win32) | **54/54 PASS** (neutro 19 + alternativo 19 idênticos às referências anteriores + afrika 16) |
 | Comparação com a referência (local) | executada; números na seção 4 (`output/reference-compare/`, não versionado) |
 | Motor visual `npm run test:visual-unit` | **PASS 12/12** (+ máscara) |
 | build; `npm audit`; `pip check` | OK; 0 vulnerabilidades; OK |
-| gitleaks (staged) | __GITLEAKS__ |
-| `check_repo`; `check_env_example` | __CHECKREPO__; SEGURO |
+| gitleaks (staged) | 0 achados (em cada commit) |
+| `check_repo`; `check_env_example` | OK (F06B, inclui varredura por hash do nome do cliente); SEGURO |
 | migrations CLI em banco novo | OK (`0006_themes`; seed cria 4 templates) |
 | SHA-256 do PPTX de referência após tudo | **inalterado** |
-| CI GitHub | __CI_TABLE__ |
+| CI GitHub | run `38831748989` (`54d1ba4`, estrito): **success** — 498/498 (3.11 e 3.14), build + motor visual 12/12, E2E 31 + 1 skipped, visual Linux 54/54 |
+| Determinismo Linux entre 3 execuções de CI | os 12 slides Afrika não alterados entre elas: idênticos (pixel); 38 neutro/alternativo idênticos à referência em todas |
 | `tests_live` | NOT_RUN (fase sem chamadas reais) |
 
 ## 6. Riscos e limitações
@@ -94,6 +100,9 @@ excede o canvas, posição das roscas, alturas variáveis de linhas/gráficos �
 4. Referências Linux do caso `afrika` foram criadas pelo CI (bootstrap temporário, removido) e revisadas visualmente
    (dados sintéticos); mudança da imagem do runner pode exigir nova referência.
 5. `licenses.usage` (unidade `findings`) segue pendente (herdado; não usado no template Afrika).
+6. Uma falha E2E local intermitente (asserção `toContainText`) não teve a saída capturada e não se repetiu em 69
+   execuções seguintes nem no CI; também uma execução isolada da regressão visual falhou antes do relatório no início
+   da fase (não reproduzida). Sem retry adicionado; vigiar.
 
 ## 7. Pendências para o PO
 - Homologar `afrika@1` (identidade, severidade × cor), aprovar ativos de marca, decidir cor de variação por direção.
@@ -108,7 +117,7 @@ fidelidade medida; sem IA (F08) e sem coleta real."
 ---
 
 ## Versão compacta para o PO
-F06B concluída (__COMMITS_SHORT__; __CI_SHORT__). Template `afrika-modelo@1` (16 slots: capa, 4 seções, 8 painéis
+F06B concluída (`30446df`, `edcce8b`, `aaa54e9`, `54d1ba4`; CI estrito verde run `38831748989`). Template `afrika-modelo@1` (16 slots: capa, 4 seções, 8 painéis
 compostos com zonas editáveis, 2 matrizes, encerramento) + tema `afrika@1` provisório, derivados só da estrutura do
 PowerPoint local (sem conteúdo dele no repo). Genérico para qualquer cliente/subcliente, indicadores e nº de slides
 configuráveis, dados só de revisões aprovadas. Fidelidade estrutural medida por slide: 0,1%–1,8% de diferença (Δ>0,08,
