@@ -13,7 +13,9 @@ export type SlideType =
   | 'top10_ranking'
   | 'metric_table'
   | 'recommendations'
-  | 'closing';
+  | 'closing'
+  | 'section'
+  | 'dashboard';
 
 export type SlideFields = {
   title: string | null;
@@ -41,7 +43,12 @@ export type DocSlide = {
   fields: Partial<SlideFields>;
   metrics: string[];
   options: Partial<SlideOptions>;
+  zones?: Record<string, Zone>;
 };
+// F06B: zona do painel composto (indicadores só por metric_id; título editável)
+export type Zone = { title?: string | null; metrics: string[]; chart?: 'bar' | 'line' | 'combo' | null; data_mode?: 'breakdown' | 'history' | null; months?: 6 | 12 | null; top_n?: number | null };
+export type ZoneKind = 'kpi_band' | 'kpi_cards' | 'severity_cards' | 'donut' | 'chart' | 'comparison' | 'ranking' | 'table' | 'text';
+export type ZoneSpec = { zone: string; kind: ZoneKind; name: string; min_metrics: number; max_metrics: number; value_types: string[]; frac: [number, number, number, number]; text_field: 'body' | 'items' | null; charts: string[] };
 export type Presenter = { name: string; role?: string | null };
 export type PresentationDocument = { schema_version: 1; title: string; presenters: Presenter[]; slides: DocSlide[] };
 
@@ -58,6 +65,7 @@ export type SlideTypeSpec = {
   value_types: string[];
   options: (keyof SlideOptions)[];
   chart: string | null;
+  zones?: Record<string, ZoneSpec[]>;
 };
 export type CatalogMetric = { metric_id: string; name: string; contract_version: number; value_type: string; unit: string; support: string; slide_types: SlideType[] };
 // F06B.1: tema versionado com tokens completos (backend/app/presentations/themes.py). Os componentes só leem tokens.
@@ -100,7 +108,8 @@ export type Theme = {
   cover: { band: 'left' | 'top' | 'none'; band_size: number; band_color: string; padding: Insets; gap: number; meta_top: number; align: 'left' | 'center'; kicker_uppercase: boolean };
   closing: { padding: Insets; gap: number; align: 'left' | 'center' };
   backgrounds: { default: Background; cover: Background | null; closing: Background | null };
-  images: { name: string; asset: AssetRef; box: Box; slides: ('all' | 'cover' | 'closing' | 'content')[]; fit: 'contain' | 'cover'; alt: string }[];
+  images: { name: string; asset: AssetRef; box: Box; slides: ('all' | 'cover' | 'closing' | 'content' | 'section')[]; fit: 'contain' | 'cover'; alt: string }[];
+  components: ThemeComponents;
   charts: {
     plot_width: number;
     plot_height: number;
@@ -141,6 +150,32 @@ export type Theme = {
     texture_opacity: number;
     legend_position: 'top' | 'bottom';
   };
+};
+export type ThemeComponents = {
+  title_color: string;
+  title_underline: { w: number; h: number; color: string; radius: number; offset: number } | null;
+  badge: { box: Box; fill: string; border: string; border_width: number; radius: number; month_size: number; year_size: number; color: string; year_color: string } | null;
+  card: { fill: string; border: string; border_width: number; radius: number; padding_y: number; padding_x: number; title_size: number; title_color: string };
+  band: { fill: string; radius: number; padding: number; label_color: string };
+  pill: { fill: string; color: string; radius: number; size: number; padding_x: number; padding_y: number };
+  table: { header_fill: string | null; header_color: string; header_rule: string; row_rule: string; zebra_fill: string | null };
+  section: { background: string; title_color: string; subtitle_color: string; title_size: number; subtitle_size: number; orientation: 'horizontal' | 'vertical'; title_box: Box | null };
+  closing: { title: string; text: string; accent: string; title_font: 'heading' | 'body' | 'numeric'; title_weight: number | null; title_size: number | null; valign: 'top' | 'center' };
+  header_valign: 'top' | 'center' | 'bottom';
+  zone_comparison: 'table' | 'columns';
+  comparison_fill: string;
+  header_valign_by_layout: Record<string, 'top' | 'center' | 'bottom'>;
+  zone_frames: Record<string, Record<string, 'band' | 'card' | 'plain'>>;
+  cover_title_color: string;
+  cover_kicker_color: string;
+  cover_valign: 'top' | 'bottom';
+  cover_title_font: 'heading' | 'body' | 'numeric';
+  cover_kicker_font: 'heading' | 'body' | 'numeric';
+  cover_kicker_weight: number;
+  shapes: { name: string; box: Box; fill: string; opacity: number; path: string | null; radius: number; slides: ('all' | 'cover' | 'closing' | 'content' | 'section')[] }[];
+  severity_bar_width: number;
+  donut_hole: number;
+  dashboards: Record<string, Record<string, Box>>;
 };
 export type ThemeSummary = { id: string; version: number; name: string; provisional: boolean; origin: 'BUILTIN' | 'CUSTOM'; versions: number[]; definition_hash: string };
 export type Catalog = { slide_types: SlideTypeSpec[]; metrics: CatalogMetric[]; themes: ThemeSummary[] };
@@ -207,7 +242,7 @@ export type IRComparison = IRBase & {
   rows: { metric_id: string; name: string; unit_label: string; current: IRPoint; previous: IRPoint; delta: number | null; delta_label: string | null; delta_unavailable_reason: string | null }[];
 };
 export type IRChart = IRBase & {
-  kind: 'bar' | 'line' | 'severity';
+  kind: 'bar' | 'line' | 'severity' | 'combo';
   x_axis: { type: 'month' | 'category'; label: string };
   y_axis: { label: string; min: number; integer: boolean };
   categories: string[];
@@ -232,7 +267,10 @@ export type IRTable = IRBase & {
   rows: { metric_id: string; name: string; state: PointState; value: string; y: number | null; unit_label: string; value_state: string | null; origin: string | null; source: string | null }[];
 };
 export type CoverData = { kind: 'cover' | 'closing'; owner: string; owner_kind: OwnerKind; competence: string; period: { period_start: string; period_end_inclusive: string }; period_label?: string; presenters: Presenter[] };
-export type SlideData = IRUnavailable | IRKpi | IRComparison | IRChart | IRRanking | IRTable | CoverData | null;
+export type SectionData = { kind: 'section'; owner: string; competence: string };
+export type DashboardZone = { zone: string; kind: ZoneKind; name: string; title: string | null; text_field: 'body' | 'items' | null; chart: string | null; metrics: string[]; data: SlideData };
+export type DashboardData = { kind: 'dashboard'; layout: string; zones: Record<string, DashboardZone> };
+export type SlideData = IRUnavailable | IRKpi | IRComparison | IRChart | IRRanking | IRTable | CoverData | SectionData | DashboardData | null;
 
 export type Issue = { level: 'blocker' | 'warning' | 'info'; code: string; metric_id: string | null; message: string };
 export type ViewSlide = {
@@ -246,6 +284,7 @@ export type ViewSlide = {
   fields: SlideFields;
   options: SlideOptions;
   metrics: string[];
+  zones?: Record<string, Zone>;
   data: SlideData;
   issues: Issue[];
 };

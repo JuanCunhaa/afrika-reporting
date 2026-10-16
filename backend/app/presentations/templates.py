@@ -110,6 +110,103 @@ BUILTIN: dict[tuple[str, int], dict] = {
 }
 
 
+# F06B — template Afrika (16 slots na mesma sequência do PowerPoint de referência). Textos editoriais são
+# PLACEHOLDERS genéricos e indicadores entram só por metric_id: serve a qualquer cliente/subcliente (slots não
+# obrigatórios podem ser removidos; zonas e indicadores são editáveis).
+_AF = {'id': 'afrika', 'version': 1}
+_SAST, _SCA = 'sast.policy.open.by_severity', 'sca.policy.open.by_severity'
+_MATRIX = ['Tema | Situação atual | Ação recomendada | Próximo passo',
+           'Tema 1 | Descreva a situação observada | Descreva a ação recomendada | Defina o próximo passo',
+           'Tema 2 | Descreva a situação observada | Descreva a ação recomendada | Defina o próximo passo',
+           'Tema 3 | Descreva a situação observada | Descreva a ação recomendada | Defina o próximo passo']
+BUILTIN[('afrika-modelo', 1)] = {
+    'name': 'Afrika — relatório mensal (modelo)',
+    'description': 'Sequência do template de referência Afrika: capa, divisores de seção, painéis compostos '
+                   '(KPIs, gráficos, grupos, severidades, rankings), matrizes de ação e encerramento.',
+    'theme': _AF,
+    'metric_contracts': _contracts(
+        'apps.total', 'apps.without_team', 'apps.unclassified', 'apps.multiple_teams', 'apps.loc.total',
+        'apps.by_business_unit', _SAST, _SCA, 'sast.policy.new_in_period.by_severity', 'sast.sandbox.open.by_severity',
+        'sast.open.distinct', 'sca.open.distinct', 'sast.policy.open.top_applications', 'sast.policy.open.by_cwe',
+        'sca.policy.open.top_components', 'sca.policy.open.top_vulnerabilities'),
+    'slides': [
+        {'slot_id': 'capa', 'type': 'cover', 'required': True,
+         'fields': {'title': 'Relatório mensal de AppSec', 'subtitle': 'Segurança de aplicações'},
+         'options': {'show_presenters': True}},
+        {'slot_id': 'secao-abertura', 'type': 'section', 'fields': {'title': 'Panorama', 'subtitle': '01'}},
+        {'slot_id': 'secao-indicadores', 'type': 'section', 'fields': {'title': 'Indicadores', 'subtitle': '02'}},
+        {'slot_id': 'secao-detalhes', 'type': 'section', 'fields': {'title': 'Detalhamento', 'subtitle': '03'}},
+        {'slot_id': 'painel-kpis', 'type': 'dashboard', 'layout': 'painel-kpis', 'required_metrics': True,
+         'fields': {'title': 'Visão geral do mês', 'body': 'Comentário editorial sobre os destaques do mês.'},
+         'zones': {'band': {'metrics': ['apps.total', _SAST, _SCA]},
+                   'cards': {'metrics': ['sast.policy.new_in_period.by_severity', 'apps.without_team',
+                                         'apps.unclassified']},
+                   'table': {'title': 'Inventário', 'metrics': ['apps.total', 'apps.without_team',
+                                                                'apps.multiple_teams']},
+                   'text': {}}},
+        {'slot_id': 'painel-graficos', 'type': 'dashboard', 'layout': 'painel-graficos',
+         'fields': {'title': 'Evolução e distribuição', 'items': ['Destaque editorial 1', 'Destaque editorial 2']},
+         'zones': {'band': {'metrics': ['apps.total', 'sast.open.distinct']}, 'list': {},
+                   'donut_a': {'title': 'SAST (Policy)', 'metrics': [_SAST]},
+                   'donut_b': {'title': 'SCA (Policy)', 'metrics': [_SCA]},
+                   'detail': {'title': 'Mês atual × anterior', 'metrics': ['apps.total', _SAST]},
+                   'chart': {'title': 'Findings abertos — 6 meses', 'metrics': [_SAST, _SCA], 'chart': 'combo',
+                             'months': 6}}},
+        {'slot_id': 'painel-grupos', 'type': 'dashboard', 'layout': 'painel-grupos',
+         'fields': {'title': 'SAST e SCA', 'items': ['Observação editorial 1', 'Observação editorial 2',
+                                                     'Observação editorial 3']},
+         'zones': {'group_a': {'title': 'SAST', 'metrics': [_SAST, 'sast.policy.new_in_period.by_severity',
+                                                           'sast.sandbox.open.by_severity']},
+                   'group_b': {'title': 'SCA', 'metrics': [_SCA, 'sca.open.distinct']},
+                   'detail': {'metrics': ['apps.total', 'apps.loc.total']}, 'list': {},
+                   'chart': {'title': 'Aplicações — 6 meses', 'metrics': ['apps.total'], 'chart': 'bar',
+                             'data_mode': 'history', 'months': 6}}},
+        {'slot_id': 'painel-severidades', 'type': 'dashboard', 'layout': 'painel-severidades',
+         'fields': {'title': 'Severidades em produção', 'items': ['Observação editorial 1', 'Observação editorial 2']},
+         'zones': {'group_a': {'title': 'SAST (Policy)', 'metrics': [_SAST]},
+                   'group_b': {'title': 'SCA (Policy)', 'metrics': [_SCA]},
+                   'detail': {'title': 'Mês atual × anterior', 'metrics': [_SAST, _SCA]}, 'list': {}}},
+        {'slot_id': 'painel-severidades-dev', 'type': 'dashboard', 'layout': 'painel-severidades',
+         'fields': {'title': 'Severidades em desenvolvimento', 'items': ['Observação editorial 1']},
+         'zones': {'group_a': {'title': 'SAST (Sandbox)', 'metrics': ['sast.sandbox.open.by_severity']},
+                   'group_b': {'title': 'SAST distintos', 'metrics': ['sast.open.distinct']},
+                   'detail': {'title': 'Mês atual × anterior', 'metrics': ['sast.sandbox.open.by_severity']},
+                   'list': {}}},
+        {'slot_id': 'ranking-aplicacoes', 'type': 'dashboard', 'layout': 'painel-tabela-grafico',
+         'fields': {'title': 'Aplicações com mais findings', 'subtitle': 'SAST (Policy)',
+                    'items': ['Recomendação editorial 1', 'Recomendação editorial 2'],
+                    'caption': 'Distribuição de aplicações por Business Unit (revisão aprovada).'},
+         'zones': {'table': {'title': 'Top 5 aplicações', 'metrics': ['sast.policy.open.top_applications'],
+                             'top_n': 5}, 'notes': {},
+                   'chart': {'title': 'Aplicações por Business Unit', 'metrics': ['apps.by_business_unit'],
+                             'chart': 'bar'}}},
+        {'slot_id': 'ranking-componentes', 'type': 'dashboard', 'layout': 'painel-tabela-grafico',
+         'fields': {'title': 'Componentes com mais findings', 'subtitle': 'SCA (Policy)',
+                    'items': ['Recomendação editorial 1'],
+                    'caption': 'Top CWE em SAST (Policy) na revisão aprovada.'},
+         'zones': {'table': {'title': 'Top 5 componentes', 'metrics': ['sca.policy.open.top_components'],
+                             'top_n': 5}, 'notes': {},
+                   'chart': {'title': 'Top CWE (SAST Policy)', 'metrics': ['sast.policy.open.by_cwe'],
+                             'chart': 'bar'}}},
+        {'slot_id': 'destaque-vulnerabilidades', 'type': 'dashboard', 'layout': 'painel-destaque-tabela',
+         'fields': {'title': 'Vulnerabilidades em destaque', 'subtitle': 'SCA (Policy)'},
+         'zones': {'highlight': {'title': 'Findings SCA abertos em produção', 'metrics': [_SCA]},
+                   'table': {'title': 'Vulnerabilidades com mais aplicações afetadas',
+                             'metrics': ['sca.policy.open.top_vulnerabilities'], 'top_n': 10}}},
+        {'slot_id': 'secao-plano', 'type': 'section', 'fields': {'title': 'Plano de ação', 'subtitle': '04'}},
+        {'slot_id': 'matriz-acoes', 'type': 'recommendations', 'layout': 'matrix',
+         'fields': {'title': 'Plano de ação', 'items': _MATRIX}},
+        {'slot_id': 'matriz-acompanhamento', 'type': 'recommendations', 'layout': 'matrix',
+         'fields': {'title': 'Acompanhamento', 'items': _MATRIX}},
+        {'slot_id': 'encerramento', 'type': 'closing', 'required': True,
+         'fields': {'title': 'Obrigado', 'subtitle': 'Próximos passos',
+                    'items': ['Contato | Texto editável de contato', 'Próxima reunião | Data e pauta (editável)',
+                              'Dúvidas | Canal de atendimento (editável)', 'Materiais | Onde encontrar os anexos']},
+         'options': {'show_presenters': True}},
+    ],
+}
+
+
 def parse_definition(raw: dict, session: Session | None = None) -> TemplateDefinition:
     try:
         defn = TemplateDefinition.model_validate(raw)

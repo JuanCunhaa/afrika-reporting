@@ -1,4 +1,4 @@
-# Inspeção local de PPTX de referência (F06B.1)
+# Inspeção local de PPTX de referência (F06B.1 + F06B)
 
 Código: `backend/app/presentations/pptx_inspect.py` (somente biblioteca padrão: `zipfile` + `ElementTree`), gerador de
 PPTX sintético `backend/app/presentations/synthetic_pptx.py`, CLI em `backend/app/cli.py`, testes em
@@ -46,6 +46,15 @@ e `data/` estão no `.gitignore` (verificado em teste).
 | `reusable` | elementos estáticos de master/layout, imagens repetidas ou de master (candidatas a logo), formas repetidas com a mesma geometria, tipos de placeholder |
 | `not_directly_reproducible` | por código: classe (`not_reproducible` / `approximate`), ocorrências, slides e tratamento sugerido — SmartArt, OLE, vídeo/áudio, animações, gráficos modernos (chartex), macros, tinta, imagem vinculada, EMF/WMF/TIFF, fontes incorporadas, WordArt, 3D, sombra/brilho, geometria livre, gradiente/padrão/imagem em forma, texto vertical, rotação, slide oculto, gráfico 3D, planilha incorporada, dados vinculados |
 | `problems` | partes ignoradas por segurança ou malformadas |
+
+### Atributos de design (F06B, sem conteúdo)
+Cor efetiva de preenchimento/contorno (esquema + `clrMap` + `lumMod/lumOff/tint/shade`), **opacidade** do
+preenchimento (`fill_alpha`, só quando < 100%), gradientes, **contorno de geometria personalizada** (`custom_path`: path
+SVG absoluto em px relativos à caixa; `None` quando usa fórmulas/guias ou passa de 4.000 caracteres), estilo de texto
+por forma (tamanhos, cores, fontes, proporção de negrito — nunca o texto), cores de séries/fatias e furo de rosca,
+estilo de tabela, fundo detalhado, imagens com referência anônima (`media-N`) e marca `vector` para SVG
+(`asvg:svgBlip`, inclusive sem bitmap reserva). `--wireframes` grava `wireframes.html`: caixas coloridas por tipo, sem
+texto nem imagem, para conferir a estrutura visualmente.
 
 ## Rascunho de tema (`--theme-draft`)
 Converte o relatório em uma `ThemeDefinition` **provisória** ("Rascunho … — NÃO aprovado"): canvas pelo tamanho do

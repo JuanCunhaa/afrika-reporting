@@ -1,4 +1,4 @@
-# Contratos de templates, documentos e gráficos (F06A + F06B.1)
+# Contratos de templates, documentos e gráficos (F06A + F06B.1 + F06B)
 
 Fonte de verdade do código: `backend/app/presentations/document.py` (esquemas Pydantic, `extra='forbid'`),
 `catalog.py` (tipos de slide) e `charts.py` (IR). Catálogo em tempo de execução: `GET /api/presentation-catalog`.
@@ -43,23 +43,38 @@ embutido).
 |---|---|---|---|---|
 | `cover` Capa | cover | 0 | — | dono, competência, período (+ `period_label` `dd/mm/aaaa a dd/mm/aaaa`, F06B.1), apresentadores |
 | `executive_summary` Sumário | text-with-highlights, text-only | 0–4 | count, decimal, percentage, by_severity | kpi |
-| `kpis` KPIs | kpi-grid | 1–6 | idem | kpi |
+| `kpis` KPIs | kpi-grid, kpi-band (F06B) | 1–6 | idem | kpi |
 | `month_comparison` Mês × anterior | comparison-table, comparison-cards | 1–6 | idem | comparison |
 | `bar_chart` Barras | chart-full, chart-with-text | 1 | `breakdown`: breakdown, ranking, by_severity; `history`: count, decimal, percentage, by_severity | bar |
 | `line_chart` Linhas | chart-full, chart-with-text | 1–4 | count, decimal, percentage, by_severity | line |
-| `severity_distribution` Severidade | chart-full, chart-with-text | 1 | by_severity | severity |
+| `severity_distribution` Severidade | chart-full, chart-with-text, severity-cards, donut (F06B) | 1 | by_severity | severity |
 | `top10_ranking` Top 10 | ranking-table, ranking-bars | 1 | ranking | ranking |
 | `metric_table` Tabela | table | 1–12 | todos | table |
-| `recommendations` Recomendações | bullets, two-columns | 0 | — | — (texto) |
-| `closing` Encerramento | closing | 0 | — | apresentadores |
+| `recommendations` Recomendações | bullets, two-columns, matrix (F06B) | 0 | — | — (texto; em `matrix` cada item é uma linha `a \| b \| c \| d`, a 1ª é o cabeçalho) |
+| `closing` Encerramento | closing | 0 | — | apresentadores; `items` (F06B) = grupos `título \| texto` |
+| `section` Seção (F06B) | section | 0 | — | dono, competência (divisor; título + subtítulo/número) |
+| `dashboard` Painel composto (F06B) | painel-kpis, painel-graficos, painel-grupos, painel-severidades, painel-tabela-grafico, painel-destaque-tabela | por zona | por zona | `{kind: dashboard, layout, zones{}}` |
 
 Campos editoriais: `title`, `subtitle`, `body`, `items[]` (≤ 12), `chart_title`, `legend_title`, `caption`, `notes`
 (notas do apresentador; fora do canvas). Opções: `months` (6|12), `data_mode` (breakdown|history), `show_values`,
 `show_legend`, `show_presenters`, `top_n` (1–10).
 
+### Painel composto e zonas (F06B)
+Um `dashboard` é um layout com **zonas tipadas** (catálogo: `DASHBOARD_LAYOUTS`; API: `slide_types[].zones`). Cada zona
+tem `kind` (`kpi_band`, `kpi_cards`, `severity_cards`, `donut`, `comparison`, `ranking`, `table`, `chart`, `text`),
+mínimo/máximo de indicadores, tipos de valor aceitos, gráficos permitidos e fração padrão de posição. No slide:
+`zones: {zona: {title?, metrics[≤6], chart? (bar|line|combo), data_mode?, months? (6|12), top_n? (1–10)}}`.
+Validação (422 `invalid_document`/`invalid_template`, `details[].type`): `unknown_zone`, `metric_count`,
+`duplicate_metric`, `unknown_metric`, `incompatible_metric`, `option_not_applicable`; `zones_not_applicable` fora do
+painel. Zonas de texto usam os campos do slide (`body` ou `items`). A IR de cada zona usa os **mesmos** construtores
+dos slides simples (nada é recalculado); `required_metrics` do slot cobre os indicadores de todas as zonas.
+Gráfico `combo` (F06B): barras da 1ª série + linha da 2ª, mesmos meses e lacunas explícitas (IR `kind: combo`).
+Retrocompatibilidade: `zones` vazio não é serializado — documentos e templates F06A mantêm os mesmos hashes (fixados
+em `backend/tests/test_afrika_template.py`).
+
 ## Documento da apresentação (por revisão)
 `{schema_version: 1, title, presenters[{name, role}], slides[{slide_id, template_slot|null, type, layout, fields,
-metrics[], options}]}` — sempre revalidado contra a versão do template. Fontes fixadas por revisão:
+metrics[], options, zones?}]}` — sempre revalidado contra a versão do template. Fontes fixadas por revisão:
 `{policy: "APPROVED_ONLY_PINNED", primary: ref, history_window: {start, end}, history: {YYYY-MM: ref}}`, com
 `ref = {competence_id, competence, revision_id, revision, approval_id, approval_sequence, content_hash, chain_hash}`.
 Hashes: `document_hash`, `sources_hash`, `revision_hash = SHA-256(presentation, number, previous_hash, document_hash,

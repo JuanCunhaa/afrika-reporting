@@ -17,12 +17,15 @@ export type CompareOptions = {
   detectAntialiasing?: boolean;
   cellSize?: number;
   maxRegions?: number;
+  /** Caixas ignoradas (ex.: conteúdo variável na comparação com uma referência real): não contam em nada. */
+  mask?: Box[];
 };
 export type CompareResult = {
   width: number;
   height: number;
   dimension_mismatch: null | { reference: [number, number]; candidate: [number, number] };
   total_pixels: number;
+  masked_pixels: number;
   identical_pixels: number;
   diff_pixels: number; // diferenças acima do limiar que NÃO são antisserrilhado
   aa_pixels: number; // diferenças classificadas como antisserrilhado
@@ -130,6 +133,7 @@ export function compareImages(ref: Image, cand: Image, opts: CompareOptions = {}
       height: cand.height,
       dimension_mismatch: { reference: [ref.width, ref.height], candidate: [cand.width, cand.height] },
       total_pixels: cand.width * cand.height,
+      masked_pixels: 0,
       identical_pixels: 0,
       diff_pixels: 0,
       aa_pixels: 0,
@@ -140,6 +144,13 @@ export function compareImages(ref: Image, cand: Image, opts: CompareOptions = {}
     };
   const { width, height } = ref;
   const limit = MAX_YIQ_DELTA * threshold * threshold;
+  const masked = new Uint8Array(width * height);
+  for (const b of opts.mask ?? []) {
+    const x0 = Math.max(0, Math.floor(b.x)), y0 = Math.max(0, Math.floor(b.y));
+    const x1 = Math.min(width, Math.ceil(b.x + b.w)), y1 = Math.min(height, Math.ceil(b.y + b.h));
+    for (let yy = y0; yy < y1; yy++) masked.fill(1, yy * width + x0, yy * width + Math.max(x0, x1));
+  }
+  let maskedCount = 0;
   const out = blankImage(width, height);
   const cols = Math.ceil(width / cell), rows = Math.ceil(height / cell);
   const cellDiff = new Uint32Array(cols * rows);
@@ -148,6 +159,11 @@ export function compareImages(ref: Image, cand: Image, opts: CompareOptions = {}
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
+      if (masked[y * width + x]) {
+        maskedCount++;
+        out.data.set([200, 220, 255, 255], i); // azul-claro: área mascarada
+        continue;
+      }
       const same =
         ref.data[i] === cand.data[i] && ref.data[i + 1] === cand.data[i + 1] && ref.data[i + 2] === cand.data[i + 2] && ref.data[i + 3] === cand.data[i + 3];
       if (same) {
@@ -182,6 +198,7 @@ export function compareImages(ref: Image, cand: Image, opts: CompareOptions = {}
     height,
     dimension_mismatch: null,
     total_pixels: width * height,
+    masked_pixels: maskedCount,
     identical_pixels: identical,
     diff_pixels: diff,
     aa_pixels: aa,

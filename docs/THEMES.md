@@ -1,4 +1,4 @@
-# Temas visuais versionados (F06B.1)
+# Temas visuais versionados (F06B.1 + F06B)
 
 Código: `backend/app/presentations/themes.py` (esquema Pydantic `ThemeDefinition`, `extra='forbid'`), ativos locais em
 `backend/app/presentations/assets.py`, migration `0006_themes`, tradução para CSS em `frontend/src/presentation/theme.ts`
@@ -36,6 +36,7 @@ e renderizador `frontend/src/presentation/SlideView.tsx`.
 | `cover`, `closing` | faixa da capa (`left`/`top`/`none`, tamanho, cor), recuos, espaçamentos, alinhamento, caixa alta do sobretítulo | |
 | `backgrounds` | `default`, `cover`, `closing`: `{color token, image asset, fit}` | |
 | `images` | logotipos/imagens: `{name, asset, box, slides: all/cover/closing/content, fit, alt}` | até 8 |
+| `components` (F06B) | aparência de componentes: cor do título, filete sob o título, selo de competência, cartão, faixa, pílula, tabela, seção, encerramento, capa (cores/fontes/alinhamento), formas decorativas `shapes[]` (`{name, box, fill, opacity, path?, radius, slides}`; `path` = contorno SVG absoluto M/L/C/Q/A/Z em px da caixa), alinhamento vertical do título por layout, moldura por zona (`zone_frames`), comparação de zona `table`/`columns`, caixas absolutas por zona de painel (`dashboards`) | omitido do hash quando igual ao padrão (o hash de `neutral-demo@1` não mudou) |
 | `charts` | viewBox (largura cheia e com texto), recuos do gráfico, divisões do eixo, barras (largura máx., proporção, raio), lacunas (tracejado), linhas/pontos, deslocamentos de rótulos, severidade (colunas e altura), ranking, amostras de legenda, textura da severidade desconhecida, posição da legenda (`top`/`bottom`) | |
 
 Validação além dos tipos (`theme_errors`): tokens de cor obrigatórios e referências existentes; caixas dentro do canvas;
@@ -79,6 +80,12 @@ de cada apresentação (`view.theme`).
    - capa mostrava o período como timestamp ISO: agora `period_label` (`01/09/2026 a 30/09/2026`) vem do backend.
    Em eixos de **meses** estreitos, rótulos passam a ser rarefeitos (um a cada N, sempre o último) em vez de truncados
    ("202…"). Nada disso altera dados, IR ou hashes de revisões; apresentações F06A abrem normalmente.
+
+## Tema `afrika@1` (F06B, provisório)
+Embutido em `themes.py` (`AFRIKA_V1`), derivado **estruturalmente** do PowerPoint de referência local (cores, fontes,
+geometria, contornos — nenhum texto/imagem): canvas 1920×1080 em modo fixo, Montserrat/Poppins/Be Vietnam Pro (OFL,
+`@fontsource/*@5.3.0`), filete e selo de competência, painéis com contorno curvo, caixas absolutas das zonas dos 6
+painéis. `provisional: true` até homologação. Mapeamento, fidelidade medida e limitações: `docs/AFRIKA_TEMPLATE.md`.
 
 ## Fluxo para o tema oficial (quando o PPTX aprovado chegar)
 1. `python -m app.cli inspect-pptx REFERENCIA.pptx --theme-draft` (local; relatório em `output/`) — ver

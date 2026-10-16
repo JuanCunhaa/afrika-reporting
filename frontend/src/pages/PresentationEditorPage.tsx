@@ -12,6 +12,8 @@ import {
   SlideOptions,
   SlideType,
   SlideTypeSpec,
+  Zone,
+  ZoneSpec,
   presentations,
 } from '../presentationsApi';
 import { VALUE_STATE_LABEL, ValueState, loadOperator, saveOperator } from '../snapshotsApi';
@@ -511,7 +513,20 @@ function SlideProps({ spec, slide, catalog, onChange }: { spec: SlideTypeSpec; s
       <p className="muted">{spec.description}</p>
       <div className="field">
         <label htmlFor="sp-layout">Layout</label>
-        <select id="sp-layout" value={slide.layout} onChange={(e) => set((s) => (s.layout = e.target.value))}>
+        <select
+          id="sp-layout"
+          value={slide.layout}
+          onChange={(e) =>
+            set((s) => {
+              s.layout = e.target.value;
+              // painel composto: só ficam as zonas que existem no novo layout
+              if (spec.zones) {
+                const ids = new Set((spec.zones[s.layout] ?? []).map((z) => z.zone));
+                s.zones = Object.fromEntries(Object.entries(s.zones ?? {}).filter(([k]) => ids.has(k)));
+              }
+            })
+          }
+        >
           {spec.layouts.map((l) => (
             <option key={l}>{l}</option>
           ))}
@@ -587,6 +602,27 @@ function SlideProps({ spec, slide, catalog, onChange }: { spec: SlideTypeSpec; s
             {{ show_values: 'Mostrar valores', show_legend: 'Mostrar legenda', show_presenters: 'Mostrar apresentadores' }[o]}
           </label>
         ))}
+      {spec.zones && (
+        <fieldset className="field">
+          <legend>Zonas do painel</legend>
+          {(spec.zones[slide.layout] ?? []).map((z) => (
+            <ZoneEditor
+              key={`${slide.layout}-${z.zone}`}
+              spec={z}
+              zone={slide.zones?.[z.zone]}
+              catalog={catalog}
+              onChange={(next) =>
+                set((s) => {
+                  const zones = { ...(s.zones ?? {}) };
+                  if (next) zones[z.zone] = next;
+                  else delete zones[z.zone];
+                  s.zones = zones;
+                })
+              }
+            />
+          ))}
+        </fieldset>
+      )}
       {spec.max_metrics > 0 && (
         <fieldset className="field checklist">
           <legend>
@@ -614,6 +650,98 @@ function SlideProps({ spec, slide, catalog, onChange }: { spec: SlideTypeSpec; s
             ))}
           </div>
         </fieldset>
+      )}
+    </div>
+  );
+}
+
+const HEADLINE_TYPES = ['count', 'decimal', 'percentage', 'by_severity'];
+const CATEGORY_TYPES = ['breakdown', 'ranking', 'by_severity'];
+
+/** Tipos de valor aceitos pela zona (gráfico: série mensal exige número principal; categorias, distribuição). */
+function zoneTypes(spec: ZoneSpec, zone: Zone | undefined): string[] {
+  if (spec.kind !== 'chart') return spec.value_types;
+  const history = zone?.chart === 'line' || zone?.chart === 'combo' || zone?.data_mode === 'history' || (!zone?.chart && spec.charts[0] !== 'bar');
+  return spec.value_types.filter((t) => (history ? HEADLINE_TYPES : CATEGORY_TYPES).includes(t));
+}
+
+function ZoneEditor({ spec, zone, catalog, onChange }: { spec: ZoneSpec; zone: Zone | undefined; catalog: Catalog; onChange: (z: Zone | undefined) => void }) {
+  const z: Zone = zone ?? { metrics: [] };
+  const id = `zone-${spec.zone}`;
+  const types = zoneTypes(spec, z);
+  const options = catalog.metrics.filter((m) => types.includes(m.value_type));
+  const full = z.metrics.length >= spec.max_metrics;
+  const put = (patch: Partial<Zone>) => onChange({ ...z, ...patch });
+  const history = z.chart === 'line' || z.chart === 'combo' || z.data_mode === 'history';
+  return (
+    <div className="zone-editor" data-testid={`zone-editor-${spec.zone}`}>
+      <strong>
+        {spec.name} <small className="muted">({spec.zone})</small>
+      </strong>
+      {spec.kind === 'text' ? (
+        <p className="muted">Texto editorial: usa o campo “{spec.text_field === 'items' ? 'Tópicos' : 'Texto'}” do slide.</p>
+      ) : (
+        <>
+          <label htmlFor={`${id}-title`}>Título da zona</label>
+          <input id={`${id}-title`} value={z.title ?? ''} maxLength={120} onChange={(e) => put({ title: e.target.value || null })} />
+          {spec.charts.length > 0 && (
+            <>
+              <label htmlFor={`${id}-chart`}>Gráfico</label>
+              <select id={`${id}-chart`} value={z.chart ?? spec.charts[0]} onChange={(e) => put({ chart: e.target.value as Zone['chart'], metrics: [] })}>
+                {spec.charts.map((c) => (
+                  <option key={c} value={c}>
+                    {{ bar: 'Barras', line: 'Linhas', combo: 'Barras + linha' }[c] ?? c}
+                  </option>
+                ))}
+              </select>
+              {(z.chart ?? spec.charts[0]) === 'bar' && (
+                <>
+                  <label htmlFor={`${id}-mode`}>Dados</label>
+                  <select id={`${id}-mode`} value={z.data_mode ?? 'breakdown'} onChange={(e) => put({ data_mode: e.target.value as Zone['data_mode'], metrics: [] })}>
+                    <option value="breakdown">Categorias da competência</option>
+                    <option value="history">Série mensal aprovada</option>
+                  </select>
+                </>
+              )}
+              {(history || (z.chart ?? spec.charts[0]) !== 'bar') && (
+                <>
+                  <label htmlFor={`${id}-months`}>Meses</label>
+                  <select id={`${id}-months`} value={z.months ?? 6} onChange={(e) => put({ months: Number(e.target.value) as 6 | 12 })}>
+                    <option value={6}>6 meses</option>
+                    <option value={12}>12 meses</option>
+                  </select>
+                </>
+              )}
+            </>
+          )}
+          {spec.kind === 'ranking' && (
+            <>
+              <label htmlFor={`${id}-top`}>Itens (máx. 10)</label>
+              <input id={`${id}-top`} type="number" min={1} max={10} value={z.top_n ?? 10} onChange={(e) => put({ top_n: Math.max(1, Math.min(10, Number(e.target.value) || 10)) })} />
+            </>
+          )}
+          <div className="checklist-items" aria-label={`Indicadores da zona ${spec.name}`}>
+            {options.map((m) => (
+              <label key={m.metric_id} className="inline" title={m.name}>
+                <input
+                  type="checkbox"
+                  checked={z.metrics.includes(m.metric_id)}
+                  disabled={!z.metrics.includes(m.metric_id) && full}
+                  onChange={(e) => put({ metrics: e.target.checked ? (spec.max_metrics === 1 ? [m.metric_id] : [...z.metrics, m.metric_id]) : z.metrics.filter((x) => x !== m.metric_id) })}
+                />
+                {m.metric_id}
+              </label>
+            ))}
+          </div>
+          <small className="muted">
+            {z.metrics.length}/{spec.max_metrics} indicador(es){spec.min_metrics > 0 ? ` · mínimo ${spec.min_metrics}` : ''}
+          </small>
+          {zone && (
+            <button type="button" className="btn small" onClick={() => onChange(undefined)}>
+              Esvaziar zona
+            </button>
+          )}
+        </>
       )}
     </div>
   );

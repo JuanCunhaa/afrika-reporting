@@ -97,3 +97,17 @@
   capturas da fixture sintética.
 - Nenhuma chamada à Veracode nesta fase.
 
+## Controles implementados na F06B (template de referência Afrika)
+- PowerPoint de referência só local em `references/` (ignorado, junto com `*.pptx *.potx *.pptm *.ppt *.ppsx *.pdf
+  *.key`); `scripts/check_repo.py` falha se algum for rastreado e se o nome do cliente/unidade da referência aparecer em
+  arquivo versionado (comparação por SHA-256 de palavras/bigramas; o nome não fica no repositório).
+- Original nunca alterado: SHA-256 conferido antes/depois da inspeção e da renderização; `scripts/render_reference.ps1`
+  abre somente leitura, sem janela, nunca salva, não encerra um PowerPoint já aberto e recusa saída versionável (só
+  `private/`, `output/`, `data/` ou fora do repositório).
+- Nada foi enviado a serviços externos/IA. Análise só pela inspeção `strict` (sem texto/números/nomes/imagens). PNGs da
+  renderização e diffs (que contêm a referência) ficam em `private/`/`output/` e não são publicados; a documentação
+  traz só números agregados.
+- Template, tema, fixtures e testes usam apenas dados sintéticos e placeholders genéricos (teste dedicado verifica a
+  ausência dos termos da referência no template e no tema).
+- Fontes de terceiros: `@fontsource/montserrat|poppins|be-vietnam-pro@5.3.0` (OFL-1.1), versões exatas, sem scripts de
+  instalação, servidas localmente (nenhuma requisição a CDN; E2E falha em requisição externa).

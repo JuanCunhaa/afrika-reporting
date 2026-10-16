@@ -18,6 +18,13 @@ test-results/
 output/
 private/
 *.pptx
+# F06B: arquivos de referência (PowerPoint real) e variantes Office nunca entram no Git
+references/
+*.potx
+*.pptm
+*.ppt
+*.ppsx
+*.key
 *.pdf
 *.csv
 *.jsonl

@@ -121,3 +121,59 @@ export async function visualPresentation(request: APIRequestContext, key: string
   await call(request, 'PUT', `/api/presentations/${p.id}/document`, { document, expected_revision: 1, operator: OP, summary: 'Apresentadores sintéticos' });
   return p.id;
 }
+
+// ---------------------------------------------------------------- F06B: caso Afrika (cliente próprio, dados sintéticos)
+
+export const AFRIKA_CLIENT = 'Cliente Afrika Sintético';
+
+function afrikaValues(i: number, label: string): Record<string, unknown> {
+  const v: Record<string, unknown> = {
+    'apps.total': 120 + i * 3,
+    'sast.policy.open.by_severity': sev(2, 6 + (i % 4), 14 + i, 9, 3, 1, i % 2),
+    'sca.policy.open.by_severity': sev(1, 4 + (i % 3), 7 + (i % 5), 5, 2, 1, 0),
+    'sast.sandbox.open.by_severity': sev(1, 3, 8 + (i % 3), 6, 2, 0, 1),
+    'sast.open.distinct': sev(2, 7, 18 + i, 11, 3, 1, 0),
+    'sca.open.distinct': sev(1, 5, 9, 6, 2, 1, 0),
+    'sast.policy.new_in_period.by_severity': sev(0, 1, 3 + (i % 2), 2, 1, 0, 0),
+    'apps.loc.total': 2_400_000 + i * 35_000,
+  };
+  if (label === PRIMARY) {
+    v['apps.without_team'] = 7;
+    v['apps.multiple_teams'] = 3;
+    v['apps.by_business_unit'] = {
+      items: ['Norte', 'Sul', 'Leste', 'Oeste', 'Centro'].map((n, k) => ({ business_unit_id: `ab${k}`, name: `Unidade ${n}`, applications: 41 - k * 7 })),
+      unknown: 0,
+      distinct_applications: 135,
+    };
+    v['sast.policy.open.top_applications'] = {
+      top: Array.from({ length: 12 }, (_, k) => ({ application_guid: `ag${k}`, name: `Aplicação Sintética ${String(k + 1).padStart(2, '0')}`, findings: 64 - k * 5 })),
+      total: 512,
+    };
+    v['sast.policy.open.by_cwe'] = {
+      top: [79, 89, 117, 327, 73, 601].map((cwe, k) => ({ cwe_id: cwe, findings: 38 - k * 5 })),
+      others: 12,
+    };
+    v['sca.policy.open.top_components'] = {
+      top: Array.from({ length: 10 }, (_, k) => ({ component_id: `ac${k}`, filename: `biblioteca-sintetica-${k + 1}.jar`, version: `2.${k}.1`, findings: 27 - k * 2, applications: 9 - (k % 5) })),
+    };
+    v['sca.policy.open.top_vulnerabilities'] = {
+      top: Array.from({ length: 10 }, (_, k) => ({ vulnerability_id: `VULN-SINT-${String(k + 1).padStart(3, '0')}`, applications: 12 - k, findings: 30 - k * 2, max_severity: ['VERY_HIGH', 'HIGH', 'MEDIUM'][k % 3] })),
+    };
+  }
+  return v;
+}
+
+/** Apresentação do template embutido `afrika-modelo@1` para um cliente sintético próprio (apps.unclassified sem valor: mostra "ausente"). */
+export async function afrikaPresentation(request: APIRequestContext): Promise<string> {
+  const clientId = await ensureClient(request, AFRIKA_CLIENT);
+  let primary = '';
+  for (const [i, label] of MONTHS.entries()) {
+    const id = await ensureApproved(request, clientId, label, afrikaValues(i, label));
+    if (label === PRIMARY) primary = id;
+  }
+  const p = await call(request, 'POST', '/api/presentations', { competence_id: primary, template_key: 'afrika-modelo', template_version: 1, title: 'Relatório Afrika sintético', operator: OP });
+  const r1 = await call(request, 'GET', `/api/presentations/${p.id}/revisions/1`);
+  const document = { ...r1.document, presenters: [{ name: 'Pessoa Sintética Um', role: 'Apresentadora' }] };
+  await call(request, 'PUT', `/api/presentations/${p.id}/document`, { document, expected_revision: 1, operator: OP, summary: 'Apresentador sintético' });
+  return p.id;
+}

@@ -1,142 +1,116 @@
-# Devolutiva Claude → ChatGPT PO — F06B.1: Preparação do Motor Visual Oficial (2026-10-15)
+# Devolutiva Claude → ChatGPT PO — F06B: Template de referência Afrika (2026-10-15)
 
-- **Fase / commits:** F06B.1 / `main` / **`4cc9c61`** (implementação + testes + docs técnicas + referências visuais
-  win32) → **`e21ebce`** (rótulos do eixo X medidos na fonte real — defeito revelado pela captura Linux; este commit também
-  levou rascunhos de STATUS/handoff, finalizados no checkpoint) → **`8169e82`** (referências visuais Linux revisadas +
-  tolerância medida; fim do modo bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F06B (reprodução definitiva), F07 e F08 NÃO iniciadas.**
-- **CI:** run `38814645692` (SHA `8169e82`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (479 passed cada), Frontend
-  typecheck+build + motor visual (11/11), E2E Chromium (30 passed; regressão visual Linux **38/38 PASS** contra referência,
-  tolerância 0, ruído medido 0). Anteriores (bootstrap das referências Linux): `38813391234` (`4cc9c61`) e `38814142754`
-  (`e21ebce`) — success.
+- **Fase / commits:** F06B / `main` / __COMMITS__. Push feito. **F07 e F08 NÃO iniciadas.**
+- **CI:** __CI__
 - Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada.
+- **PowerPoint de referência:** só local em `references/` (ignorado, nunca rastreado); original **intacto** (SHA-256
+  conferido antes/depois de cada leitura e da renderização); nada enviado a serviços externos; nenhum texto, número,
+  nome ou imagem dele entrou no repositório, em prompts, logs ou fixtures.
 
-## 1. Funcionalidades implementadas
-- **Temas versionados** (`backend/app/presentations/themes.py`, migration `0006_themes`): esquema tipado e completo de
-  tokens; versões imutáveis (append-only por gatilho, `definition_hash` sobre todos os valores, auditoria
-  `theme.version_created`); temas embutidos no código (só `neutral-demo@1`, provisório) e próprios no banco local;
-  API (`/api/presentation-themes…`) e CLI (`theme-create`). **Tema por cliente** via template (cada dono escolhe o seu).
-- **Ativos locais** (`assets.py`): logos/fontes/fundos por SHA-256 em `AFRIKA_ASSET_DIR` (padrão `data/theme-assets/`,
-  ignorado); tipo pela assinatura; SVG saneado; servido com CSP sandbox e conferência de hash; ativo ausente = aviso.
-- **Renderizador sem valores codificados** (`SlideView.tsx` + `theme.ts` + CSS): ~120 variáveis de tema; regiões
-  `flow`/`fixed`, sobreposição por layout, cabeçalho/rodapé configuráveis, capa/encerramento, fundos, imagens, `@font-face`
-  de fontes locais, geometria SVG dos gráficos por token, canvas de qualquer proporção (testado 16:9 e 4:3).
-- **Rota de captura** `#/render/{id}[/{rev}]` (escala 1, sinal `data-render-ready`) e marcadores `data-el` /
-  `data-provenance` (indicador|competência|estado|origem) nos componentes.
-- **Inspeção PPTX local** (`inspect-pptx`) + **PPTX sintético** (`synthetic-pptx`) + **rascunho de tema** não aprovado.
-- **Motor de comparação visual** (`frontend/visual/`, TypeScript sem dependências) + regressão E2E com 2 temas × 19
-  slides + relatório JSON/Markdown + PNG de diferença + tolerâncias medidas por plataforma.
-- **Editor**: correções de confiabilidade (seção 6) e testes específicos.
-- Revisão dos 11 tipos: período da capa legível (`period_label`, backend), legenda não invade mais o rodapé, gráfico no
-  layout com texto em escala real, rótulos de mês rarefeitos em vez de truncados; unidades/lacunas/ausentes/manuais e
-  proveniência preservados (proveniência agora também por elemento). Nada foi convertido em imagem.
+## 1. Layouts implementados (template `afrika-modelo@1` + tema `afrika@1`, provisório)
+Sequência de 16 slots espelhando a referência, todos com conteúdo sintético/placeholder e indicadores só por `metric_id`:
+| # | Slot | Tipo/layout | Componentes |
+|---|---|---|---|
+| 1 | `capa` | `cover` | painel branco 95% com borda direita curva (contorno extraído), área de foto, sobretítulo, título, competência, apresentadores |
+| 2–4, 13 | `secao-*` | **`section` (novo)** | fundo roxo, título vertical, subtítulo/número, área de foto |
+| 5 | `painel-kpis` | **`dashboard`/painel-kpis** | faixa de KPIs, cartões com pílula de variação, tabela, comentário |
+| 6 | `painel-graficos` | dashboard/painel-graficos | destaques, tópicos, 2 roscas, comparação, **gráfico combo** |
+| 7 | `painel-grupos` | dashboard/painel-grupos | 2 grupos de KPIs, tópicos, comparação, gráfico |
+| 8–9 | `painel-severidades(-dev)` | dashboard/painel-severidades | 2 blocos de cartões de severidade, comparação em colunas, tópicos |
+| 10–11 | `ranking-*` | dashboard/painel-tabela-grafico | ranking top N, observações, gráfico, legenda |
+| 12 | `destaque-vulnerabilidades` | dashboard/painel-destaque-tabela | faixa de destaque, ranking |
+| 14–15 | `matriz-*` | `recommendations`/**`matrix` (novo)** | cabeçalho roxo, rótulos de linha, células editáveis |
+| 16 | `encerramento` | `closing` (+`items`) | painel com borda inferior curva, título, grupos “título \| texto” |
+Cabeçalho comum: título Montserrat Black centralizado, filete 113×5 e **selo de competência** (mês/ano). Mapeamento
+completo e tokens: `docs/AFRIKA_TEMPLATE.md`.
 
-## 2. Formato dos temas
-`{name, description, provisional, notice, canvas{width,height}, colors{token:#hex}, fonts{heading,body,numeric:{stack[],
-export_family, asset?}}, weights, sizes, line_heights, spacing, radii, borders, layout{mode flow|fixed, body, header,
-content, footer{x,w,bottom,reserve}, visual_side_ratio, summary_ratio}, layouts{<layout>: overrides}, header, footer{show,
-items[], separator, custom_text}, cover, closing, backgrounds{default,cover,closing}, images[{name, asset, box, slides,
-fit, alt}], charts{viewBox, recuos, barras, linhas, lacunas, severidade, ranking, legenda…}}`. Validação: cores
-obrigatórias e referências, caixas no canvas, **conteúdo não invade o rodapé**, fontes com genérica no fim e nomes
-seguros, ativos do tipo certo, layouts conhecidos. Exemplo sintético completo: `frontend/e2e/visual-theme.ts`. Detalhes:
-`docs/THEMES.md`. **Decisão:** o catálogo (`GET /api/presentation-catalog`) passou a listar **resumos** de temas (antes:
-a definição do tema embutido); o tema completo continua em `view.theme` e em `GET /api/presentation-themes/{k}/versions/{v}`.
+## 2. Arquivos alterados
+- Backend: `presentations/catalog.py` (tipos `section`/`dashboard`, `DASHBOARD_LAYOUTS` com zonas tipadas, layouts
+  `kpi-band`, `severity-cards`, `donut`, `matrix`), `document.py` (modelo `Zone` + validação; `zones` vazio não é
+  serializado), `view.py` (IR por zona, seção), `charts.py` (`combo`; rótulo de ranking do adaptador),
+  `themes.py` (grupo `components`; tema `afrika@1`), `templates.py` (`afrika-modelo@1`), `pptx_inspect.py` (cores
+  efetivas, opacidade, contorno de geometria personalizada, estilo de texto sem texto, `svgBlip`, wireframes), `cli.py`
+  (`--wireframes`).
+- Frontend: `SlideView.tsx` (seção, painel/zonas, faixa e cartões de KPI, cartões de severidade, rosca, combo, matriz,
+  comparação em colunas, formas com contorno/opacidade, selo, filete), `theme.ts`, `presentationsApi.ts`, `styles.css`,
+  `PresentationEditorPage.tsx` (editor de zonas), `main.tsx` + `package.json/lock` (fontes OFL `@fontsource/*@5.3.0`).
+- Visual: `visual/diff.ts` (máscaras), `engine.test.ts`, `reference-map.json`, `e2e/visual-fixture.ts` e
+  `visual.spec.ts` (caso `afrika`, viewport 1920×1080), `e2e/reference.spec.ts` (comparação local), referências
+  `baselines/{win32,linux}/afrika/`.
+- Testes: `test_afrika_template.py` (novo, 17), `test_pptx_inspect.py` (+1), `test_presentations.py`/`test_api.py`
+  (4 templates embutidos), `e2e/afrika.spec.ts` (novo).
+- Segurança/scripts: `.gitignore` (`references/`, `*.potx *.pptm *.ppt *.ppsx *.key`), `scripts/check_repo.py` (falha
+  com arquivo de referência rastreado ou nome do cliente da referência em arquivo versionado — via SHA-256),
+  `scripts/render_reference.ps1` (render local somente leitura).
+- Docs: `AFRIKA_TEMPLATE.md` (novo), `THEMES.md`, `PRESENTATIONS.md`, `PRESENTATION_CONTRACTS.md`,
+  `VISUAL_REGRESSION.md`, `PPTX_INSPECTION.md`, `SECURITY.md`, `STATUS.md`; `prompts/F06B_AFRIKA_TEMPLATE.md`.
 
-## 3. Capacidades de inspeção PPTX
-Local, só biblioteca padrão, sem rede, sem executar/ler macros, OLE ou planilhas, sem extrair arquivos; limites contra
-zip bomb e XML com DOCTYPE. Relatório (`report.json`/`report.md`, em `output/` ou fora do repo — área versionável é
-recusada): nº/ordem/ocultos, dimensões (EMU/pol/px/proporção), masters/layouts (placeholders com caixas, estilos de
-texto, elementos estáticos, uso por slide), tema (12 slots de cor, fontes major/minor), cores e fontes usadas
-(+ tamanhos), formas (caixa em px com grupos e herança de placeholder), textos (só estatísticas), gráficos (tipo,
-séries, pontos, formatos — **sem valores/categorias**), tabelas (dimensões, mesclas, estilo), imagens (formato, pixels,
-hash, uso), elementos reutilizáveis (estáticos de master/layout, imagens repetidas, geometrias repetidas) e **não
-reproduzíveis** com classe e tratamento (SmartArt, OLE, vídeo, animação, chartex, macros, EMF/WMF, WordArt, 3D, efeitos,
-geometria livre, gradiente, fontes incorporadas, dados vinculados…). Privacidade: nenhum texto/valor/nota/comentário;
-`strict` (padrão) também sem nomes/arquivo/URLs; testado com sentinelas. `--theme-draft` gera tema provisório validado
-(cores do esquema, fontes, regiões dos placeholders do master) com `needs_review`. Doc: `docs/PPTX_INSPECTION.md`.
+## 3. Decisões
+1. **Análise só estrutural** (inspeção `strict`): nunca li texto/números/imagens do PPTX; renderizações reais ficam em
+   `private/` e só números agregados de comparação foram usados.
+2. **Painel composto com zonas** em vez de 8 tipos fixos: cada zona reaproveita os construtores de IR da F06A (nada é
+   recalculado) e tem indicadores/gráfico editáveis, validados pelo catálogo.
+3. **Retrocompatibilidade provada:** hashes de `neutral-demo@1` e dos templates F06A inalterados (fixados em teste);
+   regressão visual neutro/alternativo idêntica.
+4. **Contornos e opacidade** extraídos da geometria da referência (não desenhados à mão): capa 8,9% → 0,1% de diferença.
+5. **Sem semântica inventada:** pílula de variação neutra (contrato não diz se subir é bom); rosca sem percentuais
+   derivados; ausente ≠ zero (estado e motivo explícitos; `required_metrics` vira bloqueio).
+6. Severidade × cor **inferida** da paleta de status — precisa de confirmação do PO.
 
-## 4. Estratégia de comparação visual
-Captura determinística (rota de render, escala 1, viewport do canvas, DPR 1, sem animação/cursor, espera de fontes e
-imagens) + **manifesto** por elemento (caixa, hash do texto, fonte computada e **fonte real de plataforma** via CDP, cores)
-→ comparação: dimensões; pixel (YIQ perceptual, limiar 0) com **antisserrilhado contado à parte**; regiões; diferenças de
-manifesto classificadas em **conteúdo / fonte / layout / estilo** e regiões atribuídas (sem diferença semântica =
-**rasterização**); lista de desalinhados (dx/dy/dw/dh) e alinhamentos rompidos. **Tolerâncias medidas**: cada execução
-captura 2× (3× em medição) e falha se o ruído exceder o registrado; win32: 0/0/0; linux (CI): 0/0/0, e entre duas execuções de CI em runners distintos 37/38 slides idênticos (o 38º foi o
-slide corrigido entre elas). Referências por
-plataforma (fontes/rasterização diferem entre SOs). Evidência de uso real nesta fase: a conversão do tema F06A foi
-provada idêntica (19/19), as correções deliberadas apareceram isoladas e corretamente categorizadas, e a primeira
-captura Linux revelou rótulos de mês sobrepostos (estimativa de largura válida só para Segoe UI) — corrigido medindo a
-largura real do texto na fonte do tema. Comparação com o
-PPTX oficial: plano em `docs/VISUAL_REGRESSION.md` (exportar PNG localmente, medir tolerância entre renderizadores com
-slides de controle antes de qualquer veredito). **Pendente** até o arquivo aprovado.
+## 4. Fidelidade visual alcançada (comparação local por slide, conteúdo mascarado dos dois lados)
+| Slides | Dif. Δ>0,08 (pixels não mascarados) |
+|---|---|
+| capa | 0,1% |
+| seções (4) | 0,3% |
+| painéis (8) | 0,4% – 1,8% |
+| matrizes (2) | 0,6% |
+| encerramento | 0,7% |
+Geometria: 41/67 pares não textuais coincidem em ≤2 px, 44 em ≤5 px, 51 em ≤15 px (o restante é área de foto que
+excede o canvas, posição das roscas, alturas variáveis de linhas/gráficos — ver `docs/AFRIKA_TEMPLATE.md` §5–6).
+**Isto mede a estrutura sob máscara, não o conteúdo nem a tipografia.**
 
 ## 5. Testes
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` (local) | **PASS 479** (438 + 41: temas 29, PPTX 9, confiabilidade backend 3) |
-| E2E Chromium `npm run test:e2e` | **PASS 30/30** (24 + 6: regressão visual 1 [38 slides], confiabilidade 5) em **3 rodadas completas** locais |
-| Repetições: `presentations` + `editor-reliability` + `scopes` ×5 | **PASS 50/50**; `editor-reliability` ×3 isolado 15/15 |
-| Regressão visual (win32) | **38/38 PASS** (2 temas × 19 slides), ruído medido 0 em 3 capturas |
-| Motor visual `npm run test:visual-unit` | **PASS 11/11** (PNG, diff, antisserrilhado, regiões, manifesto, veredito) |
-| build; `npm audit` (total e prod); `pip check` | OK; 0 vulnerabilidades; OK |
-| gitleaks (staged) | 0 achados |
-| `check_repo`; `check_env_example` | OK (F06B.1); SEGURO |
-| migrations CLI (migrate, db-status, seed ×2, migrate) em banco novo | OK (`0006_themes`); CLI inspect→draft→theme-create OK |
-| CI GitHub run `38814645692` (`8169e82`, estrito) | **success** — 479/479 (3.11 e 3.14), build + motor visual 11/11, E2E 30/30, visual Linux 38/38 |
-| Ruído Linux entre execuções de CI (`38813391234` × `38814142754`) | 37/38 idênticos; 1 = slide corrigido entre as execuções |
+| `python -m pytest -q` (local) | **PASS 498** (479 + 19: Afrika 17, inspeção PPTX 2) |
+| E2E Chromium `npm run test:e2e` | **PASS 31 + 1 SKIPPED** (afrika +1; `reference.spec.ts` pulado sem o arquivo — esperado) em **3 rodadas completas** |
+| Regressão visual (win32) | **54/54 PASS** (neutro 19 + alternativo 19 idênticos às referências anteriores + afrika 16) |
+| Comparação com a referência (local) | executada; números na seção 4 (`output/reference-compare/`, não versionado) |
+| Motor visual `npm run test:visual-unit` | **PASS 12/12** (+ máscara) |
+| build; `npm audit`; `pip check` | OK; 0 vulnerabilidades; OK |
+| gitleaks (staged) | __GITLEAKS__ |
+| `check_repo`; `check_env_example` | __CHECKREPO__; SEGURO |
+| migrations CLI em banco novo | OK (`0006_themes`; seed cria 4 templates) |
+| SHA-256 do PPTX de referência após tudo | **inalterado** |
+| CI GitHub | __CI_TABLE__ |
 | `tests_live` | NOT_RUN (fase sem chamadas reais) |
 
-## 6. Intermitência do editor
-- **Defeitos reproduzidos e corrigidos (com teste de regressão):** **D1** — edição feita enquanto o PUT estava em
-  andamento era sobrescrita pela releitura (reproduzido com resposta de salvamento retida); **D2** — após "Descartar",
-  uma pré-visualização atrasada reexibia o conteúdo descartado. Também: voltar manualmente ao texto salvo deixava
-  visualização/erro órfãos; falha na releitura após HTTP 200 aparecia como erro genérico (agora "a revisão N foi
-  gravada, mas a releitura falhou", sem retry e sem "alterações não salvas" falso); duplo clique tem guarda síncrona
-  (1 PUT). Concorrência entre abas e resposta antiga após edição mais recente já estavam corretas (agora testadas).
-- **Intermitência F06A (GET sem resposta > 5 s após PUT 200): NOT_REPRODUCED.** Evidência: experimento de carga real
-  (uvicorn + proxy do Vite, 6 editores concorrentes, 60 s, 4.335 requisições incluindo 489 releituras triplas logo
-  após o 200): 0 erros reais, 0 requisições > 2 s, máx. 744 ms; backend: leitura imediata após 200 consistente com 4
-  leitores/pré-visualizações concorrentes; E2E 50/50 em repetição. **Não há evidência de que o SQLite seja a causa**;
-  nenhum retry foi adicionado. Com a correção de D1, o editor não depende mais da releitura para o estado salvo.
+## 6. Riscos e limitações
+1. Imagens de marca (fotos, ilustração, logos, ícones e texto do master) **não reproduzidas** — viram áreas
+   reservadas; exigem ativos aprovados.
+2. Tema `afrika@1` é **provisório** até homologação; severidade × cor e cor de variação dependem do PO.
+3. Fontes da referência não estavam instaladas na máquina que renderizou o PowerPoint; a comparação mascara texto, então
+   tipografia não está medida.
+4. Referências Linux do caso `afrika` foram criadas pelo CI (bootstrap temporário, removido) e revisadas visualmente
+   (dados sintéticos); mudança da imagem do runner pode exigir nova referência.
+5. `licenses.usage` (unidade `findings`) segue pendente (herdado; não usado no template Afrika).
 
-## 7. Limitações de elementos editáveis (PPTX futuro)
-Matriz em `docs/PRESENTATIONS.md`: textos → caixas/placeholder editáveis; KPIs/tabelas/ranking/comparação → tabelas ou
-caixas editáveis; barras/linhas/série → gráficos nativos (dados da IR; lacuna = ponto vazio); severidade → barras nativas
-ou tabela; logos/fundos → imagem (não vetorial; SVG requer PNG de reserva); faixas/barras → formas nativas. Sem
-equivalente editável exato: textura CSS repetida da severidade desconhecida, `object-fit: cover` (vira recorte),
-rarefação de rótulos (decidida pelo PowerPoint), escala de eixo (geometria). Exportação NOT_STARTED (F07).
+## 7. Pendências para o PO
+- Homologar `afrika@1` (identidade, severidade × cor), aprovar ativos de marca, decidir cor de variação por direção.
+- Confirmar se a sequência de 16 slots e os indicadores sugeridos nas zonas atendem ao relatório padrão.
 
-## 8. Riscos, decisões e observações
-1. **Template oficial ausente**: nada de identidade visual foi inventado; tema neutro segue provisório.
-2. `neutral-demo@1` convertido ao novo esquema com 3 correções visuais deliberadas (evidência de diff); hash fixado a
-   partir de agora (mudança futura = v2).
-3. Referências Linux dependem da imagem do runner do GitHub (fontes); atualização do runner pode exigir nova referência
-   (o relatório categoriza como fonte/rasterização).
-4. Observação para o PO (não alterado): o contrato F04 de `licenses.usage` usa unidade `findings` — provavelmente
-   deveria ser "licenças"; mudar exige nova versão de contrato.
-5. Identidade declarada (sem autenticação); SQLite local; upload de ativos só em loopback.
-
-## 9. Dependências para concluir a F06B
-1. **PPTX de referência aprovado** (fora do repo) e confirmação de quais slides/variações são oficiais.
-2. Fontes oficiais **licenciadas** (arquivos ou nomes) e logos aprovados como ativos locais.
-3. Decisões do PO sobre tokens sem equivalente no PPTX (rampa de severidade, cores de lacuna/manual) e sobre elementos
-   não reproduzíveis apontados pela inspeção.
-4. Mapeamento de cada bloco do template oficial a `metric_id` + versões de contrato e `required_metrics`.
-5. Renderizações PNG de referência exportadas localmente do PPTX aprovado para a comparação visual.
-
-**Prompt sugerido para a próxima fase (não executado):** "F06B.2 — Com o PPTX de referência aprovado (fora do repo),
-rodar `inspect-pptx --theme-draft`, revisar o rascunho com o PO e criar o tema oficial versionado (ativos licenciados
-locais); publicar as versões de template correspondentes mapeando cada bloco a `metric_id` + contrato e
-`required_metrics`; exportar localmente os slides de referência em PNG, medir a tolerância PowerPoint×Chromium com slides
-de controle e rodar a comparação visual + verificação semântica (nº de slides, textos, valores); manter o tema
-demonstrativo; sem exportação PPTX/PDF (F07)."
+**Prompt sugerido para a próxima fase (não executado):** "F07 — Exportação PPTX/PDF a partir da visualização
+aprovada (IR + tema): spike de editabilidade com `python-pptx` (textos e tabelas editáveis, gráficos nativos a partir da
+IR com lacuna = ponto vazio, formas com contorno via `custGeom`, zonas como grupos), export do template
+`afrika-modelo@1` e dos demonstrativos, comparação visual PPTX exportado × HTML com o motor existente e PDF com
+fidelidade medida; sem IA (F08) e sem coleta real."
 
 ---
 
 ## Versão compacta para o PO
-F06B.1 concluída (`4cc9c61`, `e21ebce`, `8169e82`; CI estrito verde run `38814645692`). Temas versionados com tokens completos e
-ativos locais fora do Git (tema por cliente via template; componentes sem valores codificados; F06A preservada — 19/19
-idêntico antes das 3 correções deliberadas), inspeção local de PPTX sem conteúdo confidencial (com rascunho de tema),
-motor de comparação visual próprio com manifesto e tolerâncias medidas (win32 e Linux: ruído 0; 38/38 em cada; a
-captura Linux já pegou e motivou a correção de rótulos sobrepostos), e editor corrigido (2 defeitos
-reproduzidos e cobertos). Testes: pytest 479, E2E 30 (×3), visual 38/38, unit 11, build/audit/pip/gitleaks OK.
-Intermitência F06A não reproduzida (sem evidência contra SQLite; sem retry). F06B definitiva aguarda o PPTX aprovado.
+F06B concluída (__COMMITS_SHORT__; __CI_SHORT__). Template `afrika-modelo@1` (16 slots: capa, 4 seções, 8 painéis
+compostos com zonas editáveis, 2 matrizes, encerramento) + tema `afrika@1` provisório, derivados só da estrutura do
+PowerPoint local (sem conteúdo dele no repo). Genérico para qualquer cliente/subcliente, indicadores e nº de slides
+configuráveis, dados só de revisões aprovadas. Fidelidade estrutural medida por slide: 0,1%–1,8% de diferença (Δ>0,08,
+conteúdo mascarado). Testes: pytest 498, E2E 31 (×3), visual 54/54, unit 12, build/audit/pip/gitleaks OK. Pendências:
+ativos de marca, homologação da identidade e da cor por severidade.

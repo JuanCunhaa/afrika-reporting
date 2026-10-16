@@ -18,9 +18,9 @@ from __future__ import annotations
 import json
 import math
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationError, model_serializer, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -268,7 +268,7 @@ class Backgrounds(_Strict):
     closing: Background | None = None
 
 
-SlideScope = Literal['all', 'cover', 'closing', 'content']
+SlideScope = Literal['all', 'cover', 'closing', 'content', 'section']
 
 
 class ImageSlot(_Strict):
@@ -321,6 +321,131 @@ class Charts(_Strict):
     legend_position: Literal['top', 'bottom'] = 'top'
 
 
+# ---------------------------------------------------------------- componentes (F06B; omitidos do hash no padrão)
+
+class Underline(_Strict):
+    """Filete decorativo centralizado logo abaixo da caixa do título."""
+    w: Pos
+    h: Pos
+    color: ColorToken = 'accent'
+    radius: Px = 0
+    offset: Annotated[float, Field(ge=-200, le=200)] = 0
+
+
+class Badge(_Strict):
+    """Selo da competência (mês abreviado + ano) em posição fixa do slide de conteúdo."""
+    box: Box
+    fill: ColorToken = 'band'
+    border: ColorToken = 'accent'
+    border_width: Px = 2
+    radius: Px = 12
+    month_size: Pos = 24
+    year_size: Pos = 16
+    color: ColorToken = 'accent'
+    year_color: ColorToken = 'text.secondary'
+
+
+class CardStyle(_Strict):
+    fill: ColorToken = 'surface'
+    border: ColorToken = 'border'
+    border_width: Px = 1
+    radius: Px = 12
+    padding_y: Px = 16
+    padding_x: Px = 20
+    title_size: Pos = 18
+    title_color: ColorToken = 'text.primary'
+
+
+class BandStyle(_Strict):
+    fill: ColorToken = 'band'
+    radius: Px = 12
+    padding: Px = 16
+    label_color: ColorToken = 'text.secondary'
+
+
+class PillStyle(_Strict):
+    fill: ColorToken = 'band'
+    color: ColorToken = 'text.secondary'
+    radius: Px = 999
+    size: Pos = 14
+    padding_x: Px = 12
+    padding_y: Px = 4
+
+
+class TableStyle(_Strict):
+    header_fill: ColorToken | None = None  # None = transparente
+    header_color: ColorToken = 'text.secondary'
+    header_rule: ColorToken = 'axis'
+    row_rule: ColorToken = 'grid'
+    zebra_fill: ColorToken | None = None
+
+
+class SectionStyle(_Strict):
+    background: ColorToken = 'accent'
+    title_color: ColorToken = 'surface'
+    subtitle_color: ColorToken = 'surface'
+    title_size: Pos = 72
+    subtitle_size: Pos = 40
+    orientation: Literal['horizontal', 'vertical'] = 'horizontal'
+    title_box: Box | None = None  # None = região de conteúdo do layout
+
+
+FontRole = Literal['heading', 'body', 'numeric']
+
+
+class ClosingColors(_Strict):
+    title: ColorToken = 'text.primary'
+    text: ColorToken = 'text.primary'
+    accent: ColorToken = 'text.secondary'
+    title_font: FontRole = 'heading'
+    title_weight: Weight | None = None  # None = weights.cover_title
+    title_size: Pos | None = None  # None = sizes.cover_title
+    valign: Literal['top', 'center'] = 'center'  # top: título no alto e grupos de texto na base
+
+
+class ShapeSlot(_Strict):
+    """Forma decorativa nativa (painel, faixa, área reservada a foto): vira forma editável no PPTX futuro."""
+    name: Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=r'^[a-z0-9][a-z0-9-]*$')]
+    box: Box
+    fill: ColorToken
+    opacity: Annotated[float, Field(gt=0, le=1)] = 1.0  # ex.: painel branco translúcido sobre fundo de marca
+    # contorno personalizado (path SVG em px relativos à caixa; só comandos absolutos M L C Q A Z). None = retângulo
+    path: Annotated[str, StringConstraints(max_length=4000, pattern=r'^[MLCQAZ0-9 .\-]+$')] | None = None
+    radius: Px = 0
+    slides: list[SlideScope] = Field(default_factory=lambda: ['all'], min_length=1, max_length=5)
+
+
+VAlign = Literal['top', 'center', 'bottom']
+ZoneFrame = Literal['band', 'card', 'plain']
+
+
+class Components(_Strict):
+    title_color: ColorToken = 'text.primary'
+    zone_comparison: Literal['table', 'columns'] = 'table'  # comparação dentro de zonas de painel
+    comparison_fill: ColorToken = 'band'  # fundo do painel interno da comparação em colunas
+    header_valign: VAlign = 'top'  # alinhamento vertical do título na caixa do cabeçalho (modo fixo)
+    header_valign_by_layout: dict[str, VAlign] = Field(default_factory=dict)
+    zone_frames: dict[str, dict[str, ZoneFrame]] = Field(default_factory=dict)  # moldura por zona (sobrepõe o tipo)
+    title_underline: Underline | None = None
+    badge: Badge | None = None
+    card: CardStyle = Field(default_factory=CardStyle)
+    band: BandStyle = Field(default_factory=BandStyle)
+    pill: PillStyle = Field(default_factory=PillStyle)
+    table: TableStyle = Field(default_factory=TableStyle)
+    section: SectionStyle = Field(default_factory=SectionStyle)
+    closing: ClosingColors = Field(default_factory=ClosingColors)
+    cover_title_color: ColorToken = 'text.primary'
+    cover_kicker_color: ColorToken = 'text.secondary'
+    cover_valign: Literal['top', 'bottom'] = 'top'
+    cover_title_font: FontRole = 'heading'
+    cover_kicker_font: FontRole = 'body'
+    cover_kicker_weight: Weight = 400
+    shapes: list[ShapeSlot] = Field(default_factory=list, max_length=16)
+    severity_bar_width: Pos = 6
+    donut_hole: Annotated[float, Field(ge=0.3, le=0.85)] = 0.6
+    dashboards: dict[str, dict[str, Box]] = Field(default_factory=dict)
+
+
 class Canvas(_Strict):
     width: Annotated[int, Field(ge=320, le=3840)]
     height: Annotated[int, Field(ge=180, le=2160)]
@@ -351,6 +476,20 @@ class ThemeDefinition(_Strict):
     backgrounds: Backgrounds = Field(default_factory=Backgrounds)
     images: list[ImageSlot] = Field(default_factory=list, max_length=8)
     charts: Charts = Field(default_factory=Charts)
+    components: Components = Field(default_factory=Components)
+
+    # F06B: grupos acrescentados depois da v1 saem do JSON canônico (e do hash) quando estão no padrão — versões
+    # publicadas antes deles (ex.: neutral-demo@1) mantêm exatamente o mesmo hash.
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('components',)
+
+    @model_serializer(mode='wrap')
+    def _omit_new_defaults(self, handler):
+        data = handler(self)
+        for name in self._OMIT_IF_DEFAULT:
+            if name in data and getattr(self, name) == type(self).model_fields[name].get_default(
+                    call_default_factory=True):
+                del data[name]
+        return data
 
     @model_validator(mode='after')
     def _coherent(self) -> ThemeDefinition:
@@ -415,6 +554,41 @@ def theme_errors(t: ThemeDefinition) -> list[str]:
         out.append('layout.footer: fora do canvas')
     if 'custom_text' in t.footer.items and not t.footer.custom_text:
         out.append('footer.custom_text: obrigatório quando o item custom_text é usado')
+    c = t.components
+    crefs = [('components.title_color', c.title_color), ('components.cover_title_color', c.cover_title_color),
+             ('components.cover_kicker_color', c.cover_kicker_color), ('components.comparison_fill', c.comparison_fill),
+             *(('components.' + g + '.' + k, v) for g in ('card', 'band', 'pill', 'table', 'section', 'closing')
+               for k, v in getattr(c, g).model_dump().items()
+               if isinstance(v, str) and k not in ('orientation', 'title_font', 'valign')),
+             *((f'components.shapes.{sh.name}.fill', sh.fill) for sh in c.shapes)]
+    if c.title_underline:
+        crefs.append(('components.title_underline.color', c.title_underline.color))
+    if c.badge:
+        crefs += [(f'components.badge.{k}', getattr(c.badge, k)) for k in ('fill', 'border', 'color', 'year_color')]
+    out += [f'{name}: cor "{tok}" não definida em colors' for name, tok in crefs if tok not in t.colors]
+    boxes = [(f'components.shapes.{sh.name}', sh.box) for sh in c.shapes]
+    boxes += [('components.badge', c.badge.box)] if c.badge else []
+    boxes += [('components.section.title_box', c.section.title_box)] if c.section.title_box else []
+    from app.presentations.catalog import DASHBOARD_LAYOUTS  # import tardio
+    known_layouts = {lay for s in SLIDE_TYPES.values() for lay in s.layouts}
+    out += [f'components.header_valign_by_layout.{k}: layout inexistente' for k in c.header_valign_by_layout
+            if k not in known_layouts]
+    for lay, frames in c.zone_frames.items():
+        if lay not in DASHBOARD_LAYOUTS:
+            out.append(f'components.zone_frames.{lay}: layout de painel inexistente')
+        else:
+            out += [f'components.zone_frames.{lay}.{z}: zona inexistente' for z in frames if z not in DASHBOARD_LAYOUTS[lay]]
+    for lay, zones in c.dashboards.items():
+        if lay not in DASHBOARD_LAYOUTS:
+            out.append(f'components.dashboards.{lay}: layout de painel inexistente')
+            continue
+        for zid, box in zones.items():
+            if zid not in DASHBOARD_LAYOUTS[lay]:
+                out.append(f'components.dashboards.{lay}.{zid}: zona inexistente')
+            boxes.append((f'components.dashboards.{lay}.{zid}', box))
+    out += [f'{name}: caixa fora do canvas' for name, box in boxes if not _inside(box, t.canvas)]
+    if len({sh.name for sh in c.shapes}) != len(c.shapes):
+        out.append('components.shapes: nomes repetidos')
     return out
 
 
@@ -454,7 +628,143 @@ NEUTRAL_DEMO_V1: dict = {
     'backgrounds': {'default': {'color': 'surface'}, 'closing': {'color': 'band'}},
 }
 
-BUILTIN: dict[tuple[str, int], dict] = {('neutral-demo', 1): NEUTRAL_DEMO_V1}
+
+
+def _pt(points: float) -> float:
+    """Tamanho em pontos do PowerPoint -> px CSS do canvas (96 dpi)."""
+    return round(points * 4 / 3, 2)
+
+
+def _box(x: float, y: float, w: float, h: float) -> dict:
+    return {'x': x, 'y': y, 'w': w, 'h': h}
+
+
+# F06B — tema Afrika v1, reproduzido do PPTX de referência por inspeção LOCAL e estrutural (cores, fontes, tamanhos e
+# geometria; nenhum texto, imagem ou número do arquivo). Fontes livres (OFL) empacotadas no frontend (@fontsource).
+# Logotipos/fotos NÃO fazem parte do tema embutido: entram como ativos locais aprovados (ver docs/AFRIKA_TEMPLATE.md).
+AFRIKA_V1: dict = {
+    'name': 'Afrika',
+    'description': 'Identidade visual Afrika reproduzida do template de referência (F06B): paleta roxa, Montserrat '
+                   'Black nos títulos, Poppins no corpo e Be Vietnam Pro nos números.',
+    'provisional': True,
+    'notice': 'Tema Afrika v1 — reproduzido do PowerPoint de referência; aguardando aprovação do PO.',
+    'canvas': {'width': 1920, 'height': 1080},
+    'colors': {
+        'surface': '#FFFFFF', 'page': '#FFFFFF', 'band': '#F2EEF5',
+        'text.primary': '#2B0B43', 'text.secondary': '#575757', 'text.muted': '#888888',
+        'grid': '#F2EEF5', 'axis': '#DCC6EB', 'border': '#F2EEF5', 'accent': '#5D2482',
+        'series.1': '#5D2482', 'series.2': '#2B0B43', 'series.3': '#D72369', 'series.4': '#FE6041',
+        # Severidade: cores de status presentes no template (vermelho → laranja → âmbar → verde); mapeamento
+        # semântico inferido da estrutura — confirmar com o PO (docs/AFRIKA_TEMPLATE.md).
+        'severity.VERY_HIGH': '#C00000', 'severity.HIGH': '#DE425B', 'severity.MEDIUM': '#FE6041',
+        'severity.LOW': '#FFA600', 'severity.VERY_LOW': '#FFC000', 'severity.INFORMATIONAL': '#2E9E5B',
+        'severity.UNKNOWN': '#888888',
+        'gap': '#888888', 'manual': '#8D1C81', 'warning': '#FE6041', 'delta.up': '#575757', 'delta.down': '#575757',
+        'title': '#4A1D6E', 'brand.deep': '#4A1D6E', 'brand.lilac': '#DCBFEC', 'brand.lavender': '#F6F3F8',
+        'brand.mist': '#F7F2FA', 'brand.ink': '#280F44', 'brand.label': '#5D2482',
+    },
+    'fonts': {
+        'heading': {'stack': ['Montserrat', 'Arial', 'sans-serif'], 'export_family': 'Montserrat Black'},
+        'body': {'stack': ['Poppins', 'Arial', 'sans-serif'], 'export_family': 'Poppins'},
+        'numeric': {'stack': ['Be Vietnam Pro', 'Arial', 'sans-serif'], 'export_family': 'Be Vietnam Pro'},
+    },
+    'weights': {'title': 900, 'cover_title': 400, 'kpi_value': 700, 'chart_title': 700, 'value_label': 600,
+                'emphasis': 700},
+    'sizes': {'base': _pt(12), 'cover_kicker': _pt(20), 'cover_title': _pt(80), 'cover_subtitle': _pt(28),
+              'cover_meta': _pt(20), 'title': _pt(50), 'subtitle': _pt(28), 'body': _pt(14), 'bullet': _pt(14),
+              'caption': _pt(12), 'footer': _pt(12), 'presenters': _pt(16), 'kpi_label': _pt(14),
+              'kpi_value': _pt(40), 'kpi_value_compact': _pt(28), 'kpi_value_missing': _pt(22), 'kpi_unit': _pt(12),
+              'tag': _pt(10), 'table': _pt(14), 'table_header': _pt(14), 'ranking': _pt(12), 'chart_title': _pt(18),
+              'axis': _pt(12), 'value_label': _pt(12), 'gap_label': _pt(11), 'legend': _pt(12), 'note': _pt(12),
+              'severity': _pt(14), 'unavailable': _pt(16), 'unavailable_note': _pt(12)},
+    'line_heights': {'title': 1.1, 'cover_title': 1.05, 'body': 1.5, 'bullet': 1.5, 'kpi_value': 1.0},
+    'spacing': {'block_gap': 20, 'column_gap': 32, 'paragraph_gap': 12, 'subtitle_gap': 0, 'bullet_indent': 30,
+                'bullet_gap': 10, 'card_gap': 40, 'card_gap_compact': 16, 'card_padding_y': 24, 'card_padding_x': 28,
+                'card_inner_gap': 8, 'table_cell_y': 12, 'table_cell_x': 16, 'ranking_cell_y': 8, 'legend_gap': 24,
+                'reco_gap': 40, 'presenters_top': 20, 'presenters_gap': 8, 'chart_gap': 12, 'severity_gap': 14,
+                'severity_top': 8, 'severity_col_gap': 16, 'footer_gap': 24, 'footer_padding_top': 0,
+                'unavailable_padding': 32, 'unavailable_gap': 10, 'tag_gap': 8, 'tag_padding_y': 2,
+                'tag_padding_x': 10, 'marker_padding_x': 8, 'kicker_letter_spacing_em': 0},
+    'radii': {'card': 32, 'small': 12, 'bar': 6, 'swatch': 4, 'track': 8, 'pill': 999},
+    'borders': {'card': 4, 'header_rule': 0, 'row_rule': 1.5, 'unavailable': 3, 'footer_rule': 0, 'tag': 1.5,
+                'marker': 1.5},
+    'layout': {'mode': 'fixed', 'body': _box(136, 55, 1732, 975), 'header': _box(0, 55, 1920, 106),
+               'content': _box(136, 200, 1732, 830), 'footer': {'x': 1720, 'w': 180, 'bottom': 8, 'reserve': 40},
+               'visual_side_ratio': [2, 1], 'summary_ratio': [1.6, 1]},
+    'layouts': {
+        'painel-tabela-grafico': {'header': _box(0, 21, 1920, 140), 'content': _box(136, 196, 1732, 834)},
+        'painel-destaque-tabela': {'header': _box(0, 12, 1920, 149), 'content': _box(136, 200, 1732, 830)},
+        'matrix': {'content': _box(136, 308, 1732, 722)},
+    },
+    'header': {'accent_bar': False, 'align': 'center', 'padding_left': 0},
+    'footer': {'show': True, 'items': ['page'], 'separator': False},
+    'cover': {'band': 'none', 'padding': {'top': 300, 'right': 1080, 'bottom': 60, 'left': 106}, 'gap': 20,
+              'meta_top': 24, 'align': 'left', 'kicker_uppercase': False},
+    'closing': {'padding': {'top': 352, 'right': 820, 'bottom': 60, 'left': 149}, 'gap': 24, 'align': 'left'},
+    'backgrounds': {'default': {'color': 'surface'}, 'cover': {'color': 'brand.deep'},
+                    'closing': {'color': 'brand.deep'}},
+    'charts': {'plot_width': 900, 'plot_height': 300, 'plot_width_with_text': 900,
+               'plot_padding': {'top': 28, 'right': 24, 'bottom': 48, 'left': 56}, 'plot_max_height': 360,
+               'bar_max_width': 48, 'bar_width_ratio': 0.6, 'bar_radius': 0, 'line_width': 3, 'point_radius': 6,
+               'axis_label_offset': 10, 'category_label_offset': 26, 'severity_label_width': 220,
+               'severity_value_width': 110, 'severity_bar_height': 28, 'rank_bar_height': 14, 'rank_bar_max': 220,
+               'swatch_size': 16, 'legend_position': 'bottom'},
+    'components': {
+        'title_color': 'title',
+        'title_underline': {'w': 113, 'h': 5, 'color': 'accent', 'radius': 3, 'offset': 5},
+        'header_valign': 'center',
+        'zone_comparison': 'columns',
+        'comparison_fill': 'brand.mist',
+        'header_valign_by_layout': {'painel-tabela-grafico': 'bottom', 'painel-destaque-tabela': 'bottom'},
+        'zone_frames': {'painel-graficos': {'band': 'card'},
+                        'painel-grupos': {'group_a': 'card', 'group_b': 'card'}},
+        'badge': {'box': _box(1735, 56, 133, 104), 'fill': 'band', 'border': 'accent', 'border_width': 4,
+                  'radius': 24, 'month_size': _pt(25), 'year_size': _pt(15), 'color': 'accent',
+                  'year_color': 'text.secondary'},
+        'card': {'fill': 'surface', 'border': 'border', 'border_width': 4, 'radius': 32, 'padding_y': 16,
+                 'padding_x': 32, 'title_size': _pt(16), 'title_color': 'brand.label'},
+        'band': {'fill': 'band', 'radius': 24, 'padding': 14, 'label_color': 'brand.label'},
+        'pill': {'fill': 'band', 'color': 'accent', 'radius': 999, 'size': _pt(12), 'padding_x': 20, 'padding_y': 13},
+        'table': {'header_fill': 'brand.deep', 'header_color': 'surface', 'header_rule': 'brand.deep',
+                  'row_rule': 'border', 'zebra_fill': 'brand.mist'},
+        'section': {'background': 'brand.deep', 'title_color': 'surface', 'subtitle_color': 'brand.lilac',
+                    'title_size': _pt(96), 'subtitle_size': _pt(40), 'orientation': 'vertical',
+                    'title_box': _box(162, 0, 227, 1080)},
+        'closing': {'title': 'surface', 'text': 'surface', 'accent': 'brand.lilac', 'title_font': 'heading',
+                    'title_weight': 900, 'title_size': _pt(72), 'valign': 'top'},
+        'cover_title_color': 'title', 'cover_kicker_color': 'text.primary', 'cover_valign': 'bottom',
+        'cover_title_font': 'body', 'cover_kicker_font': 'heading', 'cover_kicker_weight': 700,
+        'shapes': [
+            # contornos medidos na inspeção local (geometria personalizada da referência, sem conteúdo)
+            {'name': 'painel-capa', 'box': _box(0, 0, 997, 1080), 'fill': 'surface', 'opacity': 0.95,
+             'path': 'M0 0L792 0L811 21C927 153 997 328 997 520C997 738 907 935 763 1070L752 1080L0 1080Z',
+             'slides': ['cover']},
+            {'name': 'area-foto', 'box': _box(1056, 0, 864, 1080), 'fill': 'accent', 'slides': ['cover', 'section']},
+            {'name': 'painel-encerramento', 'box': _box(0, 0, 1559, 312), 'fill': 'surface',
+             'path': 'M0 0L1559 0L1559 1C1425 178 845 312 150 312C106 312 63 311 21 310L0 310Z', 'slides': ['closing']},
+            {'name': 'area-ilustracao', 'box': _box(1153, 178, 767, 902), 'fill': 'accent', 'slides': ['closing']},
+        ],
+        'severity_bar_width': 8,
+        'donut_hole': 0.6,
+        'dashboards': {
+            'painel-kpis': {'band': _box(136, 202, 1732, 145), 'cards': _box(135, 390, 1733, 280),
+                            'table': _box(135, 740, 957, 290), 'text': _box(1132, 740, 736, 290)},
+            'painel-graficos': {'band': _box(600, 217, 739, 206), 'list': _box(133, 487, 756, 228),
+                                'donut_a': _box(931, 491, 459, 265), 'donut_b': _box(1390, 491, 459, 265),
+                                'detail': _box(133, 768, 720, 262), 'chart': _box(947, 766, 918, 264)},
+            'painel-grupos': {'group_a': _box(137, 242, 767, 243), 'group_b': _box(1017, 242, 767, 243),
+                              'list': _box(135, 486, 756, 387), 'detail': _box(931, 519, 870, 166),
+                              'chart': _box(963, 690, 902, 340)},
+            'painel-severidades': {'group_a': _box(64, 193, 872, 266), 'group_b': _box(992, 201, 872, 266),
+                                   'detail': _box(132, 558, 720, 339), 'list': _box(959, 501, 872, 383)},
+            'painel-tabela-grafico': {'table': _box(200, 196, 1571, 376), 'notes': _box(135, 587, 825, 438),
+                                      'chart': _box(1027, 600, 744, 392)},
+            'painel-destaque-tabela': {'highlight': _box(136, 242, 1732, 208), 'table': _box(512, 467, 963, 563)},
+        },
+    },
+}
+
+BUILTIN: dict[tuple[str, int], dict] = {('neutral-demo', 1): NEUTRAL_DEMO_V1, ('afrika', 1): AFRIKA_V1}
 
 
 # ---------------------------------------------------------------- consulta e escrita
@@ -483,7 +793,7 @@ def aspect_ratio(canvas: Canvas) -> str:
 
 def _public(key: str, version: int, defn: ThemeDefinition, origin: str, extra: dict | None = None) -> dict:
     out = {'id': key, 'version': version, 'origin': origin, 'definition_hash': definition_hash(defn),
-           **defn.model_dump(mode='json'), **(extra or {})}
+           **defn.model_dump(mode='json'), 'components': defn.components.model_dump(mode='json'), **(extra or {})}
     out['canvas']['aspect_ratio'] = aspect_ratio(defn.canvas)  # derivado (não faz parte da definição/hash)
     return out
 

@@ -1,13 +1,14 @@
-# Motor de apresentações (F06A + F06B.1)
+# Motor de apresentações (F06A + F06B.1 + F06B)
 
 Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`, `templates.py`, `charts.py`, `view.py`,
 `service.py`), API `backend/app/api_presentations.py`, migration `0005_presentations`; frontend
 `frontend/src/presentation/SlideView.tsx` (renderizador HTML), telas **Apresentações** (`#/presentations`) e editor
 (`#/presentations/{id}`). Contratos detalhados: `docs/PRESENTATION_CONTRACTS.md`.
 
-> **Tema demonstrativo neutro — PROVISÓRIO.** A identidade visual oficial da Afrika não foi escolhida; nenhum logo,
-> marca ou template proprietário foi incorporado. Os três templates embutidos (`demo-executivo`, `demo-tecnico`,
-> `demo-minimo`) são sintéticos e não são o template oficial.
+> **Temas PROVISÓRIOS.** Os três templates demonstrativos (`demo-executivo`, `demo-tecnico`, `demo-minimo`) usam o
+> tema neutro. Desde a F06B há também o template `afrika-modelo@1` com o tema `afrika@1`, reproduzido
+> estruturalmente do PowerPoint de referência local (sem logos, fotos ou conteúdo dele) e ainda **não homologado**
+> pelo PO — ver `docs/AFRIKA_TEMPLATE.md`.
 
 ## Camadas (separadas)
 | Camada | Onde | Responsabilidade |
@@ -19,6 +20,7 @@ Código: `backend/app/presentations/` (`catalog.py`, `themes.py`, `document.py`,
 | IR de gráficos | `charts.py` | barras, linhas, severidade, ranking, comparação, tabela, KPI — independente do renderizador |
 | Renderização HTML | `SlideView.tsx` + `theme.ts` | desenha a IR (SVG/HTML nativos, texto selecionável); só lê tokens do tema; `#/render/{id}` = captura determinística em escala 1 |
 | Regressão visual | `frontend/visual/` (F06B.1) | captura + manifesto + comparação por imagem com tolerância medida — ver `docs/VISUAL_REGRESSION.md` |
+| Painel composto (F06B) | `catalog.DASHBOARD_LAYOUTS` + `view._zone_data` + `SlideView` (`Dashboard`) | zonas tipadas com indicadores e gráficos próprios, posicionadas por tokens do tema |
 | Exportação PPTX/PDF | **F07 (não implementada)** | consumirá a mesma visualização (IR + tema), gerando objetos nativos editáveis |
 
 ## Fluxo
@@ -107,15 +109,16 @@ auditoria (cadeia F05): `template.version_created`, `template.selected`, `presen
 | Severidade | gráfico de barras horizontais nativo ou tabela | textura da "desconhecida" depende de padrão de preenchimento |
 | Logos, imagens de fundo | imagem (ativo local) | não editável como vetor; SVG precisa de PNG de reserva |
 | Faixas, barra de destaque, separadores | formas nativas | |
+| Formas com contorno (`components.shapes[].path`, F06B) | forma livre nativa (`custGeom`) | painéis curvos da capa/encerramento Afrika |
+| Zonas de painel (F06B) | grupo de formas por zona (caixa absoluta do tema) | cada zona reaproveita o mapeamento do seu componente |
 | Lacuna (tracejado), aviso "indisponível" | forma com contorno tracejado + texto | nunca zero |
 | Rótulos de eixo calculados (escala) | gerados pelo gráfico nativo | escala pode diferir do HTML (geometria, não dado) |
 Não reproduzíveis como objeto editável: efeitos CSS sem equivalente (ex.: textura repetida exata), `object-fit: cover`
 de imagens (vira recorte), rarefação de rótulos (o PowerPoint decide).
 
-## Limitações (F06A; atualizadas na F06B.1)
-- F06B.1: temas versionados por cliente e motor visual prontos; **template oficial ainda não recebido** — a reprodução
-  definitiva e a comparação com o PPTX aprovado continuam pendentes.
-- Tema e templates demonstrativos; fidelidade a template oficial (diff visual por slide) depende do arquivo aprovado.
+## Limitações (F06A; atualizadas na F06B)
+- F06B: template Afrika reproduzido e comparado por slide com a referência local (estrutura sob máscara; ver
+  `docs/AFRIKA_TEMPLATE.md`); identidade, ativos de marca e mapeamento de severidade dependem de homologação do PO.
 - Sem exportação (F07); sem autenticação (autor/operador declarados); SQLite local.
 - Valores de estrutura livre (distribuições/rankings manuais) só viram gráfico com adaptador explícito por indicador;
   estrutura não reconhecida ⇒ "indisponível" (nada é presumido).

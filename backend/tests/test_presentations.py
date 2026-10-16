@@ -152,10 +152,14 @@ def approved_numbers(values: dict) -> set:
 
 def test_builtin_templates_are_idempotent_versioned_and_immutable_in_db(env, db_url):
     again = env.call('POST', '/api/presentation-templates/builtin', operator=OP)
-    assert again['created'] == [] and len(again['existing']) == 3
+    assert again['created'] == [] and len(again['existing']) == 4
     items = {t['key']: t for t in env.call('GET', '/api/presentation-templates')['items']}
-    assert set(items) == {'demo-executivo', 'demo-tecnico', 'demo-minimo'}
-    assert all(t['origin'] == 'BUILTIN' and t['theme'] == {'id': 'neutral-demo', 'version': 1} for t in items.values())
+    assert set(items) == {'demo-executivo', 'demo-tecnico', 'demo-minimo', 'afrika-modelo'}  # F06B: + Afrika
+    assert all(t['origin'] == 'BUILTIN' for t in items.values())
+    assert {k: t['theme']['id'] for k, t in items.items()} == {'demo-executivo': 'neutral-demo',
+                                                                'demo-tecnico': 'neutral-demo',
+                                                                'demo-minimo': 'neutral-demo',
+                                                                'afrika-modelo': 'afrika'}
     d = env.call('GET', '/api/presentation-templates/demo-executivo/versions/1')['definition']
     assert [s['type'] for s in d['slides']] == ['cover', 'executive_summary', 'kpis', 'month_comparison',
                                                 'severity_distribution', 'line_chart', 'top10_ranking',
@@ -587,7 +591,7 @@ def test_catalog_lists_all_slide_types_and_compatible_metrics(env):
     cat = env.call('GET', '/api/presentation-catalog')
     assert [t['type'] for t in cat['slide_types']] == [
         'cover', 'executive_summary', 'kpis', 'month_comparison', 'bar_chart', 'line_chart', 'severity_distribution',
-        'top10_ranking', 'metric_table', 'recommendations', 'closing']
+        'top10_ranking', 'metric_table', 'recommendations', 'closing', 'section', 'dashboard']  # F06B: + 2
     m = {x['metric_id']: x for x in cat['metrics']}
     assert 'severity_distribution' in m['sast.policy.open.by_severity']['slide_types']
     assert 'severity_distribution' not in m['apps.total']['slide_types']

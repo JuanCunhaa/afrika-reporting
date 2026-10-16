@@ -59,6 +59,8 @@ def _inspect(args) -> int:
     out.mkdir(parents=True, exist_ok=True)
     (out / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (out / 'report.md').write_text(pptx_inspect.render_markdown(report), encoding='utf-8')
+    if args.wireframes:
+        (out / 'wireframes.html').write_text(pptx_inspect.wireframes_html(report), encoding='utf-8')
     if args.theme_draft:
         draft = pptx_inspect.theme_draft(report)
         (out / 'theme-draft.json').write_text(json.dumps(draft, ensure_ascii=False, indent=2) + '\n',
@@ -130,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
     ins.add_argument('--privacy', choices=('strict', 'structural'), default='strict',
                      help='strict (padrão): sem nomes; structural: com nomes de masters/layouts/formas. Nunca texto.')
     ins.add_argument('--theme-draft', action='store_true', help='gera rascunho de tema (NÃO aprovado) para revisão')
+    ins.add_argument('--wireframes', action='store_true',
+                     help='wireframe HTML por slide (caixas, cores e rótulos genéricos; nenhum conteúdo do arquivo)')
     syn = sub.add_parser('synthetic-pptx', help='gera um PPTX SINTÉTICO para testar a inspeção')
     syn.add_argument('file')
     ast = sub.add_parser('theme-asset-add', help='copia logo/fonte para o armazenamento local de ativos (fora do Git)')

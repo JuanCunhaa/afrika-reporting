@@ -1,0 +1,1743 @@
+{
+  "manifest_version": 1,
+  "case": "afrika",
+  "slide": {
+    "index": 6,
+    "slide_id": "painel-graficos",
+    "type": "dashboard",
+    "layout": "painel-graficos"
+  },
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "theme": {
+    "id": "afrika",
+    "version": 1
+  },
+  "elements": [
+    {
+      "key": "header",
+      "role": "header",
+      "box": {
+        "x": 0,
+        "y": 71.33,
+        "w": 1920,
+        "h": 73.33
+      },
+      "text_length": 23,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "93ea2ab9d45155b8",
+      "platform_fonts": [
+        "Montserrat Thin Black"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 0,
+        "y": 71.33,
+        "w": 1920,
+        "h": 73.33
+      },
+      "text_length": 23,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 66.67,
+        "weight": "900",
+        "style": "normal"
+      },
+      "color": "rgb(74, 29, 110)",
+      "background": null,
+      "text_hash": "93ea2ab9d45155b8",
+      "platform_fonts": [
+        "Montserrat Thin Black"
+      ]
+    },
+    {
+      "key": "title-underline",
+      "role": "title-underline",
+      "box": {
+        "x": 903.5,
+        "y": 161,
+        "w": 113,
+        "h": 5
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(93, 36, 130)",
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "zone:band",
+      "role": "zone",
+      "box": {
+        "x": 600,
+        "y": 217,
+        "w": 739,
+        "h": 206
+      },
+      "text_length": 107,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(255, 255, 255)",
+      "text_hash": "e364b7611f1c08b3",
+      "platform_fonts": []
+    },
+    {
+      "key": "kpi-band",
+      "role": "kpi-band",
+      "box": {
+        "x": 636,
+        "y": 237,
+        "w": 667,
+        "h": 166
+      },
+      "text_length": 107,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "e364b7611f1c08b3",
+      "platform_fonts": []
+    },
+    {
+      "key": "kpi:apps.total",
+      "role": "kpi",
+      "box": {
+        "x": 636,
+        "y": 237,
+        "w": 313.5,
+        "h": 124.94
+      },
+      "text_length": 40,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "969ebf8f63fa4287",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "kpi-value:apps.total",
+      "role": "kpi-value",
+      "box": {
+        "x": 747.02,
+        "y": 237,
+        "w": 91.47,
+        "h": 53.33
+      },
+      "text_length": 3,
+      "font": {
+        "family": "\"Be Vietnam Pro\", Arial, sans-serif",
+        "size": 53.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "1d28c120568c10e1",
+      "platform_fonts": [
+        "Be Vietnam Pro"
+      ]
+    },
+    {
+      "key": "kpi-name:apps.total",
+      "role": "kpi-name",
+      "box": {
+        "x": 688.44,
+        "y": 298.33,
+        "w": 208.61,
+        "h": 29
+      },
+      "text_length": 20,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 18.67,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "48f1848bff5bccd5",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "kpi:sast.open.distinct",
+      "role": "kpi",
+      "box": {
+        "x": 989.5,
+        "y": 237,
+        "w": 313.5,
+        "h": 153.94
+      },
+      "text_length": 67,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "1746eeb854139e9f",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "kpi-value:sast.open.distinct",
+      "role": "kpi-value",
+      "box": {
+        "x": 1116.56,
+        "y": 237,
+        "w": 59.36,
+        "h": 53.33
+      },
+      "text_length": 2,
+      "font": {
+        "family": "\"Be Vietnam Pro\", Arial, sans-serif",
+        "size": 53.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "031b4af5197ec30a",
+      "platform_fonts": [
+        "Be Vietnam Pro"
+      ]
+    },
+    {
+      "key": "kpi-name:sast.open.distinct",
+      "role": "kpi-name",
+      "box": {
+        "x": 989.5,
+        "y": 298.33,
+        "w": 313.5,
+        "h": 58
+      },
+      "text_length": 50,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 18.67,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "3ca73629d3dd0d59",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "zone:list",
+      "role": "zone",
+      "box": {
+        "x": 133,
+        "y": 487,
+        "w": 756,
+        "h": 228
+      },
+      "text_length": 40,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "d63f3ce90ec00c67",
+      "platform_fonts": []
+    },
+    {
+      "key": "zone-list:list",
+      "role": "zone-list",
+      "box": {
+        "x": 133,
+        "y": 487,
+        "w": 756,
+        "h": 76
+      },
+      "text_length": 40,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 18.67,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "d63f3ce90ec00c67",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "zone:donut_a",
+      "role": "zone",
+      "box": {
+        "x": 931,
+        "y": 491,
+        "w": 459,
+        "h": 265
+      },
+      "text_length": 161,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "56da51417be08f4d",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "zone-title:donut_a",
+      "role": "zone-title",
+      "box": {
+        "x": 931,
+        "y": 491,
+        "w": 459,
+        "h": 26
+      },
+      "text_length": 13,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 21.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "7519d6821dee7ea1",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "donut",
+      "role": "donut",
+      "box": {
+        "x": 931,
+        "y": 529,
+        "w": 459,
+        "h": 227
+      },
+      "text_length": 148,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "59c7fe6eb1479c48",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Muito alta",
+      "role": "slice",
+      "box": {
+        "x": 1044.5,
+        "y": 539.32,
+        "w": 27.84,
+        "h": 43.57
+      },
+      "text_length": 13,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "19fa918bc5b320ca",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Alta",
+      "role": "slice",
+      "box": {
+        "x": 1061.2,
+        "y": 543.14,
+        "w": 80.52,
+        "h": 78.62
+      },
+      "text_length": 7,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "ee165ac0818164f7",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Média",
+      "role": "slice",
+      "box": {
+        "x": 947.28,
+        "y": 607.95,
+        "w": 200.39,
+        "h": 137.7
+      },
+      "text_length": 9,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "3f693e93203b7584",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Baixa",
+      "role": "slice",
+      "box": {
+        "x": 941.32,
+        "y": 562.46,
+        "w": 64.11,
+        "h": 114.59
+      },
+      "text_length": 8,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "c0eef2e1c065f54c",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Muito baixa",
+      "role": "slice",
+      "box": {
+        "x": 979.38,
+        "y": 543.14,
+        "w": 48.41,
+        "h": 51.33
+      },
+      "text_length": 14,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "406f9586f35457e4",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Informativa",
+      "role": "slice",
+      "box": {
+        "x": 1016.66,
+        "y": 540.28,
+        "w": 19.41,
+        "h": 42.61
+      },
+      "text_length": 14,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "c4e97996d9134623",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Desconhecida",
+      "role": "slice",
+      "box": {
+        "x": 1030.45,
+        "y": 539.32,
+        "w": 14.05,
+        "h": 41.85
+      },
+      "text_length": 15,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "279b7abeab5979d5",
+      "platform_fonts": []
+    },
+    {
+      "key": "legend:Muito alta",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 531,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 11,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "65550c9b61933a4f",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Alta",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 564,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 5,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "474caedb1c311e36",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Média",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 597,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 7,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "034954b6834135df",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Baixa",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 630,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 6,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "f86a4363ab70645e",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Muito baixa",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 663,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "fa294e569e954d1b",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Informativa",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 696,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "2ea80558e64bac09",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Desconhecida",
+      "role": "legend",
+      "box": {
+        "x": 1190,
+        "y": 729,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 13,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "42f44b2dad9f8861",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "zone:donut_b",
+      "role": "zone",
+      "box": {
+        "x": 1390,
+        "y": 491,
+        "w": 459,
+        "h": 265
+      },
+      "text_length": 145,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "3434242be08f7b7d",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "zone-title:donut_b",
+      "role": "zone-title",
+      "box": {
+        "x": 1390,
+        "y": 491,
+        "w": 459,
+        "h": 26
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 21.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "9b9064b182da7d82",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "donut#2",
+      "role": "donut",
+      "box": {
+        "x": 1390,
+        "y": 529,
+        "w": 459,
+        "h": 227
+      },
+      "text_length": 133,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "1b12a4adc17f773e",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Muito alta#2",
+      "role": "slice",
+      "box": {
+        "x": 1503.5,
+        "y": 539.32,
+        "w": 26.71,
+        "h": 43.38
+      },
+      "text_length": 13,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "e919eb04077ada07",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Alta#2",
+      "role": "slice",
+      "box": {
+        "x": 1519.52,
+        "y": 542.83,
+        "w": 83.64,
+        "h": 83.64
+      },
+      "text_length": 7,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "f8b536177bbd8010",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Média#2",
+      "role": "slice",
+      "box": {
+        "x": 1414.14,
+        "y": 615.79,
+        "w": 192.54,
+        "h": 129.89
+      },
+      "text_length": 9,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "d35ef9eaf9d48f3b",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Baixa#2",
+      "role": "slice",
+      "box": {
+        "x": 1400.32,
+        "y": 569.54,
+        "w": 59.41,
+        "h": 124.55
+      },
+      "text_length": 8,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "5b3d390e1a5230a2",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Muito baixa#2",
+      "role": "slice",
+      "box": {
+        "x": 1430.54,
+        "y": 542.83,
+        "w": 56.94,
+        "h": 55.89
+      },
+      "text_length": 14,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "3e36bb8cae94d7bb",
+      "platform_fonts": []
+    },
+    {
+      "key": "slice:Informativa#2",
+      "role": "slice",
+      "box": {
+        "x": 1476.79,
+        "y": 539.32,
+        "w": 26.71,
+        "h": 43.38
+      },
+      "text_length": 14,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "c4e97996d9134623",
+      "platform_fonts": []
+    },
+    {
+      "key": "legend:Muito alta#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 531,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 11,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "dd1f33ef1db2a9cf",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Alta#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 564,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 5,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "ce0cf6130558bf64",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Média#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 597,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 7,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "5108b1dd384ce6bb",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Baixa#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 630,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 6,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "d2d088f789d00e13",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Muito baixa#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 663,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "f3e2fde94c2cceb5",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Informativa#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 696,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 12,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "2ea80558e64bac09",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "legend:Desconhecida#2",
+      "role": "legend",
+      "box": {
+        "x": 1649,
+        "y": 729,
+        "w": 200,
+        "h": 25
+      },
+      "text_length": 13,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "be6845e11aa90b29",
+      "platform_fonts": [
+        "Be Vietnam Pro",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "zone:detail",
+      "role": "zone",
+      "box": {
+        "x": 133,
+        "y": 768,
+        "w": 720,
+        "h": 262
+      },
+      "text_length": 136,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(255, 255, 255)",
+      "text_hash": "1ca6e923704f4549",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "zone-title:detail",
+      "role": "zone-title",
+      "box": {
+        "x": 169,
+        "y": 788,
+        "w": 648,
+        "h": 26
+      },
+      "text_length": 20,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 21.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "54af66dba4e7c607",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "comparison",
+      "role": "comparison",
+      "box": {
+        "x": 169,
+        "y": 826,
+        "w": 648,
+        "h": 184
+      },
+      "text_length": 116,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(247, 242, 250)",
+      "text_hash": "dec67e43fde19dea",
+      "platform_fonts": []
+    },
+    {
+      "key": "cmp:apps.total",
+      "role": "cmp",
+      "box": {
+        "x": 169,
+        "y": 842,
+        "w": 324,
+        "h": 167
+      },
+      "text_length": 53,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "8a25efbe7f9ad89a",
+      "platform_fonts": [
+        "Arial",
+        "Poppins",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cmp-name:apps.total",
+      "role": "cmp-name",
+      "box": {
+        "x": 241.61,
+        "y": 842,
+        "w": 178.78,
+        "h": 25
+      },
+      "text_length": 20,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "48f1848bff5bccd5",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cmp-value:apps.total",
+      "role": "cmp-value",
+      "box": {
+        "x": 193.56,
+        "y": 875,
+        "w": 274.86,
+        "h": 47
+      },
+      "text_length": 14,
+      "font": {
+        "family": "\"Be Vietnam Pro\", Arial, sans-serif",
+        "size": 37.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "efa3d52217356f29",
+      "platform_fonts": [
+        "Arial",
+        "Be Vietnam Pro"
+      ]
+    },
+    {
+      "key": "cmp-delta:apps.total",
+      "role": "cmp-delta",
+      "box": {
+        "x": 292.33,
+        "y": 930,
+        "w": 77.33,
+        "h": 51
+      },
+      "text_length": 2,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": "rgb(242, 238, 245)",
+      "text_hash": "25330787f7103595",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cmp:sast.policy.open.by_severity",
+      "role": "cmp",
+      "box": {
+        "x": 493,
+        "y": 842,
+        "w": 324,
+        "h": 167
+      },
+      "text_length": 63,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "6c3713df32585486",
+      "platform_fonts": [
+        "Arial",
+        "Poppins",
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cmp-name:sast.policy.open.by_severity",
+      "role": "cmp-name",
+      "box": {
+        "x": 516.8,
+        "y": 842,
+        "w": 278.39,
+        "h": 25
+      },
+      "text_length": 32,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "51a5e14c7d4d8fe7",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cmp-value:sast.policy.open.by_severity",
+      "role": "cmp-value",
+      "box": {
+        "x": 532.88,
+        "y": 875,
+        "w": 246.25,
+        "h": 47
+      },
+      "text_length": 12,
+      "font": {
+        "family": "\"Be Vietnam Pro\", Arial, sans-serif",
+        "size": 37.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "0345e7b62c6af796",
+      "platform_fonts": [
+        "Arial",
+        "Be Vietnam Pro"
+      ]
+    },
+    {
+      "key": "cmp-delta:sast.policy.open.by_severity",
+      "role": "cmp-delta",
+      "box": {
+        "x": 617.33,
+        "y": 930,
+        "w": 77.33,
+        "h": 51
+      },
+      "text_length": 2,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": "rgb(242, 238, 245)",
+      "text_hash": "25330787f7103595",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "zone:chart",
+      "role": "zone",
+      "box": {
+        "x": 947,
+        "y": 766,
+        "w": 918,
+        "h": 264
+      },
+      "text_length": 692,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "408ccf06eb1cc6c1",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "zone-title:chart",
+      "role": "zone-title",
+      "box": {
+        "x": 947,
+        "y": 766,
+        "w": 918,
+        "h": 26
+      },
+      "text_length": 26,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 21.33,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(93, 36, 130)",
+      "background": null,
+      "text_hash": "cbd499da0741bd59",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "chart",
+      "role": "chart",
+      "box": {
+        "x": 947,
+        "y": 804,
+        "w": 918,
+        "h": 226
+      },
+      "text_length": 666,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "0b5f9ea833392ff9",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "plot",
+      "role": "plot",
+      "box": {
+        "x": 947,
+        "y": 804,
+        "w": 918,
+        "h": 152
+      },
+      "text_length": 535,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "4250b5a771c1e1f9",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "bar:2026-04",
+      "role": "bar",
+      "box": {
+        "x": 1048.83,
+        "y": 877.6,
+        "w": 48,
+        "h": 30.4
+      },
+      "text_length": 50,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "2b2e2ea9588a38bd",
+      "platform_fonts": []
+    },
+    {
+      "key": "bar:2026-05",
+      "role": "bar",
+      "box": {
+        "x": 1188.5,
+        "y": 818.64,
+        "w": 48,
+        "h": 89.36
+      },
+      "text_length": 48,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "67dc0feacbe3378d",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "bar:2026-06",
+      "role": "bar",
+      "box": {
+        "x": 1328.17,
+        "y": 814.08,
+        "w": 48,
+        "h": 93.92
+      },
+      "text_length": 48,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "772590c57abd13fa",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "bar:2026-07",
+      "role": "bar",
+      "box": {
+        "x": 1467.83,
+        "y": 877.6,
+        "w": 48,
+        "h": 30.4
+      },
+      "text_length": 50,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "cab4a4ffc6c7e9e6",
+      "platform_fonts": []
+    },
+    {
+      "key": "bar:2026-08",
+      "role": "bar",
+      "box": {
+        "x": 1607.5,
+        "y": 818.64,
+        "w": 48,
+        "h": 89.36
+      },
+      "text_length": 48,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "bb4498834240e474",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "bar:2026-09",
+      "role": "bar",
+      "box": {
+        "x": 1747.17,
+        "y": 814.08,
+        "w": 48,
+        "h": 93.92
+      },
+      "text_length": 48,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "9424476b06dbcb89",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "point:sca.policy.open.by_severity:2026-05",
+      "role": "point",
+      "box": {
+        "x": 1203.9,
+        "y": 848.08,
+        "w": 17.2,
+        "h": 34
+      },
+      "text_length": 47,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "3bf439a751f21103",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "point:sca.policy.open.by_severity:2026-06",
+      "role": "point",
+      "box": {
+        "x": 1341.49,
+        "y": 845.04,
+        "w": 21.36,
+        "h": 34
+      },
+      "text_length": 47,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "4a5c31dfcc13c2dd",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "point:sca.policy.open.by_severity:2026-08",
+      "role": "point",
+      "box": {
+        "x": 1620.82,
+        "y": 842,
+        "w": 21.56,
+        "h": 34
+      },
+      "text_length": 47,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "ccf7d76879900988",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "point:sca.policy.open.by_severity:2026-09",
+      "role": "point",
+      "box": {
+        "x": 1760.3,
+        "y": 843.52,
+        "w": 21.73,
+        "h": 34
+      },
+      "text_length": 47,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "8d167d3a5ef498ed",
+      "platform_fonts": [
+        "Be Vietnam Pro SemiBold"
+      ]
+    },
+    {
+      "key": "legend",
+      "role": "legend",
+      "box": {
+        "x": 947,
+        "y": 968,
+        "w": 918,
+        "h": 25
+      },
+      "text_length": 63,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "33fd10b0635561ac",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "chart-gaps",
+      "role": "chart-gaps",
+      "box": {
+        "x": 947,
+        "y": 1005,
+        "w": 918,
+        "h": 25
+      },
+      "text_length": 68,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "bbb4093cdbed9ddb",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "competence-badge",
+      "role": "competence-badge",
+      "box": {
+        "x": 1735,
+        "y": 56,
+        "w": 133,
+        "h": 104
+      },
+      "text_length": 7,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 16,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(242, 238, 245)",
+      "text_hash": "d0be49836a0a0042",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 1720,
+        "y": 1047,
+        "w": 180,
+        "h": 25
+      },
+      "text_length": 4,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(136, 136, 136)",
+      "background": null,
+      "text_hash": "c2c8be2013e583c3",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 1866.92,
+        "y": 1047,
+        "w": 33.08,
+        "h": 25
+      },
+      "text_length": 4,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(136, 136, 136)",
+      "background": null,
+      "text_hash": "c2c8be2013e583c3",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    }
+  ]
+}

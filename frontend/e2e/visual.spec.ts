@@ -8,7 +8,7 @@ import { compareImages } from '../visual/diff';
 import { compareManifests } from '../visual/manifest';
 import { decodePng, encodePng } from '../visual/png';
 import { type SlideComparison, type Tolerances, type VisualReport, compareSlide, renderMarkdown, summarize } from '../visual/report';
-import { visualPresentation } from './visual-fixture';
+import { afrikaPresentation, visualPresentation } from './visual-fixture';
 import { ensureAltTheme } from './visual-theme';
 
 // F06B.1 — regressão visual dos slides HTML (fixture SINTÉTICA). Referências por plataforma em
@@ -35,6 +35,11 @@ const CASES: Case[] = [
     // Tema próprio sintético (4:3, regiões fixas, logotipo local, outras fontes): temas diferentes por cliente.
     name: 'alt-fixed-4x3',
     setup: async (page) => visualPresentation(page.request, 'visual-alt', await ensureAltTheme(page.request), 'Visual — tema alternativo (sintético)'),
+  },
+  {
+    // F06B: template embutido afrika-modelo@1 (tema Afrika 1920×1080, 16 slots na sequência da referência), dados sintéticos.
+    name: 'afrika',
+    setup: (page) => afrikaPresentation(page.request),
   },
 ];
 
@@ -69,7 +74,7 @@ test.describe.configure({ mode: 'serial' });
 
 test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', async ({ page, browser, context }) => {
   test.setTimeout(240_000);
-  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.setViewportSize({ width: 1920, height: 1080 });
   const tol = readTol();
   const platformTol = tol.platforms[PLATFORM] ?? null;
   const runs = process.env.VISUAL_MEASURE === '1' ? 3 : 2;
@@ -83,7 +88,7 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
     const captures: CapturedSlide[][] = [];
     for (let r = 0; r < runs; r++) {
       const p = r === 0 ? page : await context.newPage(); // capturas extras em página nova (sem estado residual)
-      if (r) await p.setViewportSize({ width: 1280, height: 720 });
+      if (r) await p.setViewportSize({ width: 1920, height: 1080 });
       captures.push(await captureSlides(p, pid, c.name));
       if (r) await p.close();
     }
@@ -124,7 +129,7 @@ test('regressão visual dos slides (fixture sintética, tolerâncias medidas)', 
       platform: PLATFORM,
       os_release: os.release(),
       browser: `${browser.browserType().name()} ${browser.version()}`,
-      viewport: '1280×720 (canvas do tema)',
+      viewport: '1920×1080 (cada slide capturado no tamanho do canvas do seu tema)',
       device_scale_factor: 1,
       rota: '#/render/{id} (escala 1)',
       node: process.version,

@@ -18,8 +18,8 @@ from sqlalchemy.orm import Session
 from app.metrics.registry import REGISTRY
 from app.orm import Approval, Competence, CompetenceRevision, Presentation, PresentationRevision, PresentationTemplate
 from app.presentations import charts
-from app.presentations.catalog import SLIDE_TYPES, SlideType
-from app.presentations.document import Document, Slide, TemplateDefinition, contract_versions
+from app.presentations.catalog import DASHBOARD_LAYOUTS, SLIDE_TYPES, SlideType, ZoneKind
+from app.presentations.document import Document, Slide, TemplateDefinition, Zone, all_metrics, contract_versions
 from app.presentations.templates import definition_of, template_out
 from app.presentations import themes
 from app.scopes import store
@@ -106,12 +106,53 @@ def period_label(period: dict) -> str:
     return f"{br(period['period_start'])} a {br(period['period_end_inclusive'])}"
 
 
+def _zone_data(zid: str, z: Zone, slide: Slide, entries: dict, label: str, vers: dict) -> tuple[dict, list[dict]]:
+    """IR de uma zona do painel composto, com os MESMOS construtores dos slides simples (nada é recalculado)."""
+    spec = DASHBOARD_LAYOUTS[slide.layout][zid]
+    points = [resolve(entries, label, m, vers[m]) for m in z.metrics]
+    data: dict | None = None
+    k = spec.kind
+    if k is ZoneKind.TEXT:
+        data = None
+    elif k in (ZoneKind.KPI_BAND,):
+        data = charts.kpis(points) if points else None
+    elif k in (ZoneKind.KPI_CARDS, ZoneKind.COMPARISON):
+        prev = shift(label, -1)
+        data = charts.comparison([(p, resolve(entries, prev, p['metric_id'], vers[p['metric_id']])) for p in points])
+    elif k in (ZoneKind.SEVERITY_CARDS, ZoneKind.DONUT):
+        data = charts.severity(points[0])
+    elif k is ZoneKind.RANKING:
+        data = charts.ranking(points[0], top_n=z.top_n or 10)
+    elif k is ZoneKind.TABLE:
+        data = charts.table(points)
+    elif k is ZoneKind.CHART:
+        chart = z.chart or spec.charts[0]
+        if chart in ('line', 'combo') or z.data_mode == 'history':
+            labels = history.month_range(shift(label, -((z.months or 6) - 1)), label)
+            series = [[resolve(entries, lbl, m, vers[m]) for lbl in labels] for m in z.metrics]
+            data = charts.monthly(chart, series, labels, show_legend=True)
+            data['show_values'] = True
+        else:
+            data = charts.bar_categories(points[0])
+    return {'zone': zid, 'kind': k.value, 'name': spec.name, 'title': z.title, 'text_field': spec.text_field,
+            'chart': z.chart, 'metrics': list(z.metrics), 'data': data}, points
+
+
 def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinition, doc: Document,
                 owner: store.Owner, comp: Competence) -> tuple[dict | None, list[dict]]:
     o, f = slide.options, slide.fields
-    vers = {m: contract_versions(defn, m) for m in slide.metrics}
+    vers = {m: contract_versions(defn, m) for m in all_metrics(slide)}
     points = [resolve(entries, label, m, vers[m]) for m in slide.metrics]
     t = slide.type
+    if t is SlideType.DASHBOARD:
+        zones, pts = {}, []
+        for zid in DASHBOARD_LAYOUTS[slide.layout]:
+            if zid in slide.zones:
+                zones[zid], zp = _zone_data(zid, slide.zones[zid], slide, entries, label, vers)
+                pts += zp
+        return {'kind': 'dashboard', 'layout': slide.layout, 'zones': zones}, pts
+    if t is SlideType.SECTION:
+        return {'kind': 'section', 'owner': owner.name, 'competence': comp.label}, points
     if t in (SlideType.COVER, SlideType.CLOSING):
         data = {'kind': 'cover' if t is SlideType.COVER else 'closing', 'owner': owner.name,
                 'owner_kind': owner.kind, 'competence': comp.label, 'period': service.period(comp),
@@ -144,7 +185,7 @@ def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinitio
 
 def _issues(slide: Slide, points: list[dict], defn: TemplateDefinition, data: dict | None) -> list[dict]:
     slot = next((s for s in defn.slides if s.slot_id == slide.template_slot), None)
-    required = set(slot.metrics) if slot is not None and slot.required_metrics else set()
+    required = set(all_metrics(slot)) if slot is not None and slot.required_metrics else set()
     out = []
     for p in points:
         mid = p['metric_id']
@@ -160,10 +201,13 @@ def _issues(slide: Slide, points: list[dict], defn: TemplateDefinition, data: di
         if p['origin'] == 'MANUAL':
             out.append({'level': 'info', 'code': 'manual_value', 'metric_id': mid,
                         'message': f'{mid}: valor manual justificado (aprovado na F05)'})
-    if data is not None and data.get('available') is False:
-        out.append({'level': 'warning', 'code': f'chart_{data["reason"]}', 'metric_id': None,
-                    'message': data['message']})
-    for g in (data or {}).get('gaps', []):
+    parts = [z['data'] for z in (data or {}).get('zones', {}).values() if z.get('data')] \
+        if (data or {}).get('kind') == 'dashboard' else [data] if data is not None else []
+    for part in parts:
+        if part.get('available') is False:
+            out.append({'level': 'warning', 'code': f'chart_{part["reason"]}', 'metric_id': None,
+                        'message': part['message']})
+    for g in sorted({g for part in parts for g in part.get('gaps', [])}):
         out.append({'level': 'info', 'code': 'history_gap', 'metric_id': None,
                     'message': f'{g}: competência sem revisão aprovada (lacuna; preenchimento só pela F05)'})
     return out
@@ -203,13 +247,15 @@ def build(session: Session, p: Presentation, prev: PresentationRevision, draft: 
     slides, used = [], set()
     for i, slide in enumerate(doc.slides):
         data, points = _slide_data(slide, entries, label, defn, doc, owner, comp)
-        used |= set(slide.metrics)
+        used |= set(all_metrics(slide))
         spec = SLIDE_TYPES[slide.type]
         slides.append({'index': i + 1, 'slide_id': slide.slide_id, 'template_slot': slide.template_slot,
                        'type': slide.type.value, 'type_name': spec.name, 'layout': slide.layout,
                        'required': any(s.required and s.slot_id == slide.template_slot for s in defn.slides),
                        'fields': slide.fields.model_dump(), 'options': slide.options.model_dump(),
                        'metrics': list(slide.metrics), 'data': data,
+                       **({'zones': {k: z.model_dump(mode='json') for k, z in slide.zones.items()}}
+                          if slide.zones else {}),
                        'issues': _issues(slide, points, defn, data)})
     primary = entries.get(label)
     metrics_out = []

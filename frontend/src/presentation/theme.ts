@@ -31,6 +31,10 @@ export function themeVars(t: Theme): Record<string, string> {
   v['--hdr-accent-color'] = colorVar(h.accent_color);
   v['--hdr-padding-left'] = px(h.accent_bar ? h.padding_left : 0);
   v['--hdr-align'] = h.align;
+  v['--ul-left'] = h.align === 'center' ? '50%' : '0px';
+  v['--ul-shift'] = h.align === 'center' ? '-50%' : '0px';
+  v['--ul-ml'] = h.align === 'center' ? 'auto' : '0px';
+  v['--ul-mr'] = 'auto';
   v['--ftr-rule'] = px(t.footer.separator ? t.borders.footer_rule : 0);
   const c = t.cover;
   v['--cov-band-size'] = px(c.band_size);
@@ -60,6 +64,50 @@ export function themeVars(t: Theme): Record<string, string> {
   v['--lay-visual'] = String(t.layout.visual_side_ratio[0]);
   v['--lay-side'] = String(t.layout.visual_side_ratio[1]);
   v['--lay-summary-cols'] = `${t.layout.summary_ratio[0]}fr ${t.layout.summary_ratio[1]}fr`;
+  // F06B — componentes (padrões = visual F06A do tema neutro)
+  const k = t.components;
+  v['--title-color'] = colorVar(k.title_color);
+  v['--cov-title-color'] = colorVar(k.cover_title_color);
+  v['--cov-kicker-color'] = colorVar(k.cover_kicker_color);
+  v['--card-fill'] = colorVar(k.card.fill);
+  v['--card-border'] = colorVar(k.card.border);
+  v['--card-bw'] = px(k.card.border_width);
+  v['--card-radius'] = px(k.card.radius);
+  v['--card-py'] = px(k.card.padding_y);
+  v['--card-px'] = px(k.card.padding_x);
+  v['--card-title-size'] = px(k.card.title_size);
+  v['--card-title-color'] = colorVar(k.card.title_color);
+  v['--band-fill'] = colorVar(k.band.fill);
+  v['--band-radius'] = px(k.band.radius);
+  v['--band-pad'] = px(k.band.padding);
+  v['--band-label'] = colorVar(k.band.label_color);
+  v['--pill-fill'] = colorVar(k.pill.fill);
+  v['--cmp-fill'] = colorVar(k.comparison_fill);
+  v['--pill-color'] = colorVar(k.pill.color);
+  v['--pill-radius'] = px(k.pill.radius);
+  v['--pill-size'] = px(k.pill.size);
+  v['--pill-pad'] = `${px(k.pill.padding_y)} ${px(k.pill.padding_x)}`;
+  v['--tbl-th-bg'] = k.table.header_fill ? colorVar(k.table.header_fill) : 'transparent';
+  v['--tbl-th-color'] = colorVar(k.table.header_color);
+  v['--tbl-th-rule'] = colorVar(k.table.header_rule);
+  v['--tbl-td-rule'] = colorVar(k.table.row_rule);
+  v['--tbl-zebra'] = k.table.zebra_fill ? colorVar(k.table.zebra_fill) : 'transparent';
+  v['--sec-title'] = colorVar(k.section.title_color);
+  v['--sec-sub'] = colorVar(k.section.subtitle_color);
+  v['--sec-title-size'] = px(k.section.title_size);
+  v['--sec-sub-size'] = px(k.section.subtitle_size);
+  v['--clo-title'] = colorVar(k.closing.title);
+  v['--clo-text'] = colorVar(k.closing.text);
+  v['--clo-accent'] = colorVar(k.closing.accent);
+  v['--sev-bar-w'] = px(k.severity_bar_width);
+  v['--cov-justify'] = k.cover_valign === 'bottom' ? 'flex-end' : 'flex-start';
+  v['--cov-title-ff'] = `var(--ff-${k.cover_title_font})`;
+  v['--cov-kicker-ff'] = `var(--ff-${k.cover_kicker_font})`;
+  v['--cov-kicker-fw'] = String(k.cover_kicker_weight);
+  v['--clo-title-ff'] = `var(--ff-${k.closing.title_font})`;
+  v['--clo-title-fw'] = k.closing.title_weight ? String(k.closing.title_weight) : 'var(--fw-cover-title)';
+  v['--clo-title-size'] = k.closing.title_size ? px(k.closing.title_size) : 'var(--fs-cover-title)';
+  v['--clo-justify'] = k.closing.valign === 'top' ? 'flex-start' : 'center';
   return v;
 }
 
@@ -79,11 +127,12 @@ export function layoutFor(t: Theme, layout: string): ResolvedLayout {
 
 export const boxStyle = (b: Box): React.CSSProperties => ({ left: b.x, top: b.y, width: b.w, height: b.h });
 
-export type SlideKind = 'cover' | 'closing' | 'content';
-export const slideKind = (type: string): SlideKind => (type === 'cover' ? 'cover' : type === 'closing' ? 'closing' : 'content');
+export type SlideKind = 'cover' | 'closing' | 'content' | 'section';
+export const slideKind = (type: string): SlideKind => (type === 'cover' ? 'cover' : type === 'closing' ? 'closing' : type === 'section' ? 'section' : 'content');
 
 export function backgroundStyle(t: Theme, kind: SlideKind, layout: ResolvedLayout): React.CSSProperties {
-  const bg = layout.background ?? (kind === 'cover' ? t.backgrounds.cover : kind === 'closing' ? t.backgrounds.closing : null) ?? t.backgrounds.default;
+  const section: Background = { color: t.components.section.background, image: null, fit: 'cover' };
+  const bg = layout.background ?? (kind === 'cover' ? t.backgrounds.cover : kind === 'closing' ? t.backgrounds.closing : kind === 'section' ? section : null) ?? t.backgrounds.default;
   const out: React.CSSProperties = {};
   if (bg.color) out.background = colorVar(bg.color);
   if (bg.image) {
@@ -93,6 +142,13 @@ export function backgroundStyle(t: Theme, kind: SlideKind, layout: ResolvedLayou
     out.backgroundRepeat = 'no-repeat';
   }
   return out;
+}
+
+/** Competência 'AAAA-MM' -> ['SET', '2026'] (formatação do rótulo; nenhum dado é calculado). */
+export function competenceParts(label: string): [string, string] {
+  const months = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  const [y, m] = label.split('-');
+  return [months[Number(m) - 1] ?? m, y];
 }
 
 /** @font-face das fontes do tema com arquivo local (uma vez por tema no documento). */

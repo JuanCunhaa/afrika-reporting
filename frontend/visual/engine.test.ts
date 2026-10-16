@@ -196,3 +196,15 @@ test('veredito por tolerância medida: PASS, FAIL com motivos e sem referência'
   assert.match(md, /1 PASS · 1 FAIL · 1 sem referência/);
   assert.match(md, /Diagnóstico das falhas/);
 });
+
+test('máscara: pixels mascarados não contam como diferença nem como idênticos', () => {
+  const a = blankImage(20, 10), b = blankImage(20, 10);
+  rect(b, 0, 0, 10, 10, BLACK); // metade esquerda diferente
+  const all = compareImages(a, b, { detectAntialiasing: false });
+  assert.equal(all.diff_pixels, 100);
+  const m = compareImages(a, b, { detectAntialiasing: false, mask: [{ x: 0, y: 0, w: 10, h: 10 }] });
+  assert.equal(m.diff_pixels, 0);
+  assert.equal(m.masked_pixels, 100);
+  assert.equal(m.identical_pixels, 100);
+});
+

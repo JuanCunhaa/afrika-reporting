@@ -1,4 +1,4 @@
-# Regressão e comparação visual dos slides (F06B.1)
+# Regressão e comparação visual dos slides (F06B.1 + F06B)
 
 Código: motor em `frontend/visual/` (TypeScript sem dependências: `png.ts`, `diff.ts`, `manifest.ts`, `report.ts`,
 `capture.ts`), testes unitários `frontend/visual/engine.test.ts` (`npm run test:visual-unit`, imagens sintéticas),
@@ -66,6 +66,19 @@ famílias disponíveis também (ex.: `Segoe UI` no Windows); a diferença entre 
   legenda/cartões subiram 28 px, saindo do rodapé), gráficos com texto (escala) e mudanças **invisíveis** de geometria de
   contêiner (0 pixel, só manifesto) nos demais.
 - Caso `alt-fixed-4x3`: rótulos de mês estreitos rarefeitos em vez de truncados — só o slide afetado mudou.
+
+## Caso `afrika` (F06B)
+Terceiro caso da regressão: `afrika-modelo@1` + `afrika@1` com dados sintéticos (`frontend/e2e/visual-fixture.ts`,
+`afrikaPresentation`; 16 slides; `apps.unclassified` ausente de propósito). Viewport da captura: 1920×1080 (os temas
+neutro e alternativo continuam idênticos às referências anteriores). Referências: `baselines/{win32,linux}/afrika/`.
+
+## Comparação por slide com a referência real (F06B, só local)
+`frontend/e2e/reference.spec.ts` — pulado sem `AFRIKA_REFERENCE_RENDER`/`AFRIKA_REFERENCE_REPORT` (o arquivo não
+existe no CI). Compara o slide *i* do HTML com a renderização local do slide *i* do PowerPoint; o motor ganhou
+**máscaras** (`compareImages(..., {mask})`: pixels mascarados não contam como diferença nem como idênticos;
+`masked_pixels` no resultado). Máscara = caixas com texto/tabela/gráfico/imagem do relatório `strict` + elementos de
+texto/gráfico do manifesto HTML. Saída só numérica em `output/reference-compare/` (percentual por limiar de cor, cores
+dominantes, pares de geometria de `frontend/visual/reference-map.json`). Resultados: `docs/AFRIKA_TEMPLATE.md` §5.
 
 ## Comparação futura com o PPTX oficial (pendente do arquivo aprovado)
 1. Exportar cada slide do PPTX aprovado para PNG **localmente** (PowerPoint "Exportar → PNG" na resolução 1280×720, ou

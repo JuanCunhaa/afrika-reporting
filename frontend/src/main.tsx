@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+// F06B: fontes livres (SIL OFL 1.1) do tema Afrika, empacotadas localmente (sem CDN): Montserrat (títulos),
+// Poppins (corpo) e Be Vietnam Pro (números). Só são baixadas pelo navegador quando um tema as usa.
+import '@fontsource/montserrat/400.css';
+import '@fontsource/montserrat/600.css';
+import '@fontsource/montserrat/700.css';
+import '@fontsource/montserrat/900.css';
+import '@fontsource/poppins/400.css';
+import '@fontsource/poppins/500.css';
+import '@fontsource/poppins/600.css';
+import '@fontsource/poppins/700.css';
+import '@fontsource/be-vietnam-pro/400.css';
+import '@fontsource/be-vietnam-pro/600.css';
+import '@fontsource/be-vietnam-pro/700.css';
 import './styles.css';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { ClientsPage } from './pages/ClientsPage';

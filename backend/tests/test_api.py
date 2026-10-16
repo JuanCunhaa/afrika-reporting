@@ -28,7 +28,7 @@ def test_explicit_seed_recreates_f00_demo_clients_idempotently(db_url):
     engine = db.make_engine(db_url)
     try:
         with db.session_factory(engine)() as s:
-            assert seed_demo(s) == {'connections': 1, 'clients': 2, 'subclients': 2, 'templates': 3}
+            assert seed_demo(s) == {'connections': 1, 'clients': 2, 'subclients': 2, 'templates': 4}
         with db.session_factory(engine)() as s:
             assert seed_demo(s) == {'connections': 0, 'clients': 0, 'subclients': 0, 'templates': 0}
     finally:

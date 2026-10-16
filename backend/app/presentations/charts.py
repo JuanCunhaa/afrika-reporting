@@ -50,6 +50,7 @@ _CATEGORY_ADAPTERS: dict[str, dict] = {
     'sca.policy.open.top_components': {'list': 'top', 'label': ('component',), 'value': 'findings',
                                        'extra': (('applications', 'Aplicações'),)},
     'sca.policy.open.top_vulnerabilities': {'list': 'top', 'label': ('vulnerability_id',), 'value': 'applications',
+                                            'value_label': 'Aplicações',
                                             'extra': (('findings', 'Findings'), ('max_severity', 'Severidade máx.'))},
 }
 _FIXED_KEYS: dict[str, tuple[tuple[str, str], ...]] = {
@@ -243,7 +244,8 @@ def categories_of(metric_id: str, value: Any) -> list[dict]:
     for row in rows:
         if not isinstance(row, dict) or not _is_number(row.get(adapter['value'])):
             raise StructureError(adapter['value'])
-        extra = {label: row.get(key) for key, label in adapter.get('extra', ()) if key in row}
+        extra = {label: (SEVERITY_LABEL.get(row[key], row[key]) if key == 'max_severity' else row[key])
+                 for key, label in adapter.get('extra', ()) if key in row}  # severidade: rótulo pt-BR, não o código
         out.append({'label': _label(row, adapter['label']), 'y': row[adapter['value']], 'extra': extra})
     others = adapter.get('others')
     if others and _is_number(value.get(others)) and value[others] > 0:
@@ -329,7 +331,9 @@ def ranking(p: dict, title: str | None = None, *, top_n: int = 10, show_values: 
     rest = [c for c in cats if c.get('aggregate')]
     out = _base('ranking', title, [_ref(p)])
     extra_cols = sorted({k for c in top for k in c['extra']})
-    out.update({'columns': ['Posição', 'Item', unit_label(p.get('unit')).capitalize() or 'Valor', *extra_cols],
+    value_col = (_CATEGORY_ADAPTERS.get(p['metric_id'], {}).get('value_label')  # campo do adaptador, não a unidade
+                 or unit_label(p.get('unit')).capitalize() or 'Valor')
+    out.update({'columns': ['Posição', 'Item', value_col, *extra_cols],
                 'rows': [{'rank': i + 1, 'label': c['label'], 'y': c['y'], 'value': fmt(c['y'], 'count'),
                           'extra': c['extra']} for i, c in enumerate(top)],
                 'aggregate_rows': [{'label': c['label'], 'y': c['y'], 'value': fmt(c['y'], 'count')} for c in rest],

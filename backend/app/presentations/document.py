@@ -11,13 +11,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_serializer
 
 from app.errors import ApiError
 from app.metrics.registry import REGISTRY
-from app.presentations.catalog import SLIDE_TYPES, SlideType, compatible
+from app.presentations.catalog import DASHBOARD_LAYOUTS, SLIDE_TYPES, SlideType, ZoneKind, compatible, zone_compatible
 from app.presentations.themes import builtin_exists
 
 SCHEMA_VERSION = 1
@@ -36,6 +36,34 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+class _Evolving(_Strict):
+    """Campos acrescentados depois da v1 do esquema são OMITIDOS da serialização quando têm o valor padrão: templates
+    e documentos antigos continuam com exatamente o mesmo JSON canônico (e o mesmo hash de integridade)."""
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ()
+
+    @model_serializer(mode='wrap')
+    def _omit_new_defaults(self, handler):
+        data = handler(self)
+        fields = type(self).model_fields
+        for name in self._OMIT_IF_DEFAULT:
+            if name in data and getattr(self, name) == fields[name].get_default(call_default_factory=True):
+                del data[name]
+        return data
+
+
+ZoneId = Annotated[str, StringConstraints(min_length=1, max_length=30, pattern=r'^[a-z][a-z0-9_]*$')]
+
+
+class Zone(_Strict):
+    """Vinculação de uma zona do painel composto (F06B): título editável e indicadores (só por metric_id)."""
+    title: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120, pattern=_NO_CONTROL)] | None = None
+    metrics: list[MetricId] = Field(default_factory=list, max_length=6)
+    chart: Literal['bar', 'line', 'combo'] | None = None
+    data_mode: Literal['breakdown', 'history'] | None = None
+    months: Literal[6, 12] | None = None
+    top_n: int | None = Field(default=None, ge=1, le=10)
 
 
 class SlideFields(_Strict):
@@ -58,7 +86,8 @@ class SlideOptions(_Strict):
     top_n: int | None = Field(default=None, ge=1, le=10)
 
 
-class TemplateSlot(_Strict):
+class TemplateSlot(_Evolving):
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('zones',)
     slot_id: SlotId
     type: SlideType
     layout: Annotated[str, StringConstraints(max_length=40)] | None = None
@@ -67,6 +96,7 @@ class TemplateSlot(_Strict):
     fields: SlideFields = Field(default_factory=SlideFields)
     metrics: list[MetricId] = Field(default_factory=list, max_length=12)
     options: SlideOptions = Field(default_factory=SlideOptions)
+    zones: dict[ZoneId, Zone] = Field(default_factory=dict, max_length=8)
 
 
 class ThemeRef(_Strict):
@@ -82,7 +112,8 @@ class TemplateDefinition(_Strict):
     slides: list[TemplateSlot] = Field(min_length=1, max_length=MAX_SLIDES)
 
 
-class Slide(_Strict):
+class Slide(_Evolving):
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('zones',)
     slide_id: SlotId
     template_slot: SlotId | None = None
     type: SlideType
@@ -90,6 +121,15 @@ class Slide(_Strict):
     fields: SlideFields = Field(default_factory=SlideFields)
     metrics: list[MetricId] = Field(default_factory=list, max_length=12)
     options: SlideOptions = Field(default_factory=SlideOptions)
+    zones: dict[ZoneId, Zone] = Field(default_factory=dict, max_length=8)
+
+
+def all_metrics(s: TemplateSlot | Slide) -> list[str]:
+    """Indicadores do slide: os do próprio slide + os das zonas do painel (sem repetição, em ordem)."""
+    out = list(s.metrics)
+    for z in s.zones.values():
+        out += [m for m in z.metrics if m not in out]
+    return out
 
 
 class Presenter(_Strict):
@@ -116,10 +156,45 @@ def _raise(code: str, message: str, errors: list[dict]) -> None:
         raise ApiError(422, code, message, errors[:100])
 
 
-def _slide_errors(where: str, type_: SlideType, layout: str | None, fields: SlideFields, metrics: list[str],
-                  options: SlideOptions, *, check_required_fields: bool) -> list[dict]:
-    spec = SLIDE_TYPES[type_]
+def _zone_errors(where: str, type_: SlideType, layout: str | None, zones: dict[str, Zone]) -> list[dict]:
     out = []
+    if type_ is not SlideType.DASHBOARD:
+        if zones:
+            out.append(_err(f'{where}.zones', 'Zonas só existem no painel composto', 'zones_not_applicable'))
+        return out
+    specs = DASHBOARD_LAYOUTS.get(layout or next(iter(DASHBOARD_LAYOUTS)), {})
+    for zid, z in zones.items():
+        spec = specs.get(zid)
+        w = f'{where}.zones.{zid}'
+        if spec is None:
+            out.append(_err(w, f'Zona inexistente no layout {layout}', 'unknown_zone'))
+            continue
+        if not spec.min_metrics <= len(z.metrics) <= spec.max_metrics:
+            out.append(_err(f'{w}.metrics', f'{spec.name} aceita de {spec.min_metrics} a {spec.max_metrics} '
+                                            'indicador(es)', 'metric_count'))
+        if len(set(z.metrics)) != len(z.metrics):
+            out.append(_err(f'{w}.metrics', 'Indicador repetido na zona', 'duplicate_metric'))
+        if z.chart is not None and z.chart not in spec.charts:
+            out.append(_err(f'{w}.chart', f'Gráfico não aplicável à zona ({", ".join(spec.charts) or "nenhum"})',
+                            'option_not_applicable'))
+        if (z.data_mode or z.months) and spec.kind is not ZoneKind.CHART:
+            out.append(_err(w, 'Série mensal só em zona de gráfico', 'option_not_applicable'))
+        if z.top_n and spec.kind is not ZoneKind.RANKING:
+            out.append(_err(f'{w}.top_n', 'Itens de ranking só em zona de ranking', 'option_not_applicable'))
+        for i, mid in enumerate(z.metrics):
+            if mid not in REGISTRY:
+                out.append(_err(f'{w}.metrics[{i}]', 'Indicador inexistente no catálogo', 'unknown_metric'))
+            elif not zone_compatible(spec, mid, z.chart or (spec.charts[0] if spec.charts else None), z.data_mode):
+                out.append(_err(f'{w}.metrics[{i}]', f'{mid} não é compatível com a zona {spec.name}',
+                                'incompatible_metric'))
+    return out
+
+
+def _slide_errors(where: str, type_: SlideType, layout: str | None, fields: SlideFields, metrics: list[str],
+                  options: SlideOptions, *, check_required_fields: bool,
+                  zones: dict[str, Zone] | None = None) -> list[dict]:
+    spec = SLIDE_TYPES[type_]
+    out = _zone_errors(where, type_, layout, zones or {})
     if layout is not None and layout not in spec.layouts:
         out.append(_err(f'{where}.layout', f'Layout inválido para {spec.name}: {", ".join(spec.layouts)}',
                         'invalid_layout'))
@@ -159,11 +234,11 @@ def validate_template(defn: TemplateDefinition,
     used = set()
     for i, s in enumerate(defn.slides):
         errors += _slide_errors(f'slides[{i}]', s.type, s.layout, s.fields, s.metrics, s.options,
-                                check_required_fields=False)
-        if s.required_metrics and not s.metrics:
+                                check_required_fields=False, zones=s.zones)
+        if s.required_metrics and not all_metrics(s):
             errors.append(_err(f'slides[{i}].required_metrics', 'Slot sem indicadores não pode exigir indicadores',
                                'required_metrics_empty'))
-        used |= set(s.metrics)
+        used |= set(all_metrics(s))
     for mid in sorted(used - set(defn.metric_contracts)):
         errors.append(_err(f'metric_contracts.{mid}', 'Declare as versões de contrato aceitas para cada indicador '
                                                       'usado', 'contract_versions_missing'))
@@ -186,7 +261,8 @@ def validate_document(doc: Document, defn: TemplateDefinition) -> None:
     seen_slots: dict[str, int] = {}
     for i, s in enumerate(doc.slides):
         where = f'slides[{i}]'
-        errors += _slide_errors(where, s.type, s.layout, s.fields, s.metrics, s.options, check_required_fields=True)
+        errors += _slide_errors(where, s.type, s.layout, s.fields, s.metrics, s.options, check_required_fields=True,
+                                zones=s.zones)
         if s.template_slot is None:
             continue
         slot = slots.get(s.template_slot)
@@ -198,7 +274,7 @@ def validate_document(doc: Document, defn: TemplateDefinition) -> None:
         seen_slots[s.template_slot] = i
         if s.type != slot.type:
             errors.append(_err(f'{where}.type', 'O tipo de um slide do template não pode mudar', 'slot_type_changed'))
-        if slot.required_metrics and not set(slot.metrics) <= set(s.metrics):
+        if slot.required_metrics and not set(all_metrics(slot)) <= set(all_metrics(s)):
             errors.append(_err(f'{where}.metrics', 'Indicadores obrigatórios do template não podem ser removidos',
                                'required_metric_removed'))
     for slot in defn.slides:
@@ -219,7 +295,8 @@ def contract_versions(defn: TemplateDefinition, metric_id: str) -> list[int]:
 def initial_document(defn: TemplateDefinition, title: str) -> Document:
     slides = [Slide(slide_id=s.slot_id, template_slot=s.slot_id, type=s.type,
                     layout=s.layout or SLIDE_TYPES[s.type].layouts[0], fields=s.fields.model_copy(deep=True),
-                    metrics=list(s.metrics), options=s.options.model_copy(deep=True)) for s in defn.slides]
+                    metrics=list(s.metrics), options=s.options.model_copy(deep=True),
+                    zones={k: z.model_copy(deep=True) for k, z in s.zones.items()}) for s in defn.slides]
     for s in slides:  # campos obrigatórios vazios no template recebem o nome do tipo (editável)
         for name in SLIDE_TYPES[s.type].required_fields:
             if not getattr(s.fields, name):
