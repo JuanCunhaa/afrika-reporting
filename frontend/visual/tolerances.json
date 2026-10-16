@@ -29,14 +29,14 @@
       "max_aa_pixels": 0,
       "measured_noise": {
         "runs": 3,
-        "slides": 38,
+        "slides": 54,
         "max_diff_pixels": 0,
         "max_aa_pixels": 0,
         "max_geometry_delta": 0
       },
-      "measured_at": "2026-10-15T22:02:58.551Z",
+      "measured_at": "2026-10-16T00:49:14.405Z",
       "chromium": "156.0.8078.4",
-      "basis": "ruído máximo observado em 3 capturas independentes por slide no runner ubuntu-latest do CI (run 38814142754); entre duas execuções de CI distintas (runs 38813391234 e 38814142754) 37/38 slides idênticos (pixel e manifesto) — o único diferente foi o slide corrigido entre elas"
+      "basis": "ruído máximo observado em 3 capturas independentes por slide no runner ubuntu-latest do CI (run 38831429248, 54 slides); os 16 slides Afrika foram capturados em 3 execuções de CI distintas (38829304285, 38830508073, 38831429248): os 12 não alterados entre elas ficaram idênticos (pixel), e os 38 neutro/alternativo idênticos à referência em todas; F06B.1: runs 38813391234 e 38814142754"
     }
   }
 }
