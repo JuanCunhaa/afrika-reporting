@@ -71,10 +71,10 @@ diferente por definição (real × sintético). Mede-se a estrutura visível: fu
 | 1 | capa | 71,2% | 0,1% | 0,1% | 0,0% |
 | 2–4, 13 | seção | 56,9% | 0,3% | 0,3% | 0,3% |
 | 5 | painel KPIs | 44,2% | 6,3% | 1,8% | 1,5% |
-| 6 | painel gráficos | 51,4% | 5,0% | 1,0% | 0,7% |
-| 7 | painel grupos | 58,6% | 2,3% | 0,9% | 0,8% |
-| 8 | painel severidades | 43,2% | 5,2% | 1,3% | 1,0% |
-| 9 | painel severidades (variação) | 56,2% | 7,4% | 1,2% | 1,1% |
+| 6 | painel gráficos | 51,1% | 5,4% | 1,1% | 0,8% |
+| 7 | painel grupos | 58,6% | 2,1% | 0,7% | 0,6% |
+| 8 | painel severidades | 42,8% | 5,3% | 1,3% | 1,1% |
+| 9 | painel severidades (variação) | 56,1% | 7,7% | 1,2% | 1,1% |
 | 10–11 | ranking + gráfico | 75,0% | 3,9% | 0,7% | 0,6% |
 | 12 | destaque + tabela | 59,0% | 1,3% | 0,4% | 0,4% |
 | 14 / 15 | matriz | 65,8% / 67,1% | 0,9% / 0,7% | 0,6% | 0,5% / 0,6% |
@@ -104,6 +104,15 @@ Geometria: dos 67 pares de elementos não textuais mapeados (`frontend/visual/re
 8. Número de página: a referência centraliza no rodapé (master); o tema mostra no canto inferior direito.
 9. Faixas de cor sutis (Δ entre 0,03 e 0,08) em painéis: antisserrilhado de bordas arredondadas e lilases muito
    próximos; sem impacto visível.
+10. Largura de texto difere entre plataformas (Chromium no Windows arredonda avanços: texto ~3–5% mais estreito que no
+    Linux, que fica mais próximo do PowerPoint). Rótulos perto do limite podem quebrar linha só no Linux; por isso as
+    referências visuais são por plataforma e os componentes de zona dimensionam rótulos e números pela largura
+    disponível (container queries determinísticas: rótulo da faixa ≤ 7% da coluna; número limitado pelo nº de
+    caracteres; comparação compacta em zonas baixas). A 1ª captura Linux mostrou estouro no painel de grupos —
+    corrigido antes de versionar as referências.
+11. Caracteres fora do subconjunto latino das fontes (ex.: “→”) caem em fonte de reserva (Arial/Liberation Sans): a seta
+    da comparação é desenhada em SVG; o manifesto visual registra fontes de reserva (hoje 0 nos 16 slides, nas duas
+    plataformas).
 
 ## 7. Decisões pendentes para o PO
 - Homologar a identidade `afrika@1` (hoje `provisional`) e o mapeamento **cor × severidade**.
@@ -115,7 +124,8 @@ Geometria: dos 67 pares de elementos não textuais mapeados (`frontend/visual/re
 Todas as posições do tema são caixas absolutas em px de um canvas 1920×1080 (convertíveis 1:1 para EMU); formas com
 contorno (`components.shapes[].path`, comandos absolutos M/L/C/Q/A/Z) mapeiam para `custGeom`; cada papel de fonte tem
 `export_family`; gráficos saem da IR (dados aprovados) e podem virar gráficos nativos; zonas são independentes (cada
-uma vira um grupo de formas). Nenhum exportador foi escrito.
+uma vira um grupo de formas). Tamanhos adaptativos (container queries) precisam ser calculados pelo exportador a
+partir da mesma regra. Nenhum exportador foi escrito.
 
 ## 9. Reproduzir a comparação localmente
 ```

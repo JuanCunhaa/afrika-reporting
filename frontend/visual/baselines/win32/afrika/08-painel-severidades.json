@@ -561,7 +561,7 @@
         "w": 720,
         "h": 339
       },
-      "text_length": 173,
+      "text_length": 171,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -570,7 +570,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": "rgb(255, 255, 255)",
-      "text_hash": "4e3c4d40cc44aaa1",
+      "text_hash": "5916a87daeeb882f",
       "platform_fonts": [
         "Montserrat Thin"
       ]
@@ -607,7 +607,7 @@
         "w": 648,
         "h": 261
       },
-      "text_length": 153,
+      "text_length": 151,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -616,7 +616,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": "rgb(247, 242, 250)",
-      "text_hash": "d6cc7d7fcf491889",
+      "text_hash": "67824724d188c718",
       "platform_fonts": []
     },
     {
@@ -624,11 +624,11 @@
       "role": "cmp",
       "box": {
         "x": 168,
-        "y": 632,
+        "y": 616,
         "w": 324,
-        "h": 229
+        "h": 261
       },
-      "text_length": 77,
+      "text_length": 76,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -637,7 +637,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "fb0ae42b3df3a2ac",
+      "text_hash": "cbc8009e2c53c65d",
       "platform_fonts": [
         "Poppins",
         "Poppins"
@@ -648,7 +648,7 @@
       "role": "cmp-name",
       "box": {
         "x": 190.8,
-        "y": 663,
+        "y": 674,
         "w": 278.39,
         "h": 25
       },
@@ -670,12 +670,12 @@
       "key": "cmp-value:sast.policy.open.by_severity",
       "role": "cmp-value",
       "box": {
-        "x": 211.55,
-        "y": 696,
-        "w": 236.89,
+        "x": 255.36,
+        "y": 707,
+        "w": 149.27,
         "h": 47
       },
-      "text_length": 11,
+      "text_length": 4,
       "font": {
         "family": "\"Be Vietnam Pro\", Arial, sans-serif",
         "size": 37.33,
@@ -684,7 +684,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "f8049ca10eabe746",
+      "text_hash": "a306c73ff0f8e27b",
       "platform_fonts": [
         "Be Vietnam Pro"
       ]
@@ -693,10 +693,10 @@
       "key": "cmp-delta:sast.policy.open.by_severity",
       "role": "cmp-delta",
       "box": {
-        "x": 291.33,
-        "y": 751,
-        "w": 77.33,
-        "h": 51
+        "x": 257.41,
+        "y": 762,
+        "w": 57.33,
+        "h": 29
       },
       "text_length": 2,
       "font": {
@@ -717,11 +717,11 @@
       "role": "cmp",
       "box": {
         "x": 492,
-        "y": 632,
+        "y": 616,
         "w": 324,
-        "h": 229
+        "h": 261
       },
-      "text_length": 76,
+      "text_length": 75,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -730,7 +730,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "6da48392e6d0c94f",
+      "text_hash": "e583bfe22b1d1e34",
       "platform_fonts": [
         "Poppins",
         "Poppins"
@@ -741,7 +741,7 @@
       "role": "cmp-name",
       "box": {
         "x": 519.36,
-        "y": 663,
+        "y": 674,
         "w": 271.28,
         "h": 25
       },
@@ -763,12 +763,12 @@
       "key": "cmp-value:sca.policy.open.by_severity",
       "role": "cmp-value",
       "box": {
-        "x": 538.45,
-        "y": 696,
-        "w": 233.08,
+        "x": 582.27,
+        "y": 707,
+        "w": 145.45,
         "h": 47
       },
-      "text_length": 11,
+      "text_length": 4,
       "font": {
         "family": "\"Be Vietnam Pro\", Arial, sans-serif",
         "size": 37.33,
@@ -777,7 +777,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "04779d1838da8a00",
+      "text_hash": "228971770cc3111e",
       "platform_fonts": [
         "Be Vietnam Pro"
       ]
@@ -786,10 +786,10 @@
       "key": "cmp-delta:sca.policy.open.by_severity",
       "role": "cmp-delta",
       "box": {
-        "x": 618.84,
-        "y": 751,
-        "w": 72.31,
-        "h": 51
+        "x": 584.92,
+        "y": 762,
+        "w": 52.31,
+        "h": 29
       },
       "text_length": 2,
       "font": {
