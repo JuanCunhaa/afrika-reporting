@@ -1,0 +1,229 @@
+{
+  "manifest_version": 1,
+  "case": "afrika-v2",
+  "slide": {
+    "index": 1,
+    "slide_id": "capa",
+    "type": "cover",
+    "layout": "cover"
+  },
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "theme": {
+    "id": "afrika",
+    "version": 2
+  },
+  "elements": [
+    {
+      "key": "shape:painel-capa",
+      "role": "shape",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 997,
+        "h": 1080
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "shape:area-foto",
+      "role": "shape",
+      "box": {
+        "x": 1056,
+        "y": 0,
+        "w": 864,
+        "h": 1080
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(43, 11, 67)",
+      "background": "rgb(93, 36, 130)",
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "brand:foto-capa",
+      "role": "brand",
+      "box": {
+        "x": 1056,
+        "y": 0,
+        "w": 864,
+        "h": 1080
+      },
+      "text_length": 0,
+      "font": null,
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": null,
+      "platform_fonts": []
+    },
+    {
+      "key": "cover-kicker",
+      "role": "cover-kicker",
+      "box": {
+        "x": 106,
+        "y": 400,
+        "w": 734,
+        "h": 33
+      },
+      "text_length": 24,
+      "font": {
+        "family": "Montserrat, Arial, sans-serif",
+        "size": 26.67,
+        "weight": "700",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "8056f52bbef9c588",
+      "platform_fonts": [
+        "Montserrat Thin"
+      ]
+    },
+    {
+      "key": "title",
+      "role": "title",
+      "box": {
+        "x": 106,
+        "y": 453,
+        "w": 734,
+        "h": 336
+      },
+      "text_length": 26,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 106.67,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(74, 29, 110)",
+      "background": null,
+      "text_hash": "47f95807479c90de",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "subtitle",
+      "role": "subtitle",
+      "box": {
+        "x": 106,
+        "y": 809,
+        "w": 734,
+        "h": 56
+      },
+      "text_length": 23,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 37.33,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(87, 87, 87)",
+      "background": null,
+      "text_hash": "dd317980271bfb58",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "cover-competence",
+      "role": "cover-competence",
+      "box": {
+        "x": 106,
+        "y": 909,
+        "w": 734,
+        "h": 40
+      },
+      "text_length": 45,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 26.67,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "215faae970852261",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "presenters",
+      "role": "presenters",
+      "box": {
+        "x": 106,
+        "y": 989,
+        "w": 734,
+        "h": 31
+      },
+      "text_length": 35,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 21.33,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(43, 11, 67)",
+      "background": null,
+      "text_hash": "c5d9686cd961b597",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "footer",
+      "role": "footer",
+      "box": {
+        "x": 1720,
+        "y": 1047,
+        "w": 180,
+        "h": 25
+      },
+      "text_length": 3,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(136, 136, 136)",
+      "background": null,
+      "text_hash": "52e90ae24326591c",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    },
+    {
+      "key": "footer-page",
+      "role": "footer-page",
+      "box": {
+        "x": 1877,
+        "y": 1047,
+        "w": 23,
+        "h": 25
+      },
+      "text_length": 3,
+      "font": {
+        "family": "Poppins, Arial, sans-serif",
+        "size": 16,
+        "weight": "400",
+        "style": "normal"
+      },
+      "color": "rgb(136, 136, 136)",
+      "background": null,
+      "text_hash": "52e90ae24326591c",
+      "platform_fonts": [
+        "Poppins"
+      ]
+    }
+  ]
+}
