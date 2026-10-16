@@ -1,125 +1,123 @@
-# Devolutiva Claude → ChatGPT PO — F06B: Template de referência Afrika (2026-10-15)
+# Devolutiva Claude → ChatGPT PO — F06C: Homologação visual e preparação para exportação (2026-10-16)
 
-- **Fase / commits:** F06B / `main` / **`30446df`** (implementação + testes + docs + referências win32; levou rascunhos de STATUS/handoff) → **`edcce8b`** (seta da comparação em SVG — “→” caía em fonte de reserva) → **`aaa54e9`** (zonas adaptativas — estouro no painel de grupos revelado pela 1ª captura Linux) → **`54d1ba4`** (referências visuais Linux do caso `afrika` revisadas + ruído medido; fim do modo bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F07 e F08 NÃO iniciadas.**
-- **CI:** run `38831748989` (SHA `54d1ba4`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (498 passed cada), Frontend typecheck+build + motor visual (12/12), E2E Chromium (31 passed + 1 skipped; regressão visual Linux **54/54 PASS**, tolerância 0, ruído 0). Anteriores (bootstrap da referência Linux do caso `afrika`): `38829304285` (`30446df`), `38830508073` (`edcce8b`), `38831429248` (`aaa54e9`) — success.
-- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada.
-- **PowerPoint de referência:** só local em `references/` (ignorado, nunca rastreado); original **intacto** (SHA-256
-  conferido antes/depois de cada leitura e da renderização); nada enviado a serviços externos; nenhum texto, número,
-  nome ou imagem dele entrou no repositório, em prompts, logs ou fixtures.
+- **Fase / commits:** F06C / `main` / **`42a64e4`** (implementação + testes + docs + referências win32 + bootstrap temporário do CI) → **`80c6f17`** (referências Linux do caso `afrika-v2` revisadas, ruído medido, fim do bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F07 e F08 NÃO iniciadas.**
+- **CI:** run `38923537613` (SHA `80c6f17`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (525 passed cada), Frontend typecheck+build + motor visual (12/12), E2E Chromium (35 passed + 2 skipped — as comparações locais com a referência), regressão visual Linux **62/62 PASS** (ruído 0, overflow 0, fontes de reserva 0). Bootstrap: run `38922993662` (`42a64e4`) — success (54/54 antigos idênticos; 8 candidatas do `afrika-v2` revisadas; ruído 0 em 3 capturas).
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada; nenhuma
+  dependência nova.
+- **PowerPoint de referência:** só local (`references/`, ignorado; SHA-256 inalterado). Comparações usaram só o
+  relatório `strict` e os PNGs locais **processados por código**; nenhuma renderização da referência nem PNG de diferença
+  foi aberto por assistente de IA ou enviado a serviço externo — a análise usou só números agregados.
 
-## 1. Layouts implementados (template `afrika-modelo@1` + tema `afrika@1`, provisório)
-Sequência de 16 slots espelhando a referência, todos com conteúdo sintético/placeholder e indicadores só por `metric_id`:
-| # | Slot | Tipo/layout | Componentes |
-|---|---|---|---|
-| 1 | `capa` | `cover` | painel branco 95% com borda direita curva (contorno extraído), área de foto, sobretítulo, título, competência, apresentadores |
-| 2–4, 13 | `secao-*` | **`section` (novo)** | fundo roxo, título vertical, subtítulo/número, área de foto |
-| 5 | `painel-kpis` | **`dashboard`/painel-kpis** | faixa de KPIs, cartões com pílula de variação, tabela, comentário |
-| 6 | `painel-graficos` | dashboard/painel-graficos | destaques, tópicos, 2 roscas, comparação, **gráfico combo** |
-| 7 | `painel-grupos` | dashboard/painel-grupos | 2 grupos de KPIs, tópicos, comparação, gráfico |
-| 8–9 | `painel-severidades(-dev)` | dashboard/painel-severidades | 2 blocos de cartões de severidade, comparação em colunas, tópicos |
-| 10–11 | `ranking-*` | dashboard/painel-tabela-grafico | ranking top N, observações, gráfico, legenda |
-| 12 | `destaque-vulnerabilidades` | dashboard/painel-destaque-tabela | faixa de destaque, ranking |
-| 14–15 | `matriz-*` | `recommendations`/**`matrix` (novo)** | cabeçalho roxo, rótulos de linha, células editáveis |
-| 16 | `encerramento` | `closing` (+`items`) | painel com borda inferior curva, título, grupos “título \| texto” |
-Cabeçalho comum: título Montserrat Black centralizado, filete 113×5 e **selo de competência** (mês/ano). Mapeamento
-completo e tokens: `docs/AFRIKA_TEMPLATE.md`.
+## 1. Contratos visuais finalizados
+| Contrato | Onde | Resumo |
+|---|---|---|
+| Direção desejável por indicador | `metrics/contracts.py` (`Direction`), `registry.DESIRED_DIRECTIONS` | `LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL` (padrão); metadado de apresentação — não muda `version` nem valores; exposto no catálogo |
+| Tendência comprovada na IR | `charts.trend()` → `comparison.rows[].direction/trend/trend_reason/trend_color` | melhora/piora **só** com variação entre aprovados comparáveis **e** direção declarada; senão `unchanged`/`unknown` (neutra) |
+| Semântica de cores no tema | `themes.Semantics` (`severity {levels, mapping, unknown}`, `variation {…, tint_opacity}`) | `severity.*` passam a ser derivados (fonte única); paleta efetiva pública; sem semântica = visual F06B |
+| Encaixes de ativos locais | `themes.AssetSlot`, `brand_assets.py`, `GET /api/brand-assets/{tema}/{encaixe}`, CLI `brand-assets-status` | pasta ignorada configurável, validação de bytes/SVG, fallback neutro, nunca bloqueia |
+| Seleção flexível de slides | `POST /api/presentations {slots}` + `GET …/availability?competence_id` + seletor na UI | obrigatórios sempre; sugestão por indicadores aprovados; nada removido automaticamente |
+| Plano de exportação (F07) | `export_plan.py`, `GET /api/presentations/{id}/export-plan` | por elemento: texto/forma/tabela/gráfico nativo/imagem; contrato apenas |
+| Tokens novos de componente | `components.donut_separator`, `subtitle_color/font/weight/line_height`, `matrix_label_size` | omitidos do hash no padrão |
+Docs: `docs/PRESENTATION_CONTRACTS.md`, `docs/THEMES.md`, `docs/METRIC_CATALOG.md`.
 
-## 2. Arquivos alterados
-- Backend: `presentations/catalog.py` (tipos `section`/`dashboard`, `DASHBOARD_LAYOUTS` com zonas tipadas, layouts
-  `kpi-band`, `severity-cards`, `donut`, `matrix`), `document.py` (modelo `Zone` + validação; `zones` vazio não é
-  serializado), `view.py` (IR por zona, seção), `charts.py` (`combo`; rótulo de ranking do adaptador),
-  `themes.py` (grupo `components`; tema `afrika@1`), `templates.py` (`afrika-modelo@1`), `pptx_inspect.py` (cores
-  efetivas, opacidade, contorno de geometria personalizada, estilo de texto sem texto, `svgBlip`, wireframes), `cli.py`
-  (`--wireframes`).
-- Frontend: `SlideView.tsx` (seção, painel/zonas, faixa e cartões de KPI, cartões de severidade, rosca, combo, matriz,
-  comparação em colunas, formas com contorno/opacidade, selo, filete), `theme.ts`, `presentationsApi.ts`, `styles.css`,
-  `PresentationEditorPage.tsx` (editor de zonas), `main.tsx` + `package.json/lock` (fontes OFL `@fontsource/*@5.3.0`).
-- Visual: `visual/diff.ts` (máscaras), `engine.test.ts`, `reference-map.json`, `e2e/visual-fixture.ts` e
-  `visual.spec.ts` (caso `afrika`, viewport 1920×1080), `e2e/reference.spec.ts` (comparação local), referências
-  `baselines/{win32,linux}/afrika/`.
-- Testes: `test_afrika_template.py` (novo, 17), `test_pptx_inspect.py` (+1), `test_presentations.py`/`test_api.py`
-  (4 templates embutidos), `e2e/afrika.spec.ts` (novo).
-- Segurança/scripts: `.gitignore` (`references/`, `*.potx *.pptm *.ppt *.ppsx *.key`), `scripts/check_repo.py` (falha
-  com arquivo de referência rastreado ou nome do cliente da referência em arquivo versionado — via SHA-256),
-  `scripts/render_reference.ps1` (render local somente leitura).
-- Docs: `AFRIKA_TEMPLATE.md` (novo), `THEMES.md`, `PRESENTATIONS.md`, `PRESENTATION_CONTRACTS.md`,
-  `VISUAL_REGRESSION.md`, `PPTX_INSPECTION.md`, `SECURITY.md`, `STATUS.md`; `prompts/F06B_AFRIKA_TEMPLATE.md`.
+**Preservação:** hashes de `neutral-demo@1`, `afrika@1`, `demo-executivo@1`, `demo-tecnico@1`, `demo-minimo@1` e
+`afrika-modelo@1` **inalterados** (fixados em teste). Versões novas: `afrika@2` (tema) e `afrika-modelo@2` (mesmos 16
+slots/zonas, copiados programaticamente — nada reimplementado). Regressão visual: os 54 slides antigos continuaram
+idênticos (tolerância 0).
 
-## 3. Decisões
-1. **Análise só estrutural** (inspeção `strict`): nunca li texto/números/imagens do PPTX; renderizações reais ficam em
-   `private/` e só números agregados de comparação foram usados.
-2. **Painel composto com zonas** em vez de 8 tipos fixos: cada zona reaproveita os construtores de IR da F06A (nada é
-   recalculado) e tem indicadores/gráfico editáveis, validados pelo catálogo.
-3. **Retrocompatibilidade provada:** hashes de `neutral-demo@1` e dos templates F06A inalterados (fixados em teste);
-   regressão visual neutro/alternativo idêntica.
-4. **Contornos e opacidade** extraídos da geometria da referência (não desenhados à mão): capa 8,9% → 0,1% de diferença.
-5. **Sem semântica inventada:** pílula de variação neutra (contrato não diz se subir é bom); rosca sem percentuais
-   derivados; ausente ≠ zero (estado e motivo explícitos; `required_metrics` vira bloqueio).
-6. Severidade × cor **inferida** da paleta de status — precisa de confirmação do PO.
-7. **Zonas adaptativas** (container queries determinísticas): rótulo da faixa ≤ 7% da largura da coluna, número
-   limitado pelo nº de caracteres, comparação compacta (sem nota) em zonas baixas; seta da comparação desenhada em SVG.
-   Motivo: a 1ª captura Linux (texto ~3–5% mais largo que no Windows) mostrou estouro no painel de grupos e “→” em fonte
-   de reserva — corrigidos antes de versionar as referências. Hoje: 0 fontes de reserva nas duas plataformas.
+## 2. Semântica de cores (afrika@2, tokens; nenhum valor fixo em componente)
+| Severidade Veracode | Nível do PO | Cor |
+|---|---|---|
+| Muito alta (5) | Crítica | `#C00000` vermelho |
+| Alta (4) | Alta | `#F26B1D` laranja |
+| Média (3) | Média | `#FFC000` amarelo |
+| Baixa (2) e **Muito baixa (1)** | Baixa | `#2F6FD6` azul (filete de 3 px separa as fatias na rosca) |
+| Informativa (0) | Informativa | `#8C8C8C` cinza |
+| ausente | Desconhecida | `#B5B5B5` + textura |
+Variação: melhora `#2E9E5B` verde · piora `#C00000` vermelho · neutra `#7A7A7A` (tinta 18% na pílula + palavra
+"melhora"/"piora"/"estável" — nunca só cor). Paleta checada com o validador de paleta: separação CVD e de visão normal
+OK; laranja/amarelo < 3:1 sobre branco ⇒ rótulos sempre visíveis (já são). Direções declaradas: só os 7 indicadores de
+backlog de findings ABERTOS (`LOWER_IS_BETTER`); todos os demais neutros.
 
-## 4. Fidelidade visual alcançada (comparação local por slide, conteúdo mascarado dos dois lados)
-| Slides | Dif. Δ>0,08 (pixels não mascarados) |
-|---|---|
-| capa | 0,1% |
-| seções (4) | 0,3% |
-| painéis (8) | 0,4% – 1,8% |
-| matrizes (2) | 0,6% |
-| encerramento | 0,7% |
-Geometria: 41/67 pares não textuais coincidem em ≤2 px, 44 em ≤5 px, 51 em ≤15 px (o restante é área de foto que
-excede o canvas, posição das roscas, alturas variáveis de linhas/gráficos — ver `docs/AFRIKA_TEMPLATE.md` §5–6).
-**Isto mede a estrutura sob máscara, não o conteúdo nem a tipografia.**
+## 3. Comparações visuais completas (`docs/VISUAL_FIDELITY.md`)
+- **A — estrutural mascarada (F06B)**, reexecutada: números idênticos (capa 0,1% · seções 0,3% · painéis 0,4–1,8% ·
+  matrizes 0,6% · encerramento 0,7%).
+- **B — integral por categoria (nova)**, `afrika-modelo@2` com conteúdo sintético **equivalente** (comprimentos/nº de
+  tópicos tirados só das contagens do relatório strict), sem máscara: diferença total 2,6–13,5% por slide, concentrada
+  em **texto** (glifos real × sintético: 40–97% da diferença) e **gráficos** (valores sintéticos); **estrutura ≤0,8%**
+  da própria área; ativos ausentes = 19–26% da área de logo/ícones nos slides de conteúdo.
+- Por categoria: geometria 93 pares (55 ok ≤5 px · 11 aprox. ≤15 px · 27 divergentes, todos classificados);
+  **tipografia declarada 24/24 idêntica**; cores 33/39 (6 = tom do título que a própria referência varia); **tipos de
+  gráfico 16/16**; overflow **0** no HTML mesmo com textos de comprimento real.
+- **Defeitos de layout encontrados e corrigidos** (só em `afrika@2`): subtítulo dos painéis 10–12 (Poppins regular
+  cinza → Montserrat Black roxo, como declarado na referência); rótulo de linha da matriz (14 pt → 22 pt); respiro do
+  subtítulo até o filete (entrelinha 1,5).
+- **Ausência de ativos** explica: área de foto/ilustração (6 pares divergentes; a imagem da referência ainda excede o
+  canvas) e logo/ícones/textos do master. **Candidatos a ajuste** (não alterados sem o conteúdo oficial): coluna de
+  texto da capa (734 px × caixas 960–1162 px com autofit), altura do gráfico nos slides 10–11, posição da lista no slide
+  8. **Inconsistências da referência**: título deslocado 40 px só nos slides 5–7; três tons de título.
 
-## 5. Testes
+## 4. Estado dos ativos
+Nenhum ativo oficial recebido/autorizado. Encaixes do `afrika@2`: `logo-capa`, `foto-capa`, `foto-secao`,
+`ilustracao-encerramento`, `logo-conteudo`, `icones-laterais` (caixas medidas na inspeção local) — hoje vazios, com
+fallback neutro (forma do tema) e aviso informativo. Para usar: copiar os arquivos autorizados para
+`data/brand-assets/afrika/<encaixe>.png|jpg|svg` (ou `AFRIKA_BRAND_ASSET_DIR`) e conferir com
+`python -m app.cli brand-assets-status --theme afrika --version 2`. Testes usam imagens sintéticas em pasta
+descartável.
+
+## 5. Matriz de editabilidade para PPTX (`docs/F07_EXPORT_READINESS.md`)
+Textos/tópicos/títulos/rodapé → **texto editável**; painéis, faixas, filete, selo, cartões, pílulas, contornos curvos →
+**forma vetorial** (`custGeom` + alpha); KPIs da tabela, comparação em tabela, ranking, matriz → **tabela editável**;
+barras, linhas, combinado (mesmo eixo), severidade, roscas → **gráfico nativo** (lacuna = célula vazia, nunca 0);
+**imagem só** para ativo de marca autorizado. Verificado no plano gerado para `afrika-modelo@2` + 3 demonstrativos:
+0 elementos de dado como imagem. Limitações registradas: tamanho adaptativo, fontes no PPTX, locale do rótulo numérico,
+geometria do gráfico nativo, textura, SVG, limite de 400 caracteres por linha de matriz.
+
+## 6. Testes
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` (local) | **PASS 498** (479 + 19: Afrika 17, inspeção PPTX 2) |
-| E2E Chromium `npm run test:e2e` | **PASS 31 + 1 SKIPPED** (afrika +1; `reference.spec.ts` pulado sem o arquivo — esperado) em **3 rodadas completas** |
-| Repetições (após 1 falha intermitente local não identificada — `toContainText`, saída não capturada) | `afrika` ×10 **10/10**; `presentations` + `editor-reliability` ×5 **35/35**; trio ×3 **24/24** — NOT_REPRODUCED |
-| Regressão visual (win32) | **54/54 PASS** (neutro 19 + alternativo 19 idênticos às referências anteriores + afrika 16) |
-| Comparação com a referência (local) | executada; números na seção 4 (`output/reference-compare/`, não versionado) |
-| Motor visual `npm run test:visual-unit` | **PASS 12/12** (+ máscara) |
+| `python -m pytest -q` | **PASS 525** (498 + 27 novos em `test_f06c_homologation.py`) |
+| E2E Chromium `npx playwright test` | **PASS 35 + 2 SKIPPED** (as 2 comparações com a referência pulam sem o arquivo — esperado) em **3 rodadas completas** locais (Windows) + CI Linux |
+| Regressão visual (win32) | **62/62 PASS** (neutro 19 + alternativo 19 + afrika 16 idênticos às referências anteriores + `afrika-v2` 8 novos, revisados); ruído 0; overflow 0; fontes de reserva 0 |
+| E2E F06C (`f06c.spec.ts`) | 4/4: seleção por sugestão + pílulas por tendência + cores dos tokens; ativo local × fallback; detector de overflow acha estouros injetados; resposta atrasada descartada (**mutação** sem a guarda ⇒ falha, confirmado) |
+| Comparações com a referência (local) | A e B executadas; só números em `output/reference-compare/` |
+| Motor visual `npm run test:visual-unit` | **PASS 12/12** |
 | build; `npm audit`; `pip check` | OK; 0 vulnerabilidades; OK |
 | gitleaks (staged) | 0 achados (em cada commit) |
-| `check_repo`; `check_env_example` | OK (F06B, inclui varredura por hash do nome do cliente); SEGURO |
-| migrations CLI em banco novo | OK (`0006_themes`; seed cria 4 templates) |
-| SHA-256 do PPTX de referência após tudo | **inalterado** |
-| CI GitHub | run `38831748989` (`54d1ba4`, estrito): **success** — 498/498 (3.11 e 3.14), build + motor visual 12/12, E2E 31 + 1 skipped, visual Linux 54/54 |
-| Determinismo Linux entre 3 execuções de CI | os 12 slides Afrika não alterados entre elas: idênticos (pixel); 38 neutro/alternativo idênticos à referência em todas |
+| `check_repo`; `check_env_example` | OK (F06C: + bloqueio de `brand-assets/`/`data/` rastreados); SEGURO |
+| migrations CLI em banco novo | OK (`0006_themes`; sem migration nova; seed cria 5 versões de template) |
+| Confiabilidade | salvamentos rápidos, concorrência de revisões e respostas atrasadas: `editor-reliability` e `presentations` PASS nas 3 rodadas + backend (`test_editor_reliability`, integridade de snapshots/apresentações) PASS; novo E2E de resposta atrasada do seletor de slots (validade provada por mutação); overflow Windows × Linux 0; renderização só com fontes OFL empacotadas (0 de reserva); apresentação v1 íntegra após a v2. **Repetições extras (×5) interrompidas pelo Claude Code por falta de memória na máquina — NOT_RUN** (não reiniciadas, conforme orientação) |
 | `tests_live` | NOT_RUN (fase sem chamadas reais) |
 
-## 6. Riscos e limitações
-1. Imagens de marca (fotos, ilustração, logos, ícones e texto do master) **não reproduzidas** — viram áreas
-   reservadas; exigem ativos aprovados.
-2. Tema `afrika@1` é **provisório** até homologação; severidade × cor e cor de variação dependem do PO.
-3. Fontes da referência não estavam instaladas na máquina que renderizou o PowerPoint; a comparação mascara texto, então
-   tipografia não está medida.
-4. Referências Linux do caso `afrika` foram criadas pelo CI (bootstrap temporário, removido) e revisadas visualmente
-   (dados sintéticos); mudança da imagem do runner pode exigir nova referência.
-5. `licenses.usage` (unidade `findings`) segue pendente (herdado; não usado no template Afrika).
-6. Uma falha E2E local intermitente (asserção `toContainText`) não teve a saída capturada e não se repetiu em 69
-   execuções seguintes nem no CI; também uma execução isolada da regressão visual falhou antes do relatório no início
-   da fase (não reproduzida). Sem retry adicionado; vigiar.
+## 7. Limitações
+1. Identidade `afrika@1/@2` continua **provisória**; ativos oficiais ausentes.
+2. Tipografia renderizada da referência não é comparável (PowerPoint local sem as fontes); a declarada é.
+3. Âncora/recuos de texto do PPTX não expostos no modo strict: Δcentro de caixas de texto mede caixa, não glifo.
+4. Equivalência de conteúdo: listas da referência são tabelas (comprimento estimado); números não igualados.
+5. "Muito baixa" agrupada em Baixa e rótulos com a nomenclatura Veracode ("Muito alta") — confirmar com o PO.
+6. Rosca mostra as 7 severidades (agrupar por nível somaria valores — derivação não autorizada).
+7. Linha da matriz limitada a 400 caracteres (a referência tem células maiores).
+8. Referências Linux do `afrika-v2` criadas por bootstrap temporário no CI (procedimento das fases anteriores).
 
-## 7. Pendências para o PO
-- Homologar `afrika@1` (identidade, severidade × cor), aprovar ativos de marca, decidir cor de variação por direção.
-- Confirmar se a sequência de 16 slots e os indicadores sugeridos nas zonas atendem ao relatório padrão.
+## 8. Pendências para o PO
+- Confirmar: "Muito baixa" → Baixa; rótulo "Muito alta" × "Crítica"; direções declaradas (só backlog aberto).
+- Autorizar/entregar ativos de marca (arquivos locais) e homologar `afrika@2` (identidade).
+- Decidir os candidatos a ajuste (coluna de texto da capa, gráfico 10–11, lista 8) com o conteúdo oficial.
+- Decidir se a matriz ganha estrutura própria (células > 400 caracteres por linha).
 
-**Prompt sugerido para a próxima fase (não executado):** "F07 — Exportação PPTX/PDF a partir da visualização
-aprovada (IR + tema): spike de editabilidade com `python-pptx` (textos e tabelas editáveis, gráficos nativos a partir da
-IR com lacuna = ponto vazio, formas com contorno via `custGeom`, zonas como grupos), export do template
-`afrika-modelo@1` e dos demonstrativos, comparação visual PPTX exportado × HTML com o motor existente e PDF com
-fidelidade medida; sem IA (F08) e sem coleta real."
+**Prompt sugerido para a próxima fase (não executado):** "F07 — Exportação editável PPTX/PDF a partir do plano de
+exportação (`/export-plan`) da revisão aprovada: gerar PPTX com textos, formas (`custGeom`), tabelas e gráficos nativos
+(lacuna = célula vazia), imagens só para ativos autorizados; reabrir o PPTX e conferir elemento a elemento contra o
+plano; renderizar PPTX→PNG localmente e comparar com o HTML pelo motor visual (tolerância medida por slides de
+controle); PDF com fontes incorporadas; sem IA (F08) e sem coleta real."
 
 ---
 
 ## Versão compacta para o PO
-F06B concluída (`30446df`, `edcce8b`, `aaa54e9`, `54d1ba4`; CI estrito verde run `38831748989`). Template `afrika-modelo@1` (16 slots: capa, 4 seções, 8 painéis
-compostos com zonas editáveis, 2 matrizes, encerramento) + tema `afrika@1` provisório, derivados só da estrutura do
-PowerPoint local (sem conteúdo dele no repo). Genérico para qualquer cliente/subcliente, indicadores e nº de slides
-configuráveis, dados só de revisões aprovadas. Fidelidade estrutural medida por slide: 0,1%–1,8% de diferença (Δ>0,08,
-conteúdo mascarado). Testes: pytest 498, E2E 31 (×3), visual 54/54, unit 12, build/audit/pip/gitleaks OK. Pendências:
-ativos de marca, homologação da identidade e da cor por severidade.
+F06C concluída (`42a64e4`, `80c6f17`; CI estrito verde run `38923537613`). Semântica de cores do PO aplicada por tokens em `afrika@2` (severidade por
+nível; variação colorida só quando comprovada e com direção declarada — hoje só backlog aberto), templates antigos
+intactos (hashes fixados; 54 slides visuais idênticos), `afrika-modelo@2` com seleção flexível de slides (só capa e
+encerramento obrigatórios). Comparação integral nova (conteúdo equivalente, por categoria): tipografia 24/24, gráficos
+16/16, estrutura ≤0,8%, overflow 0; 2 defeitos corrigidos; demais diferenças classificadas (ativos ausentes,
+inconsistências da referência, candidatos a ajuste). Ativos locais com fallback neutro (nenhum oficial ainda). Plano de
+exportação + matriz de editabilidade prontos para a F07 (0 dado como imagem). pytest 525, visual 62/62.

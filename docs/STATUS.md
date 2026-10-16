@@ -13,9 +13,24 @@
 - **F06A — motor de templates e pré-visualização: DONE_LOCAL — aguardando PO** (commit `c160494` + docs; CI verde run `38776201083`; tema demonstrativo neutro PROVISÓRIO)
 - **F06B.1 — preparação do motor visual oficial: DONE — aguardando PO** (commits `4cc9c61`, `e21ebce`, `8169e82` + docs; CI estrito verde run `38814645692`)
 - **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
-- F07 — exportação HTML/PPTX/PDF: NOT_STARTED
+- **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
+- F07 — exportação HTML/PPTX/PDF: NOT_STARTED (contrato preparado na F06C)
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F06C (2026-10-16)
+- Semântica de cores do PO por tokens: tema `afrika@2` (severidade por nível — Crítica vermelho, Alta laranja, Média amarelo, Baixa azul, Informativa cinza; variação comprovada — melhora verde, piora vermelho, neutra) + `afrika-modelo@2` (mesmos 16 slots, cópia programática). Direção desejável por indicador (`Direction`, padrão neutro; só backlog aberto declara `LOWER_IS_BETTER`); IR de comparação com `trend`. Docs: `docs/THEMES.md`, `docs/PRESENTATION_CONTRACTS.md`, `docs/METRIC_CATALOG.md`.
+- Hashes de `neutral-demo@1`, `afrika@1` e de todos os templates anteriores inalterados (fixados em teste); 54 slides visuais antigos idênticos.
+- Seleção flexível de slides na criação (`slots` + disponibilidade por slot na revisão aprovada; só capa/encerramento obrigatórios).
+- Ativos de marca por encaixes do tema + pasta local ignorada (`AFRIKA_BRAND_ASSET_DIR`), fallback neutro; nenhum ativo oficial recebido.
+- Fidelidade: comparação mascarada (F06B) mantida com os mesmos números + comparação INTEGRAL por categoria com conteúdo sintético equivalente (tipografia declarada 24/24, gráficos 16/16, estrutura ≤0,8%, overflow 0); 2 defeitos corrigidos no `afrika@2`; demais diferenças classificadas. Doc: `docs/VISUAL_FIDELITY.md`.
+- F07 preparada (não implementada): plano de exportação por elemento + matriz de editabilidade (0 dado como imagem; lacuna = célula vazia). Doc: `docs/F07_EXPORT_READINESS.md`.
+- Overflow/fontes: detector no DOM (Windows e Linux) e bloqueio de fontes de reserva nos casos Afrika — 0 achados.
+- pytest **525 passed**; E2E Chromium **35 passed + 2 skipped** em 3 rodadas completas (repetições extras ×5 interrompidas por falta de memória na máquina — NOT_RUN); visual win32 **62/62** e Linux (CI) **62/62**; motor visual 12/12; build OK; `npm audit` 0; `pip check` OK; gitleaks staged 0; `check_repo`/`check_env_example` OK; migrations CLI OK (sem migration nova).
+- CI: run `38923537613` (SHA `80c6f17`, estrito): **success** (Backend 3.11/3.14 525 passed; build + motor visual 12/12; E2E 35 passed + 2 skipped; visual Linux 62/62). Referência Linux do `afrika-v2` criada por bootstrap temporário (run `38922993662`), revisada e o bootstrap removido.
+- Nenhuma chamada à Veracode nesta fase.
+
+Próxima autorização esperada: aceite da F06C pelo PO (confirmações: "Muito baixa"→Baixa, rótulo "Crítica", direções; ativos de marca); F07 só com ordem expressa.
 
 ## Checkpoint F06B (2026-10-15)
 - PowerPoint de referência só local (`references/`, ignorado, nunca rastreado; SHA-256 inalterado); análise só estrutural (inspeção `strict`), render local em `private/`; nada enviado a serviços externos; `check_repo` barra arquivos de referência rastreados e o nome do cliente da referência (via SHA-256).
@@ -26,7 +41,7 @@
 - CI: GitHub run `38831748989` (SHA `54d1ba4`, estrito): **success** (Backend 3.11/3.14 498 passed; build + motor visual 12/12; E2E 31 passed + 1 skipped; visual Linux 54/54). Referência Linux do caso `afrika` criada por bootstrap temporário (runs `38829304285`, `38830508073`, `38831429248`), revisada e o bootstrap removido; a 1ª captura Linux revelou estouro no painel de grupos e fonte de reserva na seta — ambos corrigidos antes de versionar.
 - Nenhuma chamada à Veracode nesta fase.
 
-Próxima autorização esperada: aceite da F06B pelo PO (homologação de `afrika@1`, ativos de marca, severidade × cor); F07 só com ordem expressa.
+Próxima autorização (na época): aceite da F06B — concedido; seguiu-se a F06C.
 
 ## Checkpoint F06B.1 (2026-10-15)
 - Temas versionados com tokens completos (`themes.py`, migration `0006_themes` append-only, ativos locais por SHA-256 fora do Git, API/CLI); renderizador e CSS só leem tokens; tema por cliente via template. Docs: `docs/THEMES.md`.
