@@ -452,9 +452,10 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
             </span>
             <span className="cmp-col-values" data-el={`cmp-value:${r.metric_id}`}>
               <span className="cmp-col-prev">{r.previous.label}</span>
-              <span className="cmp-col-arrow" aria-hidden>
-                →
-              </span>
+              {/* seta desenhada (U+2192 não está no subconjunto latino das fontes: evitaria fonte de reserva) */}
+              <svg className="cmp-col-arrow" viewBox="0 0 24 12" aria-hidden>
+                <path d="M1 6H21M16 1.5L21.5 6L16 10.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               <span className="cmp-col-cur">
                 {r.current.label} <StateTag p={r.current} />
               </span>
@@ -464,7 +465,7 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
               {r.delta_label ?? `sem variação (${reason[r.delta_unavailable_reason ?? ''] ?? '—'})`}
             </span>
             <span className="cmp-col-note">
-              {data.previous_competence} → {data.current_competence}
+              anterior {data.previous_competence} · atual {data.current_competence}
             </span>
           </div>
         ))}

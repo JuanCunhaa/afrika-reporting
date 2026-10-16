@@ -561,7 +561,7 @@
         "w": 720,
         "h": 339
       },
-      "text_length": 145,
+      "text_length": 173,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -570,7 +570,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": "rgb(255, 255, 255)",
-      "text_hash": "2e40ed35ed6966e4",
+      "text_hash": "4e3c4d40cc44aaa1",
       "platform_fonts": [
         "Montserrat Thin"
       ]
@@ -607,7 +607,7 @@
         "w": 648,
         "h": 261
       },
-      "text_length": 125,
+      "text_length": 153,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -616,7 +616,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": "rgb(247, 242, 250)",
-      "text_hash": "45ef23083a7a1428",
+      "text_hash": "d6cc7d7fcf491889",
       "platform_fonts": []
     },
     {
@@ -628,7 +628,7 @@
         "w": 324,
         "h": 229
       },
-      "text_length": 63,
+      "text_length": 77,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -637,9 +637,8 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "6c3713df32585486",
+      "text_hash": "fb0ae42b3df3a2ac",
       "platform_fonts": [
-        "Arial",
         "Poppins",
         "Poppins"
       ]
@@ -671,12 +670,12 @@
       "key": "cmp-value:sast.policy.open.by_severity",
       "role": "cmp-value",
       "box": {
-        "x": 206.88,
+        "x": 211.55,
         "y": 696,
-        "w": 246.25,
+        "w": 236.89,
         "h": 47
       },
-      "text_length": 12,
+      "text_length": 11,
       "font": {
         "family": "\"Be Vietnam Pro\", Arial, sans-serif",
         "size": 37.33,
@@ -685,9 +684,8 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "0345e7b62c6af796",
+      "text_hash": "f8049ca10eabe746",
       "platform_fonts": [
-        "Arial",
         "Be Vietnam Pro"
       ]
     },
@@ -723,7 +721,7 @@
         "w": 324,
         "h": 229
       },
-      "text_length": 62,
+      "text_length": 76,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -732,9 +730,8 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "f942eeab477da47b",
+      "text_hash": "6da48392e6d0c94f",
       "platform_fonts": [
-        "Arial",
         "Poppins",
         "Poppins"
       ]
@@ -766,12 +763,12 @@
       "key": "cmp-value:sca.policy.open.by_severity",
       "role": "cmp-value",
       "box": {
-        "x": 533.78,
+        "x": 538.45,
         "y": 696,
-        "w": 242.44,
+        "w": 233.08,
         "h": 47
       },
-      "text_length": 12,
+      "text_length": 11,
       "font": {
         "family": "\"Be Vietnam Pro\", Arial, sans-serif",
         "size": 37.33,
@@ -780,9 +777,8 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "4b264a78b56f4e95",
+      "text_hash": "04779d1838da8a00",
       "platform_fonts": [
-        "Arial",
         "Be Vietnam Pro"
       ]
     },

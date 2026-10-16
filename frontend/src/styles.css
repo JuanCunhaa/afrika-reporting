@@ -207,6 +207,7 @@ main:has(.editor){max-width:1500px}
 .cmp-col-name{font-size:var(--fs-caption);font-weight:var(--fw-emphasis);color:var(--c-text-secondary)}
 .cmp-col-values{display:flex;align-items:baseline;gap:var(--sp-tag-gap);font-family:var(--ff-numeric);font-weight:var(--fw-kpi-value);font-size:var(--fs-kpi-value-compact);color:var(--c-text-primary);font-variant-numeric:tabular-nums}
 .cmp-col-prev,.cmp-col-arrow{color:var(--c-text-muted)}
+.cmp-col-arrow{width:0.75em;height:0.375em;align-self:center;flex:none}
 .cmp-col .pill{align-self:center}
 .cmp-col-note{font-size:var(--fs-tag);color:var(--c-text-muted)}
 .slide-underline{display:block;flex:none;margin-left:var(--ul-ml);margin-right:var(--ul-mr)}
