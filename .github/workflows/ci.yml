@@ -112,11 +112,6 @@ jobs:
     env:
       CI: 'true'
       PYTHON: python
-      # F07.1 — BOOTSTRAP TEMPORÁRIO da referência visual Linux de `afrika/11-ranking-componentes` (rótulo longo do
-      # eixo agora QUEBRA em linhas em vez de abreviar): sem referência, a captura vira candidata (artefato) e o ruído
-      # é medido; os demais 61 slides continuam comparados com tolerância 0. Remover no commit que versiona a referência.
-      VISUAL_BOOTSTRAP: '1'
-      VISUAL_MEASURE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
