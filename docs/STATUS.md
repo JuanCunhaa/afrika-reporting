@@ -14,9 +14,36 @@
 - **F06B.1 — preparação do motor visual oficial: DONE — aguardando PO** (commits `4cc9c61`, `e21ebce`, `8169e82` + docs; CI estrito verde run `38814645692`)
 - **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
 - **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
-- F07 — exportação HTML/PPTX/PDF: NOT_STARTED (contrato preparado na F06C)
+- **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aguardando PO** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
 - F08 — interpretação por IA: NOT_STARTED
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F07 / F07.1 (2026-10-17)
+- `backend/app/export/` + `api_exports.py` + CLI `export` + painel Exportar: PPTX com objetos NATIVOS (texto, formas
+  `custGeom`, tabelas, gráficos com planilha incorporada; lacuna = célula vazia; 0 imagem de dado) e PDF impresso do
+  MESMO HTML da pré-visualização (Chromium headless via CDP, sem rede, build carimbado). Só revisão persistida com fonte
+  aprovada e referências íntegras; overflow/fonte de reserva bloqueiam com diagnóstico por slide; pacote determinístico.
+  Docs: `docs/EXPORT.md` (matriz de editabilidade, fontes, segurança), `docs/EXPORT_FIDELITY.md`.
+- Editáveis medidos: `afrika-modelo@2` 469 objetos (301 texto, 146 formas, 10 linhas, 6 tabelas, 6 gráficos nativos),
+  `neutral-demo` 273; imagens 0.
+- Fidelidade (local, Windows + PowerPoint): HTML×PDF ≤ 0,25% (afrika) / ≤ 0,39% (neutro), texto ≤ 1 px; HTML×PPTX
+  0,04–0,82% (afrika) / 0,75–2,45% (neutro, fonte de sistema × Arial); 0 quebra de linha divergente.
+- F07.1: desvio da matriz corrigido (linha do cabeçalho crescia 5 px no PowerPoint; Δy 4→0, p95 7→2 px); slide 11
+  corrigido (HTML abreviava "Outros (fo…" — agora quebra em linhas; 1,77%→0,66%); abreviação residual bloqueia.
+- Fontes: declaradas e incorporadas (EOT); PowerPoint local APLICA Montserrat/Poppins incorporadas sem instalação e NÃO
+  aplica Be Vietnam Pro (reproduzido com a incorporação do próprio PowerPoint); outro computador NOT_VERIFIED; PDF com
+  todas as fontes incorporadas.
+- Dependências: python-pptx 1.0.2, lxml 6.1.3, pillow 12.3.0, xlsxwriter 3.2.9 (lock; venv novo `pip check` OK).
+- pytest **579 passed**; export obrigatório **54 passed**; E2E Chromium **38 passed + 3 skipped**; fidelidade local 1
+  passed (2 execuções idênticas); visual win32 **62/62** e Linux (CI) **62/62**; motor visual 12/12; build OK; `npm
+  audit` 0; `pip check` OK; gitleaks staged 0 (2 commits); `check_repo`/`check_env_example` OK; migrations OK (0006,
+  nenhuma nova).
+- CI: run `38996490059` (`23151ae`, bootstrap temporário de 1 referência Linux) success; run `38996755783` (`5d73c67`,
+  estrito) **success** — Backend 3.11/3.14 558 passed + 21 skipped (motor real fica no job próprio), Exportação 54
+  passed, E2E 38 passed + 3 skipped, Frontend build + motor visual.
+- Nenhuma chamada à Veracode; nenhum PPTX/PDF/fonte/dado real versionado.
+
+Próxima autorização esperada: aceite da F07 pelo PO (decisão sobre Be Vietnam Pro no PPTX); F08 só com ordem expressa.
 
 ## Checkpoint F06C (2026-10-16)
 - Semântica de cores do PO por tokens: tema `afrika@2` (severidade por nível — Crítica vermelho, Alta laranja, Média amarelo, Baixa azul, Informativa cinza; variação comprovada — melhora verde, piora vermelho, neutra) + `afrika-modelo@2` (mesmos 16 slots, cópia programática). Direção desejável por indicador (`Direction`, padrão neutro; só backlog aberto declara `LOWER_IS_BETTER`); IR de comparação com `trend`. Docs: `docs/THEMES.md`, `docs/PRESENTATION_CONTRACTS.md`, `docs/METRIC_CATALOG.md`.

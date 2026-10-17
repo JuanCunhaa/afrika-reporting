@@ -1,123 +1,135 @@
-# Devolutiva Claude → ChatGPT PO — F06C: Homologação visual e preparação para exportação (2026-10-16)
+# Devolutiva Claude → ChatGPT PO — F07 / F07.1: Exportação PPTX/PDF (retomada e finalização) (2026-10-17)
 
-- **Fase / commits:** F06C / `main` / **`42a64e4`** (implementação + testes + docs + referências win32 + bootstrap temporário do CI) → **`80c6f17`** (referências Linux do caso `afrika-v2` revisadas, ruído medido, fim do bootstrap) → commit de checkpoint (STATUS/handoff). Push feito. **F07 e F08 NÃO iniciadas.**
-- **CI:** run `38923537613` (SHA `80c6f17`, modo **estrito**) — **success**: Backend 3.11 e 3.14 (525 passed cada), Frontend typecheck+build + motor visual (12/12), E2E Chromium (35 passed + 2 skipped — as comparações locais com a referência), regressão visual Linux **62/62 PASS** (ruído 0, overflow 0, fontes de reserva 0). Bootstrap: run `38922993662` (`42a64e4`) — success (54/54 antigos idênticos; 8 candidatas do `afrika-v2` revisadas; ruído 0 em 3 capturas).
-- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode**; nenhuma credencial alterada; nenhuma
-  dependência nova.
-- **PowerPoint de referência:** só local (`references/`, ignorado; SHA-256 inalterado). Comparações usaram só o
-  relatório `strict` e os PNGs locais **processados por código**; nenhuma renderização da referência nem PNG de diferença
-  foi aberto por assistente de IA ou enviado a serviço externo — a análise usou só números agregados.
+- **Fase / commits:** F07 (retomada pela F07.1 a partir do trabalho local não commitado — nada descartado) / `main` /
+  **`23151ae`** (implementação + testes + docs + CI de exportação + bootstrap temporário de 1 referência Linux) →
+  **`5d73c67`** (referência Linux de `afrika/11` revisada; fim do bootstrap) → commit de checkpoint (STATUS/handoff).
+  Push feito. **F08 e F09 NÃO iniciadas.**
+- **CI:** run `38996755783` (SHA `5d73c67`, **estrito**) — **success**: Backend 3.11 e 3.14 (558 passed + 21 skipped
+  cada — os 21 com motor real rodam no job próprio), **Exportação PPTX/PDF** (54 passed, 0 skipped, modo obrigatório),
+  Frontend typecheck + build + motor visual, E2E Chromium (38 passed + 3 skipped) com regressão visual Linux **62/62**
+  (ruído 0). Bootstrap: run `38996490059` (`23151ae`) — success (61/62 comparados + 1 candidata revisada; ruído 0 em 3
+  capturas).
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode.** Nenhum PPTX/PDF/fonte/dado real
+  versionado; medições locais só em `output/` (ignorado). PowerPoint usado só localmente para medir (aberto somente
+  leitura, sem janela; a instância do usuário não foi encerrada).
 
-## 1. Contratos visuais finalizados
-| Contrato | Onde | Resumo |
+## 1. Estado final
+**DONE — aguardando PO.** Todos os critérios obrigatórios passaram (testes locais e CI estrito). Limitação registrada:
+Be Vietnam Pro incorporada não é aplicada pelo PowerPoint testado (§7) — decisão do PO.
+
+## 2. Funcionalidades concluídas
+- PPTX editável com objetos nativos e PDF impresso do **mesmo** HTML da pré-visualização (`docs/EXPORT.md` §1–2).
+- API (`POST /api/presentations/{id}/exports`, status, lista, download), CLI `export`, painel **Exportar** no editor
+  (só revisão salva; alterações não salvas desabilitam os botões até salvar; bloqueios exibidos).
+- Somente revisões aprovadas fixadas como fonte; integridade conferida; nada recalculado; snapshots só lidos.
+- Bloqueio com diagnóstico por slide: corte, vazamento, saída de zona/slide, reticências, rótulo de eixo abreviado
+  (novo), fonte de reserva; matriz até 1000 caracteres com fonte reduzida até 60%.
+- Determinismo (mesmo SHA-256 para a mesma revisão + template/tema + build); proveniência em `docProps/custom.xml`.
+- Segurança: nomes/caminhos só do servidor, temporários próprios com limpeza, limites de fila/prazo/tamanho, navegador
+  sem rede, validação anti-macro/OLE/relação externa/conteúdo ativo (`docs/EXPORT.md` §7, `docs/SECURITY.md`).
+
+## 3. Objetos efetivamente editáveis (contados no PPTX reaberto)
+| Deck sintético | Texto | Formas | Linhas | Tabelas | Gráficos nativos | Imagens | **Editáveis** |
+|---|---|---|---|---|---|---|---|
+| `afrika-modelo@2` (16 slides) | 301 | 146 | 10 | 6 | 6 | 0 | **469** |
+| `neutral-demo@1` (19 slides) | 179 | 44 | 40 | 4 | 6 | 0 | **273** |
+
+## 4. Gráficos e tabelas nativos — evidência
+- `afrika`: 2 `c:doughnutChart`, 1 `c:barChart`+`c:lineChart` (combinado, mesmo eixo), 3 `c:barChart` (colunas);
+  `neutral`: 2 colunas, 2 linhas, 2 barras horizontais. 6 planilhas `.xlsx` incorporadas por deck.
+- O validador (`validate.content`) confere em CADA exportação: cache do gráfico **e** planilha = valores aprovados da IR;
+  nº de gráficos/tabelas = plano de exportação; texto/células = layout; nenhum `p:pic` além de ativo autorizado.
+- Inspeção independente dos decks finais: 44 pontos de gráfico com 12 lacunas **vazias** (afrika) e 60/8 (neutro) —
+  nenhuma lacuna virou 0. Testes: `test_kpis_are_text_and_charts_are_native_with_embedded_exact_values`,
+  `test_tables_are_native_with_the_approved_ranking`, `test_pptx_passes_independent_revalidation` etc.
+
+## 5. Fidelidade HTML × PPTX × PDF (`docs/EXPORT_FIDELITY.md`; 2 execuções idênticas)
+| | `afrika-modelo@2` | `neutral-demo` |
 |---|---|---|
-| Direção desejável por indicador | `metrics/contracts.py` (`Direction`), `registry.DESIRED_DIRECTIONS` | `LOWER_IS_BETTER`/`HIGHER_IS_BETTER`/`NEUTRAL` (padrão); metadado de apresentação — não muda `version` nem valores; exposto no catálogo |
-| Tendência comprovada na IR | `charts.trend()` → `comparison.rows[].direction/trend/trend_reason/trend_color` | melhora/piora **só** com variação entre aprovados comparáveis **e** direção declarada; senão `unchanged`/`unknown` (neutra) |
-| Semântica de cores no tema | `themes.Semantics` (`severity {levels, mapping, unknown}`, `variation {…, tint_opacity}`) | `severity.*` passam a ser derivados (fonte única); paleta efetiva pública; sem semântica = visual F06B |
-| Encaixes de ativos locais | `themes.AssetSlot`, `brand_assets.py`, `GET /api/brand-assets/{tema}/{encaixe}`, CLI `brand-assets-status` | pasta ignorada configurável, validação de bytes/SVG, fallback neutro, nunca bloqueia |
-| Seleção flexível de slides | `POST /api/presentations {slots}` + `GET …/availability?competence_id` + seletor na UI | obrigatórios sempre; sugestão por indicadores aprovados; nada removido automaticamente |
-| Plano de exportação (F07) | `export_plan.py`, `GET /api/presentations/{id}/export-plan` | por elemento: texto/forma/tabela/gráfico nativo/imagem; contrato apenas |
-| Tokens novos de componente | `components.donut_separator`, `subtitle_color/font/weight/line_height`, `matrix_label_size` | omitidos do hash no padrão |
-Docs: `docs/PRESENTATION_CONTRACTS.md`, `docs/THEMES.md`, `docs/METRIC_CATALOG.md`.
+| HTML×PDF (pixels) | 0–0,25% por slide; texto ≤ 1 px | 0,12–0,39%; texto ≤ 1 px |
+| HTML×PPTX (pixels) | 0,04–0,82% | 0,75–2,45% (HTML usa fonte de sistema; PPTX grava Arial) |
+| Texto Δ mediano / p95 | 0 (\|Δ\| ≤ 1) / ≤ 8 px | ≤ 3 / ≤ 12 px (158 px na lista de severidade → barras nativas, representação) |
+| Quebras de linha divergentes | 0 em 16 slides | 0 em 19 slides |
+| Dimensões | idênticas (1920×1080) | idênticas (1280×720) |
 
-**Preservação:** hashes de `neutral-demo@1`, `afrika@1`, `demo-executivo@1`, `demo-tecnico@1`, `demo-minimo@1` e
-`afrika-modelo@1` **inalterados** (fixados em teste). Versões novas: `afrika@2` (tema) e `afrika-modelo@2` (mesmos 16
-slots/zonas, copiados programaticamente — nada reimplementado). Regressão visual: os 54 slides antigos continuaram
-idênticos (tolerância 0).
+## 6. Os dois desvios visuais
+| Desvio | Causa comprovada | Correção | Antes → depois |
+|---|---|---|---|
+| Rótulo centralizado da matriz (~7 px) | linha do cabeçalho crescia **5 px** no PowerPoint (margens 21+20 + entrelinha 24 > 64 px; o PowerPoint usa a altura natural da fonte para o mínimo) e empurrava a matriz | `_cell`: zera a margem oposta à âncora (centro: reduz ambas igualmente) — texto não se move, linha não cresce; teste unitário novo | Δy mediano 4 → **0**; p95 7 → **2** px; 1,08% → **0,46%**. Residual 2 px = centralização do PowerPoint (aceitável) |
+| Rótulos longos no eixo (slide 11) | o **HTML abreviava** ("Outros (fo…") — truncamento invisível no PDF —, enquanto o PPTX recebia o nome completo e o PowerPoint encolhia a área de plotagem | HTML/PDF quebram o rótulo (até 3 linhas, eixo reservado; o PPTX usa a mesma área); acima disso, bloqueio com diagnóstico; 2 testes com motor real | 1,77% → **0,66%**; p95 24 → **8** px; HTML×PDF texto 8 → **1** px. Só 1 de 62 slides da regressão mudou (revisado em win32 e Linux) |
 
-## 2. Semântica de cores (afrika@2, tokens; nenhum valor fixo em componente)
-| Severidade Veracode | Nível do PO | Cor |
-|---|---|---|
-| Muito alta (5) | Crítica | `#C00000` vermelho |
-| Alta (4) | Alta | `#F26B1D` laranja |
-| Média (3) | Média | `#FFC000` amarelo |
-| Baixa (2) e **Muito baixa (1)** | Baixa | `#2F6FD6` azul (filete de 3 px separa as fatias na rosca) |
-| Informativa (0) | Informativa | `#8C8C8C` cinza |
-| ausente | Desconhecida | `#B5B5B5` + textura |
-Variação: melhora `#2E9E5B` verde · piora `#C00000` vermelho · neutra `#7A7A7A` (tinta 18% na pílula + palavra
-"melhora"/"piora"/"estável" — nunca só cor). Paleta checada com o validador de paleta: separação CVD e de visão normal
-OK; laranja/amarelo < 3:1 sobre branco ⇒ rótulos sempre visíveis (já são). Direções declaradas: só os 7 indicadores de
-backlog de findings ABERTOS (`LOWER_IS_BETTER`); todos os demais neutros.
+## 7. Fontes incorporadas (registradas separadamente)
+| Fonte | Declarada | Incorporada (estrutura) | Aplicada pelo PowerPoint sem instalação (local) | Outro computador |
+|---|---|---|---|---|
+| Montserrat / Montserrat Black | sim | sim (EOT + `embeddedFontLst`) | **sim** | NOT_VERIFIED |
+| Poppins | sim | sim | **sim** | NOT_VERIFIED |
+| Be Vietnam Pro / SemiBold (números: KPIs, cabeçalhos, rótulos da matriz, rótulos de dados) | sim | sim | **não** (substituída) | NOT_VERIFIED |
 
-## 3. Comparações visuais completas (`docs/VISUAL_FIDELITY.md`)
-- **A — estrutural mascarada (F06B)**, reexecutada: números idênticos (capa 0,1% · seções 0,3% · painéis 0,4–1,8% ·
-  matrizes 0,6% · encerramento 0,7%).
-- **B — integral por categoria (nova)**, `afrika-modelo@2` com conteúdo sintético **equivalente** (comprimentos/nº de
-  tópicos tirados só das contagens do relatório strict), sem máscara: diferença total 2,6–13,5% por slide, concentrada
-  em **texto** (glifos real × sintético: 40–97% da diferença) e **gráficos** (valores sintéticos); **estrutura ≤0,8%**
-  da própria área; ativos ausentes = 19–26% da área de logo/ícones nos slides de conteúdo.
-- Por categoria: geometria 93 pares (55 ok ≤5 px · 11 aprox. ≤15 px · 27 divergentes, todos classificados);
-  **tipografia declarada 24/24 idêntica**; cores 33/39 (6 = tom do título que a própria referência varia); **tipos de
-  gráfico 16/16**; overflow **0** no HTML mesmo com textos de comprimento real.
-- **Defeitos de layout encontrados e corrigidos** (só em `afrika@2`): subtítulo dos painéis 10–12 (Poppins regular
-  cinza → Montserrat Black roxo, como declarado na referência); rótulo de linha da matriz (14 pt → 22 pt); respiro do
-  subtítulo até o filete (entrelinha 1,5).
-- **Ausência de ativos** explica: área de foto/ilustração (6 pares divergentes; a imagem da referência ainda excede o
-  canvas) e logo/ícones/textos do master. **Candidatos a ajuste** (não alterados sem o conteúdo oficial): coluna de
-  texto da capa (734 px × caixas 960–1162 px com autofit), altura do gráfico nos slides 10–11, posição da lista no slide
-  8. **Inconsistências da referência**: título deslocado 40 px só nos slides 5–7; três tons de título.
+Evidência: render sem fontes na sessão × com fontes (capa 0 px de diferença); controle em que o **próprio PowerPoint**
+incorporou as 5 faces → mesmo resultado (Be Vietnam Pro não aplicada), logo não é defeito do nosso EOT; `fsType 0` e
+checksums corretos. `Font.Embedded` do COM retorna `False` até para fontes aplicadas (não é prova). PDF: todas
+incorporadas. Ambiente: Windows 11, Microsoft 365 16.0.20430. Nenhum software instalado; nenhum serviço externo.
 
-## 4. Estado dos ativos
-Nenhum ativo oficial recebido/autorizado. Encaixes do `afrika@2`: `logo-capa`, `foto-capa`, `foto-secao`,
-`ilustracao-encerramento`, `logo-conteudo`, `icones-laterais` (caixas medidas na inspeção local) — hoje vazios, com
-fallback neutro (forma do tema) e aviso informativo. Para usar: copiar os arquivos autorizados para
-`data/brand-assets/afrika/<encaixe>.png|jpg|svg` (ou `AFRIKA_BRAND_ASSET_DIR`) e conferir com
-`python -m app.cli brand-assets-status --theme afrika --version 2`. Testes usam imagens sintéticas em pasta
-descartável.
-
-## 5. Matriz de editabilidade para PPTX (`docs/F07_EXPORT_READINESS.md`)
-Textos/tópicos/títulos/rodapé → **texto editável**; painéis, faixas, filete, selo, cartões, pílulas, contornos curvos →
-**forma vetorial** (`custGeom` + alpha); KPIs da tabela, comparação em tabela, ranking, matriz → **tabela editável**;
-barras, linhas, combinado (mesmo eixo), severidade, roscas → **gráfico nativo** (lacuna = célula vazia, nunca 0);
-**imagem só** para ativo de marca autorizado. Verificado no plano gerado para `afrika-modelo@2` + 3 demonstrativos:
-0 elementos de dado como imagem. Limitações registradas: tamanho adaptativo, fontes no PPTX, locale do rótulo numérico,
-geometria do gráfico nativo, textura, SVG, limite de 400 caracteres por linha de matriz.
-
-## 6. Testes
+## 8. Resultados dos testes (validação final, sequencial)
 | Verificação | Resultado |
 |---|---|
-| `python -m pytest -q` | **PASS 525** (498 + 27 novos em `test_f06c_homologation.py`) |
-| E2E Chromium `npx playwright test` | **PASS 35 + 2 SKIPPED** (as 2 comparações com a referência pulam sem o arquivo — esperado) em **3 rodadas completas** locais (Windows) + CI Linux |
-| Regressão visual (win32) | **62/62 PASS** (neutro 19 + alternativo 19 + afrika 16 idênticos às referências anteriores + `afrika-v2` 8 novos, revisados); ruído 0; overflow 0; fontes de reserva 0 |
-| E2E F06C (`f06c.spec.ts`) | 4/4: seleção por sugestão + pílulas por tendência + cores dos tokens; ativo local × fallback; detector de overflow acha estouros injetados; resposta atrasada descartada (**mutação** sem a guarda ⇒ falha, confirmado) |
-| Comparações com a referência (local) | A e B executadas; só números em `output/reference-compare/` |
-| Motor visual `npm run test:visual-unit` | **PASS 12/12** |
-| build; `npm audit`; `pip check` | OK; 0 vulnerabilidades; OK |
-| gitleaks (staged) | 0 achados (em cada commit) |
-| `check_repo`; `check_env_example` | OK (F06C: + bloqueio de `brand-assets/`/`data/` rastreados); SEGURO |
-| migrations CLI em banco novo | OK (`0006_themes`; sem migration nova; seed cria 5 versões de template) |
-| Confiabilidade | salvamentos rápidos, concorrência de revisões e respostas atrasadas: `editor-reliability` e `presentations` PASS nas 3 rodadas + backend (`test_editor_reliability`, integridade de snapshots/apresentações) PASS; novo E2E de resposta atrasada do seletor de slots (validade provada por mutação); overflow Windows × Linux 0; renderização só com fontes OFL empacotadas (0 de reserva); apresentação v1 íntegra após a v2. **Repetições extras (×5) interrompidas pelo Claude Code por falta de memória na máquina — NOT_RUN** (não reiniciadas, conforme orientação) |
-| `tests_live` | NOT_RUN (fase sem chamadas reais) |
+| pytest completo (local, Py 3.14.7) | **PASS — 579 passed** (525 anteriores + 33 unidades + 21 motor real) |
+| E2E Chromium completo (local) | **PASS — 38 passed + 3 skipped** (2 comparações locais com a referência + fidelidade opt-in) |
+| Exportador real (`AFRIKA_EXPORT_TESTS=required`) | **PASS — 54 passed** (local e CI) |
+| Fidelidade HTML×PPTX×PDF (local, PowerPoint) | **PASS** (1 falha na 1ª tentativa final: TTF bloqueado pela instância do PowerPoint do usuário; `export_fonts.py` passou a não regravar fonte idêntica; reexecutado: PASS, números idênticos) |
+| Regressão visual | **PASS** — win32 62/62, Linux (CI) 62/62, tolerância 0, ruído 0 |
+| Build frontend + motor visual | **PASS** (12/12) |
+| `npm audit` | **PASS — 0 vulnerabilidades** |
+| `pip check` (.venv e venv novo só pelo lock) | **PASS** |
+| gitleaks (staged, 2 commits) | **PASS — 0 achados** |
+| `check_repo` / `check_env_example` | **PASS** (agora também recusa arquivos de fonte rastreados) |
+| Migrations (banco novo: migrate, status, seed, migrate) | **PASS** — `0006_themes`, nenhuma migration nova |
+| Inspeção estrutural PPTX/PDF finais | **PASS** (OPC íntegro, 0 macro/relação externa, 6 planilhas, 8 fontes; PDF 16/19 páginas no canvas, fontes incorporadas, sem conteúdo ativo) |
 
-## 7. Limitações
-1. Identidade `afrika@1/@2` continua **provisória**; ativos oficiais ausentes.
-2. Tipografia renderizada da referência não é comparável (PowerPoint local sem as fontes); a declarada é.
-3. Âncora/recuos de texto do PPTX não expostos no modo strict: Δcentro de caixas de texto mede caixa, não glifo.
-4. Equivalência de conteúdo: listas da referência são tabelas (comprimento estimado); números não igualados.
-5. "Muito baixa" agrupada em Baixa e rótulos com a nomenclatura Veracode ("Muito alta") — confirmar com o PO.
-6. Rosca mostra as 7 severidades (agrupar por nível somaria valores — derivação não autorizada).
-7. Linha da matriz limitada a 400 caracteres (a referência tem células maiores).
-8. Referências Linux do `afrika-v2` criadas por bootstrap temporário no CI (procedimento das fases anteriores).
+NOT_RUN: repetição ×3 da suíte E2E completa (feita 1× local + 2× no CI); validação em outro computador.
 
-## 8. Pendências para o PO
-- Confirmar: "Muito baixa" → Baixa; rótulo "Muito alta" × "Crítica"; direções declaradas (só backlog aberto).
-- Autorizar/entregar ativos de marca (arquivos locais) e homologar `afrika@2` (identidade).
-- Decidir os candidatos a ajuste (coluna de texto da capa, gráfico 10–11, lista 8) com o conteúdo oficial.
-- Decidir se a matriz ganha estrutura própria (células > 400 caracteres por linha).
+## 9. Commits e push
+`23151ae` (F07 implementação), `5d73c67` (referência Linux + fim do bootstrap), checkpoint docs — todos em
+`origin/main`. Arquivos principais: `backend/app/export/*` (novo), `backend/app/api_exports.py`, `cli.py`, `main.py`,
+`presentations/{charts,document,export_plan,service,view}.py`, `requirements.txt`/`constraints.txt`, testes
+`test_export_{units,engine}.py` + `export_fixtures.py`, frontend `ExportPanel.tsx`, `exportLayout.ts`, `SlideView.tsx`,
+`render-stamp.mjs`, specs `export*.spec.ts`, `.github/workflows/ci.yml`, `scripts/check_repo.py`, scripts locais
+`render_{pptx,pdf}.ps1`/`export_fonts.py`, docs `EXPORT.md`, `EXPORT_FIDELITY.md`, `PRESENTATION_CONTRACTS.md`,
+`SECURITY.md`, `F07_EXPORT_READINESS.md`.
 
-**Prompt sugerido para a próxima fase (não executado):** "F07 — Exportação editável PPTX/PDF a partir do plano de
-exportação (`/export-plan`) da revisão aprovada: gerar PPTX com textos, formas (`custGeom`), tabelas e gráficos nativos
-(lacuna = célula vazia), imagens só para ativos autorizados; reabrir o PPTX e conferir elemento a elemento contra o
-plano; renderizar PPTX→PNG localmente e comparar com o HTML pelo motor visual (tolerância medida por slides de
-controle); PDF com fontes incorporadas; sem IA (F08) e sem coleta real."
+## 10. CI
+- `38996490059` — `23151ae` — success (bootstrap temporário de `linux/afrika/11`).
+- `38996755783` — `5d73c67` — **success, estrito** (sem bootstrap).
+Novo no workflow: `npm run build` antes dos E2E; job **Exportação PPTX/PDF** (lock + build + Chromium do Playwright +
+pytest de exportação obrigatório; sem PowerPoint, sem ativos proprietários, só dados sintéticos; nenhum PPTX/PDF sobe
+como artefato).
 
----
+## 11. Decisões tomadas (técnicas, reversíveis)
+- PDF por impressão do HTML (não PPTX→PDF): mesmo renderizador, disponível no Windows e no CI, sem software proprietário.
+- Rótulo de categoria longo quebra em até 3 linhas; acima disso bloqueia (regra "nunca truncar em silêncio").
+- Margens de célula do PPTX ajustadas pela âncora (sem efeito visual onde a linha não crescia).
+- Dependências novas apenas as do `python-pptx` (MIT; lxml BSD, Pillow MIT-CMU, XlsxWriter BSD), versões já testadas.
 
-## Versão compacta para o PO
-F06C concluída (`42a64e4`, `80c6f17`; CI estrito verde run `38923537613`). Semântica de cores do PO aplicada por tokens em `afrika@2` (severidade por
-nível; variação colorida só quando comprovada e com direção declarada — hoje só backlog aberto), templates antigos
-intactos (hashes fixados; 54 slides visuais idênticos), `afrika-modelo@2` com seleção flexível de slides (só capa e
-encerramento obrigatórios). Comparação integral nova (conteúdo equivalente, por categoria): tipografia 24/24, gráficos
-16/16, estrutura ≤0,8%, overflow 0; 2 defeitos corrigidos; demais diferenças classificadas (ativos ausentes,
-inconsistências da referência, candidatos a ajuste). Ativos locais com fallback neutro (nenhum oficial ainda). Plano de
-exportação + matriz de editabilidade prontos para a F07 (0 dado como imagem). pytest 525, visual 62/62.
+## 12. Riscos e limitações remanescentes
+- **Be Vietnam Pro** não aplicada pelo PowerPoint testado quando não instalada (≈78 objetos + rótulos de 4 gráficos no
+  `afrika@2` caem em fonte de reserva no PPTX; PDF não é afetado). Opções para o PO: instalar a fonte (OFL) nas
+  máquinas que editam o PPTX, ou trocar a fonte numérica do tema (nova versão de tema).
+- Compatibilidade em outro computador/PowerPoint para Mac/web: NOT_VERIFIED.
+- Diferenças do renderizador documentadas: eixo Y −8 px, rótulos de pontos de linha, cantos de células, lista de
+  severidade do tema neutro como barras nativas, quebra 3×2 linhas em rótulos longos.
+- Rótulos de dados são texto personalizado (ao editar dados no PowerPoint, atualizar o rótulo).
+- Fila em memória (reinício descarta jobs). Ativos de marca oficiais ainda não recebidos (fallback neutro).
+
+## 13. Pendências para o PO
+1. Aceite da F07. 2. Decisão sobre Be Vietnam Pro no PPTX (instalar × trocar fonte numérica). 3. Validação do PPTX
+num segundo computador (fora do repositório) se desejado. 4. Ativos de marca autorizados (pasta local).
+
+## 14. Prompt sugerido para a próxima fase (NÃO executado)
+> **F08 — Interpretação assistida por IA (opcional, não bloqueante).** Ler `CLAUDE.md`, `docs/STATUS.md`,
+> `docs/AGENT_HANDOFF.md`, `docs/PRESENTATION_CONTRACTS.md`, `docs/EXPORT.md`. Implementar sugestões de texto editorial
+> (destaques, comentários, recomendações) a partir SOMENTE de revisões aprovadas e da IR já calculada, sem alterar
+> números nem snapshots; toda sugestão é rascunho editável com proveniência (indicadores/competências usados), exige
+> aceite explícito do operador e é gravada como nova revisão do documento. O core determinístico e a exportação devem
+> funcionar com a IA desligada (padrão). Sem dados reais em prompts de teste; provedores e chaves só via ambiente,
+> nunca no repositório; nenhuma chamada à Veracode. Testes: sugestão nunca muda valores, desligada por padrão, recusa
+> fonte não aprovada, conteúdo sugerido passa pelo detector de overflow antes da exportação. Não iniciar F09.
