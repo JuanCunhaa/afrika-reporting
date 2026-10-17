@@ -269,7 +269,8 @@ def test_export_plan_maps_every_element_to_editable_kinds_and_keeps_gaps(env):
     c = env.client('Cliente Exportação Sintético')
     _, p, v = presentation(env, c['id'])
     plan = env.call('GET', f'/api/presentations/{p["id"]}/export-plan')
-    assert plan['status'] == 'CONTRACT_ONLY' and plan['export_plan_version'] == export_plan.PLAN_VERSION
+    # F07: o plano deixou de ser só contrato — é o mapeamento usado pelo exportador (status IMPLEMENTED)
+    assert plan['status'] == 'IMPLEMENTED' and plan['export_plan_version'] == export_plan.PLAN_VERSION
     assert [s['slide_id'] for s in plan['slides']] == [s['slide_id'] for s in v['slides']]
     assert plan['canvas'] == {'width_px': 1920, 'height_px': 1080, 'width_emu': 18288000, 'height_emu': 10287000,
                               'emu_per_px': 9525}

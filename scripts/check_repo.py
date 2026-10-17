@@ -13,7 +13,10 @@ REQUIRED=['CLAUDE.md','docs/PRODUCT.md','docs/STATUS.md','prompts/F00_START.md',
           'frontend/visual/diff.ts','frontend/visual/tolerances.json',
           'prompts/F06C_VISUAL_HOMOLOGATION.md','docs/VISUAL_FIDELITY.md','docs/F07_EXPORT_READINESS.md',
           'backend/app/presentations/brand_assets.py','backend/app/presentations/export_plan.py',
-          'backend/app/main.py','backend/alembic.ini','backend/migrations/env.py','frontend/package.json']
+          'backend/app/main.py','backend/alembic.ini','backend/migrations/env.py','frontend/package.json',
+          'prompts/F07_EXPORT.md','docs/EXPORT.md','docs/EXPORT_FIDELITY.md','backend/app/export/service.py',
+          'backend/app/export/pptx_builder.py','backend/app/export/render.py','frontend/src/presentation/exportLayout.ts',
+          'frontend/render-stamp.mjs']
 for name in REQUIRED:
     if not (root/name).exists():
         sys.exit(f'ERRO: arquivo ausente: {name}')
@@ -29,6 +32,11 @@ FORBIDDEN_EXT = ('.pptx', '.potx', '.pptm', '.ppt', '.ppsx', '.pdf', '.key')
 bad = [t for t in tracked if t.lower().endswith(FORBIDDEN_EXT) or t.startswith('references/')]
 if bad:
     sys.exit(f'ERRO: arquivos de referência rastreados pelo Git (proibido): {bad[:5]}')
+# F07: arquivos de fonte nunca no repositório público (as OFL vêm do npm no build; o PPTX as incorpora em tempo de
+# exportação; as medições locais as gravam só em output/)
+fonts = [t for t in tracked if t.lower().endswith(('.ttf', '.otf', '.woff', '.woff2', '.eot', '.fntdata'))]
+if fonts:
+    sys.exit(f'ERRO: arquivos de fonte rastreados pelo Git (proibido): {fonts[:5]}')
 # F06C: ativos de marca autorizados ficam só na pasta local (data/brand-assets/ ou AFRIKA_BRAND_ASSET_DIR)
 brand = [t for t in tracked if '/brand-assets/' in f'/{t}' or t.startswith('data/')]
 if brand:
@@ -51,4 +59,4 @@ for t in tracked:
 hits = [h for h in hits if h != 'backend/tests/test_afrika_template.py']  # usa um termo genérico para testar o filtro
 if hits:
     sys.exit(f'ERRO: nome do cliente/unidade da referência em arquivo versionado: {hits[:5]}')
-print('Estrutura F06C: OK')
+print('Estrutura F07: OK')

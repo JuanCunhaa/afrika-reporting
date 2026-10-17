@@ -358,7 +358,7 @@
         "w": 744,
         "h": 392
       },
-      "text_length": 251,
+      "text_length": 261,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -367,7 +367,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "00d9bc73e053145d",
+      "text_hash": "7a31d807a2679d54",
       "platform_fonts": [
         "Montserrat Thin"
       ]
@@ -404,7 +404,7 @@
         "w": 744,
         "h": 354
       },
-      "text_length": 230,
+      "text_length": 240,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -413,7 +413,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "4a343eb120501b90",
+      "text_hash": "08e84bda37d74fb1",
       "platform_fonts": []
     },
     {
@@ -425,7 +425,7 @@
         "w": 744,
         "h": 354
       },
-      "text_length": 230,
+      "text_length": 240,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -434,7 +434,7 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "4a343eb120501b90",
+      "text_hash": "08e84bda37d74fb1",
       "platform_fonts": []
     },
     {
@@ -442,9 +442,9 @@
       "role": "bar",
       "box": {
         "x": 1098.52,
-        "y": 708.72,
+        "y": 699.5,
         "w": 63.81,
-        "h": 267.28
+        "h": 238.1
       },
       "text_length": 27,
       "font": {
@@ -466,9 +466,9 @@
       "role": "bar",
       "box": {
         "x": 1192.7,
-        "y": 736.52,
+        "y": 723.46,
         "w": 65.17,
-        "h": 239.48
+        "h": 214.14
       },
       "text_length": 27,
       "font": {
@@ -490,9 +490,9 @@
       "role": "bar",
       "box": {
         "x": 1288.16,
-        "y": 764.32,
+        "y": 747.42,
         "w": 64.23,
-        "h": 211.68
+        "h": 190.18
       },
       "text_length": 29,
       "font": {
@@ -514,9 +514,9 @@
       "role": "bar",
       "box": {
         "x": 1378.82,
-        "y": 792.12,
+        "y": 771.38,
         "w": 72.62,
-        "h": 183.88
+        "h": 166.22
       },
       "text_length": 29,
       "font": {
@@ -538,9 +538,9 @@
       "role": "bar",
       "box": {
         "x": 1478.28,
-        "y": 819.92,
+        "y": 795.34,
         "w": 63.16,
-        "h": 156.08
+        "h": 142.26
       },
       "text_length": 27,
       "font": {
@@ -562,9 +562,9 @@
       "role": "bar",
       "box": {
         "x": 1569.55,
-        "y": 847.72,
+        "y": 819.3,
         "w": 70.33,
-        "h": 128.28
+        "h": 118.3
       },
       "text_length": 29,
       "font": {
@@ -585,12 +585,12 @@
       "key": "bar:Outros (fora do top 10)",
       "role": "bar",
       "box": {
-        "x": 1654.8,
-        "y": 853.28,
-        "w": 89.55,
-        "h": 122.72
+        "x": 1667.13,
+        "y": 824.1,
+        "w": 64.89,
+        "h": 151.9
       },
-      "text_length": 49,
+      "text_length": 59,
       "font": {
         "family": "Poppins, Arial, sans-serif",
         "size": 16,
@@ -599,10 +599,9 @@
       },
       "color": "rgb(43, 11, 67)",
       "background": null,
-      "text_hash": "a147ba1c3293d430",
+      "text_hash": "6e74312e89014e25",
       "platform_fonts": [
-        "Be Vietnam Pro SemiBold",
-        "Poppins"
+        "Be Vietnam Pro SemiBold"
       ]
     },
     {

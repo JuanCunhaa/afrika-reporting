@@ -106,7 +106,8 @@ def period_label(period: dict) -> str:
     return f"{br(period['period_start'])} a {br(period['period_end_inclusive'])}"
 
 
-def _zone_data(zid: str, z: Zone, slide: Slide, entries: dict, label: str, vers: dict) -> tuple[dict, list[dict]]:
+def _zone_data(zid: str, z: Zone, slide: Slide, entries: dict, label: str, vers: dict,
+               labels: str = 'veracode') -> tuple[dict, list[dict]]:
     """IR de uma zona do painel composto, com os MESMOS construtores dos slides simples (nada é recalculado)."""
     spec = DASHBOARD_LAYOUTS[slide.layout][zid]
     points = [resolve(entries, label, m, vers[m]) for m in z.metrics]
@@ -120,9 +121,9 @@ def _zone_data(zid: str, z: Zone, slide: Slide, entries: dict, label: str, vers:
         prev = shift(label, -1)
         data = charts.comparison([(p, resolve(entries, prev, p['metric_id'], vers[p['metric_id']])) for p in points])
     elif k in (ZoneKind.SEVERITY_CARDS, ZoneKind.DONUT):
-        data = charts.severity(points[0])
+        data = charts.severity(points[0], labels=labels)
     elif k is ZoneKind.RANKING:
-        data = charts.ranking(points[0], top_n=z.top_n or 10)
+        data = charts.ranking(points[0], top_n=z.top_n or 10, labels=labels)
     elif k is ZoneKind.TABLE:
         data = charts.table(points)
     elif k is ZoneKind.CHART:
@@ -133,7 +134,7 @@ def _zone_data(zid: str, z: Zone, slide: Slide, entries: dict, label: str, vers:
             data = charts.monthly(chart, series, labels, show_legend=True)
             data['show_values'] = True
         else:
-            data = charts.bar_categories(points[0])
+            data = charts.bar_categories(points[0], labels=labels)
     return {'zone': zid, 'kind': k.value, 'name': spec.name, 'title': z.title, 'text_field': spec.text_field,
             'chart': z.chart, 'metrics': list(z.metrics), 'data': data}, points
 
@@ -148,7 +149,7 @@ def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinitio
         zones, pts = {}, []
         for zid in DASHBOARD_LAYOUTS[slide.layout]:
             if zid in slide.zones:
-                zones[zid], zp = _zone_data(zid, slide.zones[zid], slide, entries, label, vers)
+                zones[zid], zp = _zone_data(zid, slide.zones[zid], slide, entries, label, vers, doc.severity_labels)
                 pts += zp
         return {'kind': 'dashboard', 'layout': slide.layout, 'zones': zones}, pts
     if t is SlideType.SECTION:
@@ -173,11 +174,14 @@ def _slide_data(slide: Slide, entries: dict, label: str, defn: TemplateDefinitio
                               legend_title=f.legend_title, show_legend=o.show_legend is not False)
         data['show_values'] = o.show_values is not False
     elif t is SlideType.BAR_CHART:
-        data = charts.bar_categories(points[0], f.chart_title, show_values=o.show_values is not False)
+        data = charts.bar_categories(points[0], f.chart_title, show_values=o.show_values is not False,
+                                     labels=doc.severity_labels)
     elif t is SlideType.SEVERITY_DISTRIBUTION:
-        data = charts.severity(points[0], f.chart_title, show_values=o.show_values is not False)
+        data = charts.severity(points[0], f.chart_title, show_values=o.show_values is not False,
+                               labels=doc.severity_labels)
     elif t is SlideType.TOP10_RANKING:
-        data = charts.ranking(points[0], f.chart_title, top_n=o.top_n or 10, show_values=o.show_values is not False)
+        data = charts.ranking(points[0], f.chart_title, top_n=o.top_n or 10, show_values=o.show_values is not False,
+                              labels=doc.severity_labels)
     else:
         data = charts.table(points, f.chart_title)
     return data, points
@@ -300,4 +304,5 @@ def build(session: Session, p: Presentation, prev: PresentationRevision, draft: 
             'presenters': [x.model_dump() for x in doc.presenters],
             'sources': {**sources, 'metrics': metrics_out}, 'slides': slides, 'checks': checks,
             'ready': blockers == 0, 'blockers': blockers, 'ir_version': charts.IR_VERSION,
+            'severity_labels': doc.severity_labels,
             'data_policy': 'Somente revisões aprovadas fixadas; nenhum número inventado, interpolado ou recalculado.'}

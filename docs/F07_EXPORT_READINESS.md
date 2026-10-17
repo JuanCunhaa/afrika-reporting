@@ -1,4 +1,7 @@
-# Prontidão para a F07 — exportação editável PPTX/PDF (preparada na F06C, NÃO implementada)
+# Prontidão para a F07 — exportação editável PPTX/PDF (preparada na F06C)
+
+> **Histórico.** A F07 implementou este contrato: ver `docs/EXPORT.md` (estratégia, matriz de editabilidade medida,
+> fontes, segurança) e `docs/EXPORT_FIDELITY.md` (fidelidade HTML × PPTX × PDF). O texto abaixo é o estado da F06C.
 
 Nenhum exportador foi escrito. A F06C entrega o **contrato** de exportação, derivado da mesma visualização que o HTML usa,
 e os testes que garantem as propriedades que a F07 terá de preservar.

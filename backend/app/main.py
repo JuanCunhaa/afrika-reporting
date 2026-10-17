@@ -7,11 +7,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import (
-    api, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots, api_veracode, errors,
+    api, api_exports, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots, api_veracode, errors,
 )
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
+from app.export.jobs import ExportJobs
 from app.metrics.runs import RunManager
 from app.veracode.cache import DiscoveryCache
 from app.veracode.discovery import DiscoveryService
@@ -25,7 +26,8 @@ DESCRIPTION = ('F06B.1: cadastro de clientes/subclientes/conexões + descoberta 
                '+ motor de indicadores (aplicações, SAST, SCA) com contratos, status e proveniência '
                '+ snapshots por competência, revisões, aprovação auditável e séries históricas '
                '+ Reporting API (única escrita autorizada: POST de geração de relatório, desligado por padrão) '
-               '+ apresentações com templates e temas visuais versionados (ativos locais, fora do Git). '
+               '+ apresentações com templates e temas visuais versionados (ativos locais, fora do Git) '
+               '+ exportação PPTX editável e PDF a partir da revisão persistida (F07; renderização local, sem rede). '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -49,9 +51,11 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
                                               environ=environ, **extra)
         app.state.metric_runs = RunManager(app.state.veracode)
         app.state.reporting = ReportingJobs(settings, pool, **extra)
+        app.state.exports = ExportJobs(app.state.session_factory)  # F07: fila local de exportação PPTX/PDF
         try:
             yield
         finally:
+            app.state.exports.close()
             await app.state.reporting.aclose()
             await app.state.metric_runs.aclose()
             await pool.aclose()
@@ -73,6 +77,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app.include_router(api_snapshots.router)
     app.include_router(api_reporting.router)
     app.include_router(api_presentations.router)
+    app.include_router(api_exports.router)
 
     @app.get('/api/health')
     def health():

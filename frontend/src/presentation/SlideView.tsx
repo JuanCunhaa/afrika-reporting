@@ -27,6 +27,11 @@ import { ResolvedLayout, assetUrl, backgroundStyle, boxStyle, colorVar, competen
 
 const ThemeCtx = createContext<Theme | null>(null);
 const useTheme = () => useContext(ThemeCtx) as Theme;
+// F07: caminho da IR do objeto de dados (ex.: `data`, `data.zones.chart.data`) — o exportador PPTX reconstrói o
+// gráfico nativo com os valores aprovados dessa IR (só atributo; nenhuma mudança visual).
+const IRPath = createContext('data');
+// F07: muda quando as fontes do tema terminam de carregar — componentes que MEDEM texto (matriz) refazem a medição.
+const FontsTick = createContext(0);
 
 export function themeStyle(theme: Theme): React.CSSProperties {
   return themeVars(theme) as React.CSSProperties;
@@ -55,9 +60,9 @@ export function SlideCanvas({ view, slide, label }: { view: PresentationView; sl
 
 /** Injeta (uma vez por tema) o @font-face das fontes do tema com arquivo local e re-renderiza quando as fontes
  * terminam de carregar (a medição de rótulos dos gráficos usa a fonte real). */
-function useThemeFonts(theme: Theme) {
+function useThemeFonts(theme: Theme): number {
   const css = fontFaceCss(theme);
-  const [, bump] = useState(0);
+  const [tick, bump] = useState(0);
   useEffect(() => {
     let alive = true;
     document.fonts?.ready.then(() => alive && bump((n) => n + 1));
@@ -74,12 +79,13 @@ function useThemeFonts(theme: Theme) {
     style.textContent = css;
     document.head.appendChild(style);
   }, [css, theme.id, theme.version]);
+  return tick;
 }
 
 // Superfície do slide em tamanho nativo (escala 1 na captura determinística `#/render/{id}`).
 export function SlideSurface({ view, slide, label, scale = 1, testId }: { view: PresentationView; slide: ViewSlide; label?: string; scale?: number; testId?: string }) {
   const theme = view.theme;
-  useThemeFonts(theme);
+  const fontsTick = useThemeFonts(theme);
   const kind = slideKind(slide.type);
   const lay = layoutFor(theme, slide.layout);
   const images = theme.images.filter((img) => img.slides.includes('all') || img.slides.includes(kind));
@@ -89,6 +95,7 @@ export function SlideSurface({ view, slide, label, scale = 1, testId }: { view: 
   const badge = kind === 'content' ? theme.components.badge : null;
   return (
     <ThemeCtx.Provider value={theme}>
+     <FontsTick.Provider value={fontsTick}>
       <div
         className={`slide slide-${slide.type} layout-${slide.layout}`}
         style={{ ...themeStyle(theme), ...backgroundStyle(theme, kind, lay), transform: scale === 1 ? undefined : `scale(${scale})`, width: theme.canvas.width, height: theme.canvas.height }}
@@ -117,6 +124,7 @@ export function SlideSurface({ view, slide, label, scale = 1, testId }: { view: 
         {badge && <CompetenceBadge competence={view.competence.competence} />}
         {theme.footer.show && !lay.hideFooter && <Footer view={view} slide={slide} />}
       </div>
+     </FontsTick.Provider>
     </ThemeCtx.Provider>
   );
 }
@@ -471,6 +479,7 @@ function DeltaPill({ row, text, elKey }: { row: ComparisonRow; text: string; elK
 
 function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
   const hasTrendColors = !!useTheme().semantics?.variation;
+  const irPath = useContext(IRPath);
   const reason: Record<string, string> = {
     gap: 'lacuna',
     no_numeric_value: 'sem número',
@@ -527,7 +536,7 @@ function Comparison({ data, layout }: { data: IRComparison; layout: string }) {
       </div>
     );
   return (
-    <table className="slide-table" aria-label="Comparação com o mês anterior" data-el="comparison">
+    <table className="slide-table" aria-label="Comparação com o mês anterior" data-el="comparison" data-ir={irPath}>
       <thead>
         <tr>
           <th>Indicador</th>
@@ -612,7 +621,7 @@ function Axes({ plot, max, label, integer }: { plot: Plot; max: number; label: s
         );
       })}
       <line x1={plot.left} x2={plot.w - plot.right} y1={plot.top + ih} y2={plot.top + ih} stroke={colorVar('axis')} strokeWidth={c.grid_width} />
-      <text x={plot.left} y={c.unit_label_y} className="axis-text">
+      <text x={plot.left} y={c.unit_label_y} className="axis-text" data-axis-unit="">
         {label}
       </text>
     </g>
@@ -637,7 +646,7 @@ function Legend({ data }: { data: IRChart }) {
 function ChartFrame({ data, children }: { data: IRChart; children: React.ReactNode }) {
   const bottom = useTheme().charts.legend_position === 'bottom';
   return (
-    <figure className="slide-chart" data-el="chart">
+    <figure className="slide-chart" data-el="chart" data-ir={useContext(IRPath)}>
       {data.title && (
         <figcaption className="chart-title" data-el="chart-title">
           {data.title}
@@ -663,21 +672,27 @@ function ChartFrame({ data, children }: { data: IRChart; children: React.ReactNo
 function BarChart({ data, withText, fit = false }: { data: IRChart; withText: boolean; fit?: boolean }) {
   const t = useTheme();
   const c = t.charts;
-  const [svgRef, plot] = useFitPlot(fit, withText);
+  const [svgRef, basePlot] = useFitPlot(fit, withText);
   const s = data.series[0];
   if (!s || data.empty) return <Unavailable message="Distribuição aprovada sem itens" />;
   const max = niceMax(s.points.map((p) => p.y ?? 0));
-  const ih = plot.h - plot.top - plot.bottom;
-  const iw = plot.w - plot.left - plot.right;
+  const iw = basePlot.w - basePlot.left - basePlot.right;
   const step = iw / s.points.length;
   const bw = Math.min(c.bar_max_width, step * c.bar_width_ratio);
   const font = axisFont(t);
   const months = data.x_axis.type === 'month';
   const every = months ? monthLabelEvery(s.points.map((p) => p.x), step, font, c.axis_label_min_gap) : 1;
+  const labels = s.points.map((p) => (months ? { lines: [p.x], abbreviated: false } : wrapLabel(p.x, step - c.axis_label_min_gap, font)));
+  // linhas extras de rótulo: a área de plotagem sobe o necessário (o gráfico nativo do PPTX segue a mesma área)
+  const lineH = t.sizes.axis * CATEGORY_LINE_HEIGHT;
+  const extra = (Math.max(1, ...labels.map((l) => l.lines.length)) - 1) * lineH;
+  const plot = extra ? { ...basePlot, bottom: basePlot.bottom + extra } : basePlot;
+  const ih = plot.h - plot.top - plot.bottom;
   return (
     <ChartFrame data={data}>
       <svg ref={svgRef} viewBox={`0 0 ${plot.w} ${plot.h}`} className={`chart-svg${fit ? ' fit' : ''}`} role="img" aria-label={data.title ?? s.label} data-el="plot">
         <Axes plot={plot} max={max} label={data.y_axis.label} integer={data.y_axis.integer} />
+        <rect data-plot-area x={plot.left} y={plot.top} width={Math.max(0, plot.w - plot.left - plot.right)} height={Math.max(0, plot.h - plot.top - plot.bottom)} fill="none" stroke="none" />
         {s.points.map((p, i) => {
           const cx = plot.left + step * i + step / 2;
           const has = p.y !== null;
@@ -689,15 +704,25 @@ function BarChart({ data, withText, fit = false }: { data: IRChart; withText: bo
               {has ? (
                 <rect x={cx - bw / 2} y={y} width={bw} height={h} rx={c.bar_radius} fill={colorVar(p.color ?? s.color)} />
               ) : (
-                <rect x={cx - bw / 2} y={y} width={bw} height={h} rx={c.bar_radius} fill="none" stroke={colorVar('gap')} strokeDasharray={c.gap_dash} />
+                <rect x={cx - bw / 2} y={y} width={bw} height={h} rx={c.bar_radius} fill="none" stroke={colorVar('gap')} strokeDasharray={c.gap_dash} data-gap-marker="" />
               )}
               {(data.show_values !== false || !has) && (
-                <text x={cx} y={y - c.value_label_offset} textAnchor="middle" className="value-text">
+                <text x={cx} y={y - c.value_label_offset} textAnchor="middle" className="value-text" {...(has ? {} : { 'data-gap-marker': '' })}>
                   {p.label}
                 </text>
               )}
-              <text x={cx} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text">
-                {months ? (showMonth(i, s.points.length, every) ? p.x : '') : fitLabel(p.x, step - c.axis_label_min_gap, font)}
+              <text x={cx} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text" data-cat="" {...(labels[i].abbreviated ? { 'data-abbrev': p.x } : {})}>
+                {months
+                  ? showMonth(i, s.points.length, every)
+                    ? p.x
+                    : ''
+                  : labels[i].lines.length === 1
+                    ? labels[i].lines[0]
+                    : labels[i].lines.map((l, k) => (
+                        <tspan key={k} x={cx} dy={k ? lineH : 0}>
+                          {l}
+                        </tspan>
+                      ))}
               </text>
             </g>
           );
@@ -718,11 +743,43 @@ function textWidth(text: string, font: string): number {
 }
 const axisFont = (t: Theme) => `${t.sizes.axis}px ${fontStack(t.fonts.body)}`;
 
-/** Categoria longa: maior prefixo que cabe + "…" (o nome completo fica no <title> do elemento). */
+/** Maior prefixo que cabe + "…". Só como último recurso de `wrapLabel` (o rótulo fica marcado e a exportação bloqueia). */
 function fitLabel(label: string, maxWidth: number, font: string): string {
   if (textWidth(label, font) <= maxWidth) return label;
   for (let n = label.length - 1; n > 3; n--) if (textWidth(`${label.slice(0, n)}…`, font) <= maxWidth) return `${label.slice(0, n)}…`;
   return `${label.slice(0, 3)}…`;
+}
+
+/** Categoria longa: quebra em linhas (palavras; palavra maior que a linha é partida), como o PowerPoint faz com o
+ * rótulo completo do gráfico nativo — o PDF não perde texto. Acima de MAX_CATEGORY_LINES a última linha recebe "…" e
+ * o rótulo sai marcado (`data-abbrev`): o detector de overflow bloqueia a exportação com diagnóstico. */
+const MAX_CATEGORY_LINES = 3;
+const CATEGORY_LINE_HEIGHT = 1.2;
+function wrapLabel(label: string, maxWidth: number, font: string): { lines: string[]; abbreviated: boolean } {
+  if (textWidth(label, font) <= maxWidth) return { lines: [label], abbreviated: false };
+  const lines: string[] = [];
+  let cur = '';
+  for (const word of label.split(/\s+/).filter(Boolean)) {
+    const next = cur ? `${cur} ${word}` : word;
+    if (textWidth(next, font) <= maxWidth) {
+      cur = next;
+      continue;
+    }
+    if (cur) lines.push(cur);
+    let rest = word;
+    while (rest.length > 1 && textWidth(rest, font) > maxWidth) {
+      let n = rest.length - 1;
+      while (n > 1 && textWidth(rest.slice(0, n), font) > maxWidth) n--;
+      lines.push(rest.slice(0, n));
+      rest = rest.slice(n);
+    }
+    cur = rest;
+  }
+  if (cur) lines.push(cur);
+  if (lines.length <= MAX_CATEGORY_LINES) return { lines, abbreviated: false };
+  const kept = lines.slice(0, MAX_CATEGORY_LINES);
+  kept[MAX_CATEGORY_LINES - 1] = fitLabel(lines.slice(MAX_CATEGORY_LINES - 1).join(' '), maxWidth, font);
+  return { lines: kept, abbreviated: true };
 }
 
 /** Eixo de MESES: em vez de truncar ("202…"), mostra um rótulo a cada N meses (sempre o último). */
@@ -761,16 +818,17 @@ function LineChart({ data, withText, fit = false }: { data: IRChart; withText: b
     <ChartFrame data={data}>
       <svg ref={svgRef} viewBox={`0 0 ${plot.w} ${plot.h}`} className={`chart-svg${fit ? ' fit' : ''}`} role="img" aria-label={data.title ?? 'Série histórica'} data-el="plot">
         <Axes plot={plot} max={max} label={data.y_axis.label} integer={data.y_axis.integer} />
+        <rect data-plot-area x={plot.left} y={plot.top} width={Math.max(0, plot.w - plot.left - plot.right)} height={Math.max(0, plot.h - plot.top - plot.bottom)} fill="none" stroke="none" />
         {data.categories.map((cat, i) => (
-          <text key={cat} x={x(i)} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text">
+          <text key={cat} x={x(i)} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text" data-cat="">
             {showMonth(i, n, every) ? cat : ''}
           </text>
         ))}
         {data.categories.map((cat, i) =>
           data.series.every((s) => s.points[i].state === 'GAP') ? (
             <g key={`gap-${cat}`} data-testid={`gap-${cat}`}>
-              <line x1={x(i)} x2={x(i)} y1={plot.top} y2={plot.top + ih} stroke={colorVar('gap')} strokeDasharray={c.gap_line_dash} />
-              <text x={x(i)} y={plot.top + c.gap_label_y_offset} textAnchor="middle" className="gap-text">
+              <line x1={x(i)} x2={x(i)} y1={plot.top} y2={plot.top + ih} stroke={colorVar('gap')} strokeDasharray={c.gap_line_dash} data-gap-marker="" />
+              <text x={x(i)} y={plot.top + c.gap_label_y_offset} textAnchor="middle" className="gap-text" data-gap-marker="">
                 lacuna
               </text>
             </g>
@@ -805,7 +863,7 @@ function SeverityChart({ data }: { data: IRChart }) {
   const s = data.series[0];
   const max = Math.max(1, ...s.points.map((p) => p.y ?? 0));
   return (
-    <figure className="slide-chart" data-el="chart">
+    <figure className="slide-chart" data-el="chart" data-ir={useContext(IRPath)}>
       {data.title && (
         <figcaption className="chart-title" data-el="chart-title">
           {data.title}
@@ -839,10 +897,11 @@ function SeverityChart({ data }: { data: IRChart }) {
 
 function Ranking({ data, bars }: { data: IRRanking; bars: boolean }) {
   const c = useTheme().charts;
+  const irPath = useContext(IRPath); // antes de qualquer retorno antecipado (regra dos hooks)
   if (data.empty) return <Unavailable message="Ranking aprovado sem itens" />;
   const extras = data.columns.slice(3);
   return (
-    <figure className="slide-chart" data-el="chart">
+    <figure className="slide-chart" data-el="chart" data-ir={irPath}>
       {data.title && (
         <figcaption className="chart-title" data-el="chart-title">
           {data.title}
@@ -888,7 +947,7 @@ function Ranking({ data, bars }: { data: IRRanking; bars: boolean }) {
 
 function MetricTable({ data }: { data: IRTable }) {
   return (
-    <table className="slide-table" aria-label="Tabela de indicadores" data-el="table">
+    <table className="slide-table" aria-label="Tabela de indicadores" data-el="table" data-ir={useContext(IRPath)}>
       <thead>
         <tr>
           <th>Indicador</th>
@@ -962,14 +1021,51 @@ function Section({ slide, lay, data }: { slide: ViewSlide; lay: ResolvedLayout; 
   );
 }
 
+// F07 — matriz com textos longos (células de até 1000 caracteres): quando o conteúdo não cabe, as linhas passam a ter
+// altura proporcional ao conteúdo e a fonte é reduzida em degraus até caber (mínimo 60%). Sem caber no mínimo, o
+// excesso fica cortado (overflow hidden) e o detector de overflow BLOQUEIA a exportação com diagnóstico — nunca
+// truncamento silencioso. Medido antes da pintura (useLayoutEffect) e refeito quando as fontes carregam: o mesmo
+// resultado na pré-visualização, na captura do PDF/PPTX e na regressão visual. Conteúdo que cabe: visual inalterado.
+const MATRIX_SCALES = [0.92, 0.85, 0.78, 0.72, 0.66, 0.6];
+
 function Matrix({ slide, lay }: { slide: ViewSlide; lay: ResolvedLayout }) {
+  const tick = useContext(FontsTick);
   const rows = slide.fields.items.map((it) => it.split(' | '));
-  const [head, ...body] = rows;
-  const cols = Math.max(1, ...rows.map((r) => r.length));
   return (
     <ContentFrame slide={slide} lay={lay}>
       {slide.fields.body && <Paragraphs text={slide.fields.body} />}
-      <div className="reco-matrix" style={{ gridTemplateColumns: `minmax(0,0.72fr) repeat(${cols - 1}, minmax(0,1fr))` }} role="table" data-el="matrix">
+      <MatrixGrid key={`${tick}|${slide.fields.items.join('\n')}`} rows={rows} />
+      {!rows.length && (
+        <p className="slide-text muted-ink" data-el="empty">
+          Sem itens registrados.
+        </p>
+      )}
+    </ContentFrame>
+  );
+}
+
+function MatrixGrid({ rows }: { rows: string[][] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(0); // 0 = padrão; 1 = linhas pelo conteúdo; 2.. = degraus de fonte
+  useLayoutEffect(() => {
+    const g = ref.current;
+    if (!g) return;
+    const over = g.scrollHeight - g.clientHeight > 1 || Array.from(g.children).some((c) => c.scrollHeight - c.clientHeight > 1);
+    if (over && fit <= MATRIX_SCALES.length) setFit(fit + 1);
+  }, [fit]);
+  const [head, ...body] = rows;
+  const cols = Math.max(1, ...rows.map((r) => r.length));
+  const scale = fit <= 1 ? undefined : MATRIX_SCALES[fit - 2];
+  return (
+    <>
+      <div
+        ref={ref}
+        className="reco-matrix"
+        style={{ gridTemplateColumns: `minmax(0,0.72fr) repeat(${cols - 1}, minmax(0,1fr))`, ...(scale ? ({ '--mx-scale': String(scale) } as React.CSSProperties) : {}) }}
+        role="table"
+        data-el="matrix"
+        {...(fit ? { 'data-fit': String(fit) } : {})}
+      >
         {head && head.map((cell, i) => (
           <div key={`h${i}`} className={`matrix-head ${i === 0 ? 'first' : ''}`} role="columnheader" data-el={`matrix-head:${i + 1}`}>
             {i === 0 ? '' : cell}
@@ -983,12 +1079,7 @@ function Matrix({ slide, lay }: { slide: ViewSlide; lay: ResolvedLayout }) {
           )),
         )}
       </div>
-      {!rows.length && (
-        <p className="slide-text muted-ink" data-el="empty">
-          Sem itens registrados.
-        </p>
-      )}
-    </ContentFrame>
+    </>
   );
 }
 
@@ -1081,6 +1172,10 @@ function ZoneContent({ zone, slide }: { zone: DashboardZone; slide: ViewSlide })
   const d = zone.data;
   if (!d) return <Unavailable message="Sem dados vinculados" compact />;
   if ('available' in d && d.available === false) return <Unavailable message={(d as IRUnavailable).message} compact />;
+  return <IRPath.Provider value={`data.zones.${zone.zone}.data`}>{zoneData(zone, d, theme)}</IRPath.Provider>;
+}
+
+function zoneData(zone: DashboardZone, d: NonNullable<DashboardZone['data']>, theme: Theme) {
   switch (zone.kind) {
     case 'kpi_band':
       return <KpiBand data={d as IRKpi} />;
@@ -1190,7 +1285,7 @@ function Donut({ data }: { data: IRChart }) {
       return { p, d };
     });
   return (
-    <figure className="donut" data-el="donut">
+    <figure className="donut" data-el="donut" data-ir={useContext(IRPath)}>
       <svg viewBox="-110 -110 220 220" className="donut-svg" role="img" aria-label={data.title ?? 'Distribuição por severidade'}>
         {total === 0 && <circle r={(R + r) / 2} fill="none" stroke={colorVar('grid')} strokeWidth={R - r} />}
         {arcs.map(({ p, d }) => (
@@ -1237,8 +1332,9 @@ function ComboChart({ data, fit = false }: { data: IRChart; fit?: boolean }) {
     <ChartFrame data={data}>
       <svg ref={svgRef} viewBox={`0 0 ${plot.w} ${plot.h}`} className={`chart-svg${fit ? ' fit' : ''}`} role="img" aria-label={data.title ?? 'Série combinada'} data-el="plot">
         <Axes plot={plot} max={max} label={data.y_axis.label} integer={data.y_axis.integer} />
+        <rect data-plot-area x={plot.left} y={plot.top} width={Math.max(0, plot.w - plot.left - plot.right)} height={Math.max(0, plot.h - plot.top - plot.bottom)} fill="none" stroke="none" />
         {data.categories.map((cat, i) => (
-          <text key={cat} x={x(i)} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text">
+          <text key={cat} x={x(i)} y={plot.h - plot.bottom + c.category_label_offset} textAnchor="middle" className="axis-text" data-cat="">
             {showMonth(i, n, every) ? cat : ''}
           </text>
         ))}
@@ -1252,7 +1348,7 @@ function ComboChart({ data, fit = false }: { data: IRChart; fit?: boolean }) {
                 {has ? (
                   <rect x={x(i) - bw / 2} y={plot.top + ih - h} width={bw} height={h} rx={c.bar_radius} fill={colorVar(bars.color)} />
                 ) : (
-                  <rect x={x(i) - bw / 2} y={plot.top + ih - h} width={bw} height={h} rx={c.bar_radius} fill="none" stroke={colorVar('gap')} strokeDasharray={c.gap_dash} />
+                  <rect x={x(i) - bw / 2} y={plot.top + ih - h} width={bw} height={h} rx={c.bar_radius} fill="none" stroke={colorVar('gap')} strokeDasharray={c.gap_dash} data-gap-marker="" />
                 )}
                 {data.show_values !== false && has && (
                   <text x={x(i)} y={plot.top + ih - h - c.value_label_offset} textAnchor="middle" className="value-text">

@@ -3,6 +3,7 @@
 # Resolução verificada com wheels para CPython 3.11 e 3.14 (Linux x86_64 e Windows amd64).
 # Aplicado automaticamente por requirements.txt (-c). Para atualizar: alterar aqui, rodar a suíte
 # completa (pytest + E2E) e registrar no handoff.
+# F07 (2026-10-16): + python-pptx e dependências (lxml, pillow, xlsxwriter) — wheels conferidos para 3.11/3.14 Linux e Windows.
 alembic==1.20.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
@@ -17,16 +18,19 @@ httptools==0.9.0
 httpx==0.28.1
 idna==3.20
 iniconfig==2.3.1
+lxml==6.1.3
 mako==1.4.3
 markupsafe==3.0.4
 opentelemetry-api==1.45.1
 packaging==26.3
+pillow==12.3.0
 pluggy==1.6.0
 pydantic==2.14.1
 pydantic-core==2.50.1
 pygments==2.21.0
 pytest==9.1.1
 python-dotenv==1.2.4
+python-pptx==1.0.2
 pyyaml==6.0.3
 sqlalchemy==2.1.4
 starlette==1.8.0
@@ -34,7 +38,8 @@ typing-extensions==4.16.0
 typing-inspection==0.4.4
 tzdata==2026.5
 uvicorn==0.54.0
-# uvloop só é instalado fora do Windows (marcador de uvicorn[standard]); versão fixada para o CI Linux.
-uvloop==0.23.0
 watchfiles==1.3.0
 websockets==17.2
+xlsxwriter==3.2.9
+# uvloop só é instalado fora do Windows (marcador de uvicorn[standard]); versão fixada para o CI Linux.
+uvloop==0.23.0

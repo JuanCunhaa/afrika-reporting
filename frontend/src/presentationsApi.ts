@@ -50,7 +50,9 @@ export type Zone = { title?: string | null; metrics: string[]; chart?: 'bar' | '
 export type ZoneKind = 'kpi_band' | 'kpi_cards' | 'severity_cards' | 'donut' | 'chart' | 'comparison' | 'ranking' | 'table' | 'text';
 export type ZoneSpec = { zone: string; kind: ZoneKind; name: string; min_metrics: number; max_metrics: number; value_types: string[]; frac: [number, number, number, number]; text_field: 'body' | 'items' | null; charts: string[] };
 export type Presenter = { name: string; role?: string | null };
-export type PresentationDocument = { schema_version: 1; title: string; presenters: Presenter[]; slides: DocSlide[] };
+// F07: `severity_labels` opcional (ausente = 'veracode'); 'executive' mostra "Crítica" no lugar de "Muito alta".
+export type SeverityLabels = 'veracode' | 'executive';
+export type PresentationDocument = { schema_version: 1; title: string; presenters: Presenter[]; slides: DocSlide[]; severity_labels?: SeverityLabels };
 
 export type SlideTypeSpec = {
   type: SlideType;
@@ -335,6 +337,7 @@ export type PresentationView = {
   checks: Issue[];
   ready: boolean;
   blockers: number;
+  severity_labels?: SeverityLabels; // F07
 };
 export type PresentationIntegrity = { ok: boolean; problems: string[]; revisions_checked: number; sources_checked: { competence: string; revision: number; content_ok: boolean }[] };
 
@@ -346,6 +349,44 @@ export type SlotAvailability = {
 };
 
 const p = (pid: string) => `/api/presentations/${pid}`;
+
+// ---------------------------------------------------------------- F07: exportação PPTX/PDF
+export type ExportFormat = 'pptx' | 'pdf';
+export type ExportIssue = { field?: string; message: string; type?: string };
+export type ExportJob = {
+  id: string;
+  presentation_id: string;
+  revision: number;
+  format: ExportFormat;
+  operator: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  created_at: number;
+  started_at: number | null;
+  finished_at: number | null;
+  error: { code: string; message: string; details: ExportIssue[] } | null;
+  warnings: { code: string; message: string }[];
+  report: Record<string, unknown>;
+  timings: Record<string, number>;
+  filename: string | null;
+  size: number | null;
+  sha256: string | null;
+  template: string;
+  theme: string;
+  download_url: string | null;
+};
+export type ExportEngine = {
+  available: boolean;
+  formats: ExportFormat[];
+  renderer: { ok: boolean; code?: string; message?: string; source_hash?: string; stamp_check?: string };
+  browser: { ok: boolean; code?: string; message?: string; source?: string };
+};
+export const exportsApi = {
+  engine: () => request<ExportEngine>('GET', '/api/export-engine'),
+  create: (pid: string, format: ExportFormat, revision: number, operator: string) =>
+    request<ExportJob>('POST', `${p(pid)}/exports`, { format, revision, operator }),
+  list: (pid: string) => request<{ items: ExportJob[] }>('GET', `${p(pid)}/exports`),
+  get: (id: string) => request<ExportJob>('GET', `/api/exports/${id}`),
+};
 
 export const presentations = {
   catalog: () => request<Catalog>('GET', '/api/presentation-catalog'),

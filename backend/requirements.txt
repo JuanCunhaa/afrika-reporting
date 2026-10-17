@@ -12,3 +12,5 @@ httpx>=0.27,<1
 python-dotenv>=1.0,<2
 # F04.1: base IANA oficial para zoneinfo (Windows não tem base do sistema; regras históricas de America/Sao_Paulo)
 tzdata>=2024.1
+# F07: exportação PPTX editável (objetos nativos; MIT). Dependências transitivas (lxml, Pillow, XlsxWriter) fixadas no lock.
+python-pptx>=1.0.2,<2

@@ -126,3 +126,13 @@
 - Plano de exportação (`/export-plan`) é somente leitura e não grava arquivo; segue as mesmas regras de dados (só
   revisões aprovadas fixadas; lacuna nunca vira zero).
 - Nenhuma chamada à Veracode; nenhuma dependência nova (backend/frontend).
+
+## Controles implementados na F07 (exportação PPTX/PDF) — detalhes em `docs/EXPORT.md` §7
+- Só revisão PERSISTIDA com fonte aprovada e referências íntegras; snapshots/aprovações apenas lidos; nenhuma Veracode.
+- Nomes de arquivo e caminhos gerados no servidor; download pelo id aleatório do job; diretório temporário próprio por
+  job com limpeza na expiração (30 min) e no desligamento; limites de fila (4), prazo (120 s), tamanho (100 MiB).
+- Chromium headless com argumentos fixos (sem shell), perfil descartável, sem rede (`MAP * ~NOTFOUND` + interceptação:
+  só `dist/`, a visualização e ativos do tema; qualquer outra requisição falha o job).
+- Validação antes do sucesso: PPTX sem macros/ActiveX/OLE/relações externas, XML sem entidades; PDF sem
+  JavaScript/Launch/arquivos incorporados/ações automáticas e com fontes incorporadas.
+- Repositório: `check_repo` recusa PPTX/PDF e arquivos de fonte rastreados; medições locais só em `output/`.

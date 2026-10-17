@@ -241,7 +241,8 @@ def list_for_owner(session: Session, kind: str, owner_id: uuid.UUID) -> list[dic
 
 # ---------------------------------------------------------------- integridade
 
-def verify(session: Session, p: Presentation) -> dict:
+def verify(session: Session, p: Presentation, revision: int | None = None) -> dict:
+    """Cadeia de revisões + template + fontes fixadas da revisão `revision` (padrão: a atual; F07: a exportada)."""
     problems: list[str] = []
     tmpl = session.get(PresentationTemplate, p.template_id)
     if templates.definition_hash(templates.definition_of(tmpl)) != tmpl.definition_hash:
@@ -258,7 +259,7 @@ def verify(session: Session, p: Presentation) -> dict:
         prev = r.revision_hash
     if p.current_revision != (p.revisions[-1].number if p.revisions else 0):
         problems.append('ponteiro da revisão atual divergente')
-    current = get_revision(session, p)
+    current = get_revision(session, p, revision)
     sources = json.loads(current.sources_json)
     entries, ref_problems = view.load_entries(session, sources)
     problems += ref_problems
@@ -272,7 +273,7 @@ def verify(session: Session, p: Presentation) -> dict:
         checked.append({'competence': label, 'revision': rev.number, 'approval_sequence': appr.sequence,
                         'content_ok': content_ok, 'snapshot_hash_mismatches': bad})
     return {'ok': not problems, 'problems': problems, 'revisions_checked': len(p.revisions),
-            'sources_checked': checked}
+            'sources_revision': current.number, 'sources_checked': checked}
 
 
 # ---------------------------------------------------------------- disponibilidade por slot (F06C)

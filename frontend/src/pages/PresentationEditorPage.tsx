@@ -19,6 +19,7 @@ import {
 import { VALUE_STATE_LABEL, ValueState, loadOperator, saveOperator } from '../snapshotsApi';
 import { ErrorBox, Loading, fmtDate } from '../ui';
 import { OperatorField, shortValue } from './OwnerPicker';
+import { ExportPanel } from './ExportPanel';
 
 // F06A: editor de apresentação. Edita SÓ conteúdo editorial (textos, ordem, slides, indicadores compatíveis, opções).
 // Valores vêm das revisões aprovadas fixadas e não são editáveis aqui: correção = nova revisão em Competências (F05).
@@ -350,7 +351,7 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
             </ul>
           )}
           <p className="muted" data-testid="readiness">
-            {view.ready ? 'Sem bloqueios para exportação futura (F07).' : `${view.blockers} bloqueio(s): indicadores obrigatórios sem valor aprovado.`}
+            {view.ready ? 'Sem bloqueios para exportação.' : `${view.blockers} bloqueio(s): indicadores obrigatórios sem valor aprovado.`}
           </p>
         </div>
 
@@ -384,6 +385,23 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
             <input id="doc-title" value={doc.title} maxLength={200} onChange={(e) => update((d) => (d.title = e.target.value))} />
           </div>
           <Presenters doc={doc} update={update} />
+          <div className="field">
+            <label htmlFor="doc-severity-labels">Rótulos de severidade</label>
+            <select
+              id="doc-severity-labels"
+              value={doc.severity_labels ?? 'veracode'}
+              onChange={(e) =>
+                update((d) => {
+                  if (e.target.value === 'executive') d.severity_labels = 'executive';
+                  else delete d.severity_labels; // padrão: nomenclatura Veracode (campo omitido do documento)
+                })
+              }
+            >
+              <option value="veracode">Veracode (Muito alta, Alta, …)</option>
+              <option value="executive">Executivo (Crítica no lugar de Muito alta)</option>
+            </select>
+            <small className="muted">Só o rótulo muda; a severidade original fica registrada na proveniência.</small>
+          </div>
           <OperatorField
             id="e-operator"
             value={operator}
@@ -419,6 +437,8 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
           )}
         </div>
       )}
+
+      <ExportPanel pid={pid} revision={readOnly ? (viewing as number) : meta.current_revision} dirty={!readOnly && dirty} ready={view.ready} blockers={view.blockers} operator={operator} />
 
       <SourcesPanel view={view} />
 

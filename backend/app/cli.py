@@ -11,6 +11,10 @@ F06B.1 (preparação do motor visual; nada é enviado para fora da máquina):
     python -m app.cli theme-asset-add ARQUIVO              # logo/fonte para o armazenamento LOCAL de ativos
     python -m app.cli theme-create --key K --file TEMA.json --operator NOME [--expected-version N]
 
+F07 (exportação local; mesmas regras da API — revisão persistida, fonte aprovada, integridade, overflow):
+
+    python -m app.cli export --presentation UUID --revision N --format pptx|pdf [--out DIR]
+
 Banco: AFRIKA_DATABASE_URL ou data/afrika-reporting.sqlite3 na raiz do repo.
 Relatórios de inspeção: output/pptx-inspection/<sha256[:12]>/ (ignorado pelo Git) ou --out fora do repositório.
 """
@@ -89,6 +93,30 @@ def _theme_create(session, args) -> int:
     return 0
 
 
+def _export(session, args) -> int:
+    import uuid
+    from app.errors import ApiError
+    from app.export import service as export_service
+    from app.export.errors import ExportError
+    from app.presentations import service
+    out = safe_output_dir(args.out or str(db.REPO_ROOT / 'output' / 'exports'), '')
+    try:
+        p = service.get(session, uuid.UUID(args.presentation))
+        v = export_service.precheck(session, p, service.get_revision(session, p, args.revision))
+        res = export_service.build_export(v, args.format)
+    except (ApiError, ExportError, ValueError) as exc:
+        details = '; '.join(f"{d.get('field', '')}: {d['message']}" for d in getattr(exc, 'details', None) or [])
+        print(f'Exportação recusada: {getattr(exc, "message", str(exc))}{": " + details if details else ""}',
+              file=sys.stderr)
+        return 1
+    out.mkdir(parents=True, exist_ok=True)
+    target = out / res.filename
+    target.write_bytes(res.data)
+    print(json.dumps({'file': str(target), 'sha256': res.sha256, 'size_bytes': len(res.data), 'timings': res.timings,
+                      'warnings': res.warnings}, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _db_command(args) -> int:
     url = db.database_url()
     print(f'Banco: {_display_url(url)}')
@@ -110,6 +138,8 @@ def _db_command(args) -> int:
         with db.session_factory(engine)() as session:
             if args.command == 'theme-create':
                 return _theme_create(session, args)
+            if args.command == 'export':
+                return _export(session, args)
             created = seed_demo(session)
         print(f'Seed sintético: criados {created}')
         return 0
@@ -147,6 +177,11 @@ def main(argv: list[str] | None = None) -> int:
                         help='F06C: encaixes de ativos do tema × arquivos da pasta local (fora do Git); só metadados')
     ba.add_argument('--theme', required=True)
     ba.add_argument('--version', type=int, required=True)
+    ex = sub.add_parser('export', help='F07: exporta a revisão PERSISTIDA de uma apresentação para PPTX ou PDF')
+    ex.add_argument('--presentation', required=True)
+    ex.add_argument('--revision', type=int, required=True)
+    ex.add_argument('--format', choices=('pptx', 'pdf'), required=True)
+    ex.add_argument('--out', help='diretório de saída (padrão output/exports; fora do repo ou sob output/, private/)')
     args = parser.parse_args(argv)
 
     load_project_env()

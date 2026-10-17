@@ -22,6 +22,15 @@ IR_VERSION = 1
 SEVERITY_ORDER = ('VERY_HIGH', 'HIGH', 'MEDIUM', 'LOW', 'VERY_LOW', 'INFORMATIONAL', 'UNKNOWN')
 SEVERITY_LABEL = {'VERY_HIGH': 'Muito alta', 'HIGH': 'Alta', 'MEDIUM': 'Média', 'LOW': 'Baixa',
                   'VERY_LOW': 'Muito baixa', 'INFORMATIONAL': 'Informativa', 'UNKNOWN': 'Desconhecida'}
+# F07 — rótulos executivos (decisão do PO): "Crítica" no lugar de "Muito alta". Só o RÓTULO muda: a categoria original
+# segue em `source_label`/`key` (proveniência) e a cor continua a do nível semântico do tema.
+EXECUTIVE_LABEL = {'VERY_HIGH': 'Crítica'}
+
+
+def severity_label(key: str, labels: str = 'veracode') -> str:
+    return EXECUTIVE_LABEL.get(key, SEVERITY_LABEL[key]) if labels == 'executive' else SEVERITY_LABEL[key]
+
+
 UNIT_LABEL = {'applications': 'aplicações', 'findings': 'findings', 'lines_of_code': 'linhas de código',
               'components': 'componentes', 'projects': 'projetos'}
 
@@ -245,7 +254,7 @@ def _label(row: dict, fields: tuple[str, ...]) -> str:
     raise StructureError('label')
 
 
-def categories_of(metric_id: str, value: Any) -> list[dict]:
+def categories_of(metric_id: str, value: Any, labels: str = 'veracode') -> list[dict]:
     """[{label, y, extra}] na ORDEM da fonte. Levanta StructureError se o valor não tiver a forma esperada."""
     if metric_id in _FIXED_KEYS:
         if not isinstance(value, dict):
@@ -266,7 +275,8 @@ def categories_of(metric_id: str, value: Any) -> list[dict]:
     for row in rows:
         if not isinstance(row, dict) or not _is_number(row.get(adapter['value'])):
             raise StructureError(adapter['value'])
-        extra = {label: (SEVERITY_LABEL.get(row[key], row[key]) if key == 'max_severity' else row[key])
+        extra = {label: ((severity_label(row[key], labels) if row[key] in SEVERITY_LABEL else row[key])
+                         if key == 'max_severity' else row[key])
                  for key, label in adapter.get('extra', ()) if key in row}  # severidade: rótulo pt-BR, não o código
         out.append({'label': _label(row, adapter['label']), 'y': row[adapter['value']], 'extra': extra})
     others = adapter.get('others')
@@ -275,10 +285,11 @@ def categories_of(metric_id: str, value: Any) -> list[dict]:
     return out
 
 
-def severity_categories(value: Any) -> list[dict]:
+def severity_categories(value: Any, labels: str = 'veracode') -> list[dict]:
     if not isinstance(value, dict) or not all(_is_number(value.get(k)) for k in SEVERITY_ORDER):
         raise StructureError('by_severity')
-    return [{'label': SEVERITY_LABEL[k], 'key': k, 'y': value[k], 'extra': {}} for k in SEVERITY_ORDER]
+    return [{'label': severity_label(k, labels), 'key': k, 'source_label': SEVERITY_LABEL[k], 'y': value[k],
+             'extra': {}} for k in SEVERITY_ORDER]
 
 
 def _categorical(kind: str, p: dict, cats: list[dict], title: str | None, *, colors: list[str] | None = None,
@@ -294,7 +305,10 @@ def _categorical(kind: str, p: dict, cats: list[dict], title: str | None, *, col
                                         'color': None if colors is None else colors[i], 'extra': c.get('extra', {}),
                                         'aggregate': c.get('aggregate', False), 'value_state': p.get('value_state'),
                                         'origin': p.get('origin'), 'competence': p.get('competence'),
-                                        'metric_id': p['metric_id']} for i, c in enumerate(cats)]}],
+                                        'metric_id': p['metric_id'],
+                                        **({'key': c['key'], 'source_label': c['source_label']}
+                                           if c.get('source_label') not in (None, c['label']) else {})}
+                                       for i, c in enumerate(cats)]}],
                 'legend': {'show': False, 'title': None}, 'gaps': []})
     return out
 
@@ -309,13 +323,13 @@ def _point_unavailable(kind: str, p: dict, title: str | None) -> dict | None:
     return None
 
 
-def bar_categories(p: dict, title: str | None = None, *, show_values: bool = True) -> dict:
+def bar_categories(p: dict, title: str | None = None, *, show_values: bool = True, labels: str = 'veracode') -> dict:
     blocked = _point_unavailable('bar', p, title)
     if blocked:
         return blocked
     try:
-        cats = (severity_categories(p['value']) if p.get('value_type') == 'by_severity'
-                else categories_of(p['metric_id'], p['value']))
+        cats = (severity_categories(p['value'], labels) if p.get('value_type') == 'by_severity'
+                else categories_of(p['metric_id'], p['value'], labels))
     except StructureError:
         return unavailable('bar', 'unrecognized_structure', 'Estrutura do valor aprovado não reconhecida para '
                                                             'gráfico de barras (nenhum número é presumido)', title)
@@ -324,12 +338,12 @@ def bar_categories(p: dict, title: str | None = None, *, show_values: bool = Tru
     return _categorical('bar', p, cats, title, show_values=show_values)
 
 
-def severity(p: dict, title: str | None = None, *, show_values: bool = True) -> dict:
+def severity(p: dict, title: str | None = None, *, show_values: bool = True, labels: str = 'veracode') -> dict:
     blocked = _point_unavailable('severity', p, title)
     if blocked:
         return blocked
     try:
-        cats = severity_categories(p['value'])
+        cats = severity_categories(p['value'], labels)
     except StructureError:
         return unavailable('severity', 'unrecognized_structure', 'Valor aprovado sem as severidades esperadas', title)
     out = _categorical('severity', p, cats, title, colors=[f'severity.{c["key"]}' for c in cats],
@@ -340,12 +354,13 @@ def severity(p: dict, title: str | None = None, *, show_values: bool = True) -> 
     return out
 
 
-def ranking(p: dict, title: str | None = None, *, top_n: int = 10, show_values: bool = True) -> dict:
+def ranking(p: dict, title: str | None = None, *, top_n: int = 10, show_values: bool = True,
+            labels: str = 'veracode') -> dict:
     blocked = _point_unavailable('ranking', p, title)
     if blocked:
         return blocked
     try:
-        cats = categories_of(p['metric_id'], p['value'])
+        cats = categories_of(p['metric_id'], p['value'], labels)
     except StructureError:
         return unavailable('ranking', 'unrecognized_structure', 'Estrutura do ranking aprovado não reconhecida '
                                                                 '(nenhum item é presumido)', title)

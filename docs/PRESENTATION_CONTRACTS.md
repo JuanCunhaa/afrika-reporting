@@ -1,4 +1,4 @@
-# Contratos de templates, documentos e gráficos (F06A + F06B.1 + F06B + F06C)
+# Contratos de templates, documentos e gráficos (F06A + F06B.1 + F06B + F06C + F07)
 
 Fonte de verdade do código: `backend/app/presentations/document.py` (esquemas Pydantic, `extra='forbid'`),
 `catalog.py` (tipos de slide) e `charts.py` (IR). Catálogo em tempo de execução: `GET /api/presentation-catalog`.
@@ -132,7 +132,29 @@ indicadores SAST/SCA, Policy/Sandbox/distintos) declara `LOWER_IS_BETTER`; todo 
 confirmação do PO).
 
 ### Plano de exportação (F06C — contrato da F07)
-`GET /api/presentations/{id}/export-plan` — ver `docs/F07_EXPORT_READINESS.md` (nenhum arquivo é gerado).
+`GET /api/presentations/{id}/export-plan` — ver `docs/F07_EXPORT_READINESS.md` (nenhum arquivo é gerado). Na F07 o
+layout `ranking-bars` passou a `export_as: table` (tabela nativa completa + barras como formas decorativas; o número é
+texto na célula) e distribuição aprovada sem itens a `unavailable` (como o HTML).
+
+### Exportação (F07 + F07.1) — `docs/EXPORT.md`
+- Entrada: `POST /api/presentations/{id}/exports {format: pptx|pdf, revision: N ≥ 1, operator}` (`extra='forbid'`); só
+  a revisão PERSISTIDA informada, com fonte aprovada (`APPROVED_ONLY_PINNED`), referências íntegras e sem bloqueios;
+  senão 409 `export_blocked` com `details[{field, message, type}]`.
+- Job: `{id, presentation_id, revision, format, operator, status: queued|running|done|failed, created_at, started_at,
+  finished_at, template, theme, filename, media_type, size, sha256, download_url, report, warnings[], timings,
+  error{code, message, details}}` (caminho local nunca exposto). Erros: `content_overflow` (por slide;
+  tipos `clipped-x|clipped-y|spill-x|ellipsis|outside-zone|outside-slide`), `font_unavailable`,
+  `render_request_blocked`, `renderer_missing|renderer_stale`, `export_engine_unavailable`, `pptx_invalid|pdf_invalid`,
+  `export_too_large`.
+- Documento: `severity_labels: veracode|executive` (padrão `veracode`, omitido do JSON canônico — hashes antigos
+  preservados). `executive` troca só o RÓTULO de "Muito alta" por "Crítica"; a categoria original segue em `key` e
+  `source_label` do ponto da IR.
+- Matriz: célula de até 1000 caracteres (`MATRIX_CELL_MAX`); fonte reduzida em degraus até 60%; sem caber ⇒ bloqueio.
+- Rótulo de categoria (F07.1): quebra em até 3 linhas (`<tspan>`); acima disso o `<text>` recebe `data-abbrev` e a
+  exportação é bloqueada (`ellipsis`, elemento `axis-label:<rótulo>`).
+- Saída PPTX: `docProps/custom.xml` com `afrika.*` (revisão e hashes, template@versão+hash, tema@versão+hash, dono,
+  competência, fonte primária, política, rótulos, versões de plano/layout, hash do renderizador); mesmo SHA-256 para a
+  mesma revisão + template/tema + build.
 
 ### Cores
 Tokens do tema; o renderizador resolve (tokens obrigatórios em `docs/THEMES.md`). Séries: `series.1…4` na ordem de vinculação (fixa, nunca por posição de

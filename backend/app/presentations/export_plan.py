@@ -62,7 +62,10 @@ MATRIX: dict[str, dict[str, Any]] = {
     'donut': {'export_as': 'native_chart', 'editable': True,
               'pptx': 'c:doughnutChart com c:dPt; filete = contorno da série na cor da superfície'},
     'ranking_table': {'export_as': 'table', 'editable': True, 'pptx': 'graphicFrame/tbl (ordem da fonte)'},
-    'ranking_bars': {'export_as': 'native_chart', 'editable': True, 'pptx': 'c:barChart (barDir=bar)'},
+    # F07: o layout ranking-bars do HTML é uma TABELA com barras embutidas; exportá-lo como gráfico perderia colunas
+    # (posição, extras). Tabela nativa completa + barras como formas vetoriais decorativas (o número é texto na célula).
+    'ranking_bars': {'export_as': 'table', 'editable': True,
+                     'pptx': 'graphicFrame/tbl (ordem da fonte) + barras como formas (decorativas; valor na célula)'},
     'metric_table': {'export_as': 'table', 'editable': True, 'pptx': 'graphicFrame/tbl'},
     'matrix': {'export_as': 'table', 'editable': True, 'pptx': 'graphicFrame/tbl (1ª linha = cabeçalho)'},
     'unavailable': {'export_as': 'text', 'editable': True,
@@ -106,6 +109,8 @@ def _values(points: list[dict]) -> list:
 def _chart(component: str, chart_type: str, ir: dict | None, binding: str) -> list[dict]:
     if not ir or ir.get('available') is False:
         return [_el('unavailable', binding, reason=(ir or {}).get('reason', 'no_data'))]
+    if ir.get('empty') or not ir.get('series'):  # distribuição aprovada sem itens: o HTML mostra "indisponível"
+        return [_el('unavailable', binding, reason='empty')]
     series = []
     for i, s in enumerate(ir.get('series', [])):
         colors = [p.get('color') for p in s['points']]
@@ -124,16 +129,10 @@ def _ranking(ir: dict | None, binding: str, bars: bool) -> list[dict]:
     if not ir or ir.get('available') is False:
         return [_el('unavailable', binding, reason=(ir or {}).get('reason', 'no_data'))]
     rows = ir.get('rows', [])
-    if bars:
-        return [_el('ranking_bars', binding, chart={
-            'type': 'bar_horizontal', 'categories': [r['label'] for r in rows],
-            'series': [{'name': (ir.get('columns') or ['', '', 'Valor'])[2], 'metric_id': None, 'color': ir.get('color'),
-                        'render': 'bar_horizontal', 'values': [r['y'] for r in rows],
-                        'states': ['VALUE'] * len(rows), 'point_colors': None}],
-            'blanks_as': 'gap', 'gaps': [], 'data_labels': ir.get('show_values', True) is not False, 'legend': False,
-            'number_format': None, 'y_axis': None, 'total': None, 'empty': not rows})]
-    return [_el('ranking_table', binding, table={'columns': list(ir.get('columns', [])),
-                                                 'rows': len(rows) + len(ir.get('aggregate_rows', []))})]
+    if ir.get('empty'):
+        return [_el('unavailable', binding, reason='empty')]
+    return [_el('ranking_bars' if bars else 'ranking_table', binding,
+                table={'columns': list(ir.get('columns', [])), 'rows': len(rows) + len(ir.get('aggregate_rows', []))})]
 
 
 def _kpis(ir: dict | None, binding: str, component: str = 'kpi') -> list[dict]:
@@ -303,8 +302,9 @@ def plan(view: dict) -> dict:
                                          and e['component'] not in ('brand_asset', 'theme_image')]})
     fonts = {r: {'html': theme['fonts'][r]['stack'][0], 'export_family': theme['fonts'][r]['export_family']}
              for r in ('heading', 'body', 'numeric')}
-    return {'export_plan_version': PLAN_VERSION, 'status': 'CONTRACT_ONLY',
-            'note': 'Preparação da F07: nenhum arquivo PPTX/PDF é gerado nesta fase.',
+    return {'export_plan_version': PLAN_VERSION, 'status': 'IMPLEMENTED',
+            'note': 'Contrato do exportador F07 (POST /api/presentations/{id}/exports): cada elemento é exportado '
+                    'conforme `export_as`; este endpoint não gera arquivo.',
             'presentation': view['presentation'], 'revision': view['revision'],
             'theme': {'id': theme['id'], 'version': theme['version'], 'definition_hash': theme['definition_hash']},
             'canvas': {'width_px': canvas['width'], 'height_px': canvas['height'],

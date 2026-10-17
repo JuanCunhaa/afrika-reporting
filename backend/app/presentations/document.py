@@ -27,7 +27,14 @@ _NO_CONTROL = r'^[^\x00-\x08\x0b\x0c\x0e-\x1f\x7f]*$'  # permite \t e \n em text
 Short = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200, pattern=_NO_CONTROL)]
 Medium = Annotated[str, StringConstraints(strip_whitespace=True, max_length=600, pattern=_NO_CONTROL)]
 Long = Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000, pattern=_NO_CONTROL)]
-Item = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=400, pattern=_NO_CONTROL)]
+# F07: a matriz guarda cada linha como item "a | b | c | d"; o limite artificial de 400 caracteres por LINHA virou limite
+# por CÉLULA (MATRIX_CELL_MAX) — o espaço real é verificado na renderização (ajuste de fonte com mínimo; sem caber =>
+# exportação bloqueada com diagnóstico, nunca truncada). Demais listas continuam com 400 por item (ITEM_MAX).
+ITEM_MAX = 400
+MATRIX_CELL_MAX = 1000
+MATRIX_ROW_MAX = 4000
+Item = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MATRIX_ROW_MAX,
+                                        pattern=_NO_CONTROL)]
 MetricId = Annotated[str, StringConstraints(min_length=1, max_length=80, pattern=r'^[a-z0-9_.]+$')]
 SlotId = Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=r'^[a-z0-9][a-z0-9-]*$')]
 TemplateKey = Annotated[str, StringConstraints(min_length=2, max_length=60, pattern=r'^[a-z0-9][a-z0-9-]*$')]
@@ -137,12 +144,17 @@ class Presenter(_Strict):
     role: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120, pattern=_NO_CONTROL)] | None = None
 
 
-class Document(_Strict):
+class Document(_Evolving):
+    # F07: rótulos de severidade da apresentação. 'veracode' = nomenclatura original ("Muito alta"); 'executive' =
+    # "Crítica" no lugar de "Muito alta" (decisão do PO), preservando a origem na IR (`source_label`) e na
+    # proveniência. Omitido do JSON canônico no padrão: documentos antigos mantêm o mesmo hash.
+    _OMIT_IF_DEFAULT: ClassVar[tuple[str, ...]] = ('severity_labels',)
     schema_version: Literal[1] = SCHEMA_VERSION
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200,
                                             pattern=_NO_CONTROL)]
     presenters: list[Presenter] = Field(default_factory=list, max_length=10)
     slides: list[Slide] = Field(min_length=1, max_length=MAX_SLIDES)
+    severity_labels: Literal['veracode', 'executive'] = 'veracode'
 
 
 # ---------------------------------------------------------------- validação
@@ -201,6 +213,15 @@ def _slide_errors(where: str, type_: SlideType, layout: str | None, fields: Slid
     for name, value in fields.model_dump().items():
         if name not in spec.editable_fields and value not in (None, '', []):
             out.append(_err(f'{where}.fields.{name}', f'Campo não editável em {spec.name}', 'field_not_editable'))
+    for i, item in enumerate(fields.items):
+        if layout == 'matrix':
+            for c, cell in enumerate(item.split(' | ')):
+                if len(cell) > MATRIX_CELL_MAX:
+                    out.append(_err(f'{where}.fields.items[{i}]', f'Célula {c + 1} da matriz com {len(cell)} '
+                                    f'caracteres (máximo {MATRIX_CELL_MAX})', 'item_too_long'))
+        elif len(item) > ITEM_MAX:
+            out.append(_err(f'{where}.fields.items[{i}]', f'Item com {len(item)} caracteres (máximo {ITEM_MAX}; '
+                            'células de matriz aceitam até 1000)', 'item_too_long'))
     if check_required_fields:
         for name in spec.required_fields:
             if not getattr(fields, name):
