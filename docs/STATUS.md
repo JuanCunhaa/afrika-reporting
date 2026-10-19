@@ -35,7 +35,7 @@
 - Piloto sintético 12/12 PASS (com backup automático); piloto real **NOT_RUN** (0 conferidos, sem autorização do cliente).
 - Testes locais: pytest **736 passed**; exportação obrigatória **130 passed**; E2E Chromium completo + visual win32
   **41 passed + 3 skipped** (opt-in de referência/fidelidade); migrations e backup/restauração CLI OK; `npm audit` 0;
-  `pip check` OK; gitleaks 0; `check_repo` OK. CI run `39315992801`: em andamento no momento do checkpoint (NOT_VERIFIED).
+  `pip check` OK; gitleaks 0; `check_repo` OK. CI run `39316124239` (SHA `399bf32`, inclui `18f8bb7`): **success** — Backend 3.11/3.14 707 passed + 29 skipped, Exportação 94 passed, E2E 41 passed + 3 skipped (visual Linux), build. (Run `39315992801` de `18f8bb7` cancelado pelo push seguinte; o frontend dele passou.)
 
 Próxima autorização esperada: aprovação da F11 pelo PO; nenhuma fase nova sem ordem expressa.
 

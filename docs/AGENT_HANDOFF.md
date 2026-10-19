@@ -25,8 +25,10 @@
    win32 41 passed + 3 skipped (opt-in); E2E conferência PASS; live SCA 1 passed; migrations CLI OK (`0008`);
    backup/restore CLI OK; `npm audit` 0; `pip check` OK; gitleaks 0; `check_repo` OK. Fidelidade com PowerPoint:
    NOT_RUN (motor de exportação inalterado).
-10. **Commits e CI:** `18f8bb7` em `origin/main`; CI run `39315992801` **em andamento ao fim da sessão — resultado
-    NOT_VERIFIED** (conferir com `gh run view 39315992801`).
+10. **Commits e CI:** `18f8bb7` (F11) e `399bf32` (checkpoint) em `origin/main`. CI run `39316124239` (SHA `399bf32`,
+    contém `18f8bb7`) — **success**: Backend 3.11 e 3.14 **707 passed + 29 skipped** cada, Exportação PPTX/PDF **94
+    passed**, E2E Chromium **41 passed + 3 skipped** com regressão visual Linux, typecheck + build. O run `39315992801`
+    (`18f8bb7`) foi cancelado pelo push seguinte (só o frontend tinha concluído, com sucesso).
 11. **Impedimentos para produção:** sem autenticação/segregação de funções; 0 indicador homologado; Reporting API
     bloqueada; SQLite e backups sem criptografia; tema provisório.
 
