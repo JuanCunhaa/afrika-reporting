@@ -15,8 +15,32 @@
 - **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
 - **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
 - **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aprovada pelo PO (ordem F08)** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
-- **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aguardando PO** (commit `c1766a5` + docs; CI verde run `39263203988`)
-- F09 — homologação: NOT_STARTED
+- **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aprovada pelo PO (ordem F09)** (commit `c1766a5` + docs; CI verde run `39263203988`)
+- **F09 — homologação ponta a ponta: DONE — aguardando aceite do PO** (commit `9173f1e` + docs; ver checkpoint F09; produção NÃO pronta)
+
+## Checkpoint F09 (2026-10-19)
+- Homologação funcional sintética: `backend/tests/test_f09_acceptance.py` — 22/22 etapas da ordem do PO + isolamento
+  + segurança (25 testes), reinício real da aplicação no mesmo SQLite, exportação real PPTX/PDF e download.
+- Homologação real (tenant de testes, **somente GET**, ≈176 pedidos; 0 POST): `backend/tests_live/test_f09_live_flow.py`
+  (pilha completa, 58/58 GET registrados) + suítes live anteriores 18 passed / 1 skipped (Reporting POST não repetido
+  — 403 sem mudança de permissão). Inventário/BUs/Teams/usuários/paginação/Summary/SAST PASS; SCA BLOCKED_EXTERNAL
+  (falhas de transporte); HTTP 500 real não ocorreu (mock PASS). Valores reais só em `private/f09/` (ignorado).
+- Indicadores: **0/35 homologados** contra o dashboard (inacessível ⇒ NOT_VERIFIED 16, BLOCKED_EXTERNAL 8,
+  NOT_APPLICABLE 11); roteiro de conferência humana em `docs/F09_METRIC_RECONCILIATION.md` §5.
+- Segurança: 17/17 PASS no uso local; **backend sem autenticação real — não expor**. Observação O-1 (resíduos
+  inertes do template python-pptx no PPTX). Docs: `docs/F09_ACCEPTANCE_MATRIX.md`, `docs/F09_SECURITY_REVIEW.md`,
+  `docs/F09_RELEASE_READINESS.md`.
+- Nenhum defeito de produto comprovado; nenhum código de produto alterado; nenhuma dependência nova.
+- Testes (local, sequenciais): pytest **679 passed**; exportação obrigatória **82 passed**; F09 isolado 25/25 ×3; E2E
+  Chromium 3 rodadas **40 passed + 3 skipped**; `f06c.spec.ts` ×10 sem retry 40/40 (intermitência da F08 não
+  reproduzida); fidelidade HTML×PPTX×PDF com PowerPoint 1 passed (idêntica à F07); build + motor visual 12/12;
+  `npm audit` 0; `pip check` OK; gitleaks histórico/novos/staged 0; `check_repo`/`check_env_example` OK; migrations
+  CLI OK (`0007`).
+- CI run `39290372716` (`9173f1e`, estrito): **success** — Backend 3.11/3.14 652 passed + 27 skipped, Exportação 82
+  passed, E2E 40 passed + 3 skipped (visual Linux), build + motor visual.
+
+Próxima autorização esperada: aceite da F09 pelo PO (piloto local assistido ou não); nenhuma fase nova sem ordem
+expressa.
 
 ## Checkpoint F08 (2026-10-19)
 - `backend/app/interpretation/` (contratos, contexto fundamentado, provedor determinístico `deterministic-demo` + base

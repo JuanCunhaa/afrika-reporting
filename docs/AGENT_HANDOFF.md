@@ -1,122 +1,110 @@
-# Devolutiva Claude → ChatGPT PO — F08: Interpretação dos indicadores (2026-10-19)
+# Devolutiva Claude → ChatGPT PO — F09: Homologação ponta a ponta (2026-10-19)
 
-- **Fase / commits:** F08 / `main` / **`c1766a5`** (implementação + testes + docs + CI) → commit de checkpoint
-  (STATUS/handoff). Push feito. **F09 NÃO iniciada.**
-- **CI:** run `39263203988` (SHA `c1766a5`) — **success** (detalhes na §9).
-- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhuma chamada à Veracode. Nenhuma chamada a provedor externo de
-  IA** (nenhum fornecedor implementado; testes bloqueiam qualquer conexão fora do loopback). Só dados sintéticos.
+- **Fase / commits:** F09 / `main` / **`9173f1e`** (testes + docs + CI) → commit de checkpoint (STATUS/handoff).
+  Push feito. **Nenhuma fase nova iniciada.**
+- **CI:** run `39290372716` (SHA `9173f1e`) — **success** (§10).
+- Modelo: Opus 5.5 (ambiente). Nenhum subagente. **Nenhum código de produto alterado; nenhuma dependência nova.**
+- Veracode real: tenant de testes, **somente GET (≈176)**, 0 POST/PUT/DELETE; POST da Reporting API **não repetido**.
+  Nenhuma chamada a provedor externo de IA.
 
-## 1. Funcionalidades entregues
-- Módulo independente `backend/app/interpretation/`: contratos tipados (`contracts.py`), seleção de indicadores por
-  slide/tipo e contexto fundamentado (`context.py`), adaptador de provedor (`providers.py`), validação determinística
-  (`validate.py`), persistência/revisão/evidências (`service.py`), configuração (`settings.py`).
-- 11 tipos (resumo executivo, melhorias, pontos de atenção, tendências SAST, tendências SCA, comparação entre
-  competências, conformidade, cobertura de scans, explicação de gráfico, destaques de ranking, recomendações técnicas)
-  × 2 níveis (EXECUTIVE consultivo; TECHNICAL com `metric_id`, estado técnico, origem manual e práticas DevSecOps).
-- Contexto SÓ com: valores aprovados fixados (atual + histórico), variações do backend (mesma regra da IR; percentual
-  1 casa meio-par; anterior 0 ⇒ sem %), estados/qualidade, proveniência, competência/janela e notas declaradas pelo
-  operador. Sem findings brutos, sem nome do cliente, sem rótulos identificáveis de rankings/distribuições.
-- Painel "Análise do slide" no editor: gerar (executiva/técnica, notas opcionais), indicadores de origem, status de
-  validação, iniciar revisão, aprovar, rejeitar (motivo), editar (justificativa), regenerar, comparar versões, aplicar
-  ao slide, desabilitar por slide, histórico de eventos e aviso de desatualização.
+## 1. Resultado do fluxo completo (sintético)
+**22/22 etapas PASS** + isolamento + segurança — `backend/tests/test_f09_acceptance.py` (25 testes, um por etapa,
+mesmo arquivo SQLite, **reinício real** da aplicação na etapa 22, exportação real PPTX/PDF e download). Repetido 3×
+com `AFRIKA_EXPORT_TESTS=required`: 25/25 em cada. Detalhe por etapa: `docs/F09_ACCEPTANCE_MATRIX.md` §1.
 
-## 2. Contratos e endpoints
-`docs/INTERPRETATION.md` §4 (saída) e §7 (API); integração em `docs/PRESENTATION_CONTRACTS.md` ("Interpretação
-(F08)"). Endpoints: `GET /api/interpretation/config`; `GET|POST /api/presentations/{pid}/interpretations`;
-`POST …/interpretations/context`; `GET …/{iid}`; `POST …/{iid}/review|approve|reject|edit|regenerate|apply`;
-`GET …/{iid}/compare/{other}`; `PUT /api/presentations/{pid}/interpretation-settings/{slide_id}`. Saída por versão:
-id, dono (cliente/subcliente), competência, apresentação + revisão, slide/campo de destino, tipo, nível, texto,
-afirmações com fatos citados, indicadores e valores usados, proveniência (revisão, sequência e hash da aprovação),
-provedor/modelo, versão e hash do prompt, data, status, `context_hash`, `sources_hash`, `content_hash`.
-Migration `0007_interpretations` (3 tabelas append-only por gatilho; downgrade recusado com dados).
+## 2. Critérios aprovados
+**87 de 93 PASS · 0 FAIL · 2 BLOCKED_EXTERNAL · 3 NOT_VERIFIED · 1 NOT_APPLICABLE** (resumo no topo da matriz; os
+35 indicadores são contados à parte, §4).
 
-## 3. Provedores
-- **`deterministic-demo`** (padrão e único implementado): regras locais, sem rede, determinístico (teste de
-  repetibilidade); escolhe quantas afirmações cabem no campo, nunca corta frases.
-- **`ExternalProvider`** (base, sem fornecedor): travas de habilitação no ambiente, credencial só em `.env`
-  (`AFRIKA_AI_API_KEY`, nunca exposta), consentimento por execução, limite diário/tamanho, payload minimizado e
-  pré-visualizado (`POST …/context`), padrões sensíveis recusados, falhas com mensagem fixa e nada persistido. Testado
-  com fornecedor FALSO em processo (sem rede).
+## 3. Critérios bloqueados / não verificados
+- BLOCKED_EXTERNAL: **Findings SCA** (6/28 pedidos de findings com falha de transporte; SCA INCOMPLETE sem valor —
+  correto); **Reporting API** (403 da F05; sem mudança de permissão ⇒ POST não executado).
+- NOT_VERIFIED: tratamento de **HTTP 500 em real** (nenhum 500 ocorreu; mock PASS); abertura do PPTX/fontes em
+  **outros computadores**; intermitência do `f06c.spec.ts` (não reproduzida em 3 rodadas + 10× isolado; causa não
+  provada).
 
-## 4. Validação determinística (`validate.py`)
-Números (arredondamento só para menos casas), percentuais × contagens, competências fora do contexto, fatos citados
-inexistentes, número sem fato, ausência não declarada / número para indicador sem valor (INCOMPLETE/UNAVAILABLE nunca
-viram número), sentido da variação, melhora/piora sem tendência comprovada, causa/remediação/remoção/maturidade/risco
-de negócio/absolutos (aviso apenas com nota editorial citada ou justificativa declarada do editor), tamanho por slide,
-dados sensíveis; valor manual sem declaração = aviso. Bloqueio impede aprovação (409). Limites por layout **medidos**
-com o motor real de exportação (tabela em `docs/INTERPRETATION.md` §5).
+## 4. Indicadores
+- **Homologados contra o dashboard: 0 de 35.** O dashboard não é acessível ao agente; nenhum número inventado.
+- NOT_VERIFIED 16 (VALIDATED pelo Afrika, aguardando conferência humana) · BLOCKED_EXTERNAL 8 (SCA ×6, Reporting ×2)
+  · NOT_APPLICABLE 11 (conceito próprio, estado histórico, identidade não comprovada, sem fonte).
+- Coerência entre fontes oficiais (não substitui o dashboard): SAST Policy Findings × Summary Report 3/3 coincidentes.
+- Valores reais e amostra (nomes/GUIDs) **somente** em `private/f09/live_flow.json` e
+  `private/f09/CONFERENCIA_HUMANA.md` (ignorados). Roteiro objetivo (~20 min): `docs/F09_METRIC_RECONCILIATION.md` §5.
 
-## 5. Fluxo de aprovação
-GENERATED → IN_REVIEW → APPROVED | REJECTED (pessoa declarada; rejeição exige motivo); só a versão mais recente
-avança; editar/regenerar = nova versão encadeada; desatualização (`sources_changed`, `facts_changed`,
-`slide_missing`) bloqueia aprovar/aplicar; avisos `newer_approval_available` e `applied_text_edited`. Revisão nunca
-altera snapshots/indicadores (teste compara a revisão da competência e a integridade antes/depois).
+## 5. Evidências de exportação
+- F09 etapas 19–21: PPTX com nº de slides = visualização, gráficos nativos = planilhas `.xlsx` incorporadas, 0 imagem,
+  texto editado e interpretação aprovada presentes; PDF válido com páginas = slides e texto extraído; download com
+  SHA-256 (cabeçalho = job = conteúdo), `nosniff`, `no-store`; modelo neutro também exporta PPTX e PDF.
+- Etapa 22b: após reinício, a mesma revisão reexporta **o mesmo SHA-256** do PPTX; PDF exportado com os provedores de
+  IA proibidos (qualquer chamada derrubaria o teste).
+- Fidelidade local com PowerPoint (`export-fidelity.spec.ts`, 1 passed): Afrika HTML×PDF ≤ 0,25 %, HTML×PPTX
+  0,04–0,84 %; neutro ≤ 0,39 % / 0,75–2,45 %; texto HTML×PDF ≤ 1 px; 0 quebra divergente — **idêntico à F07**.
+- Exportação obrigatória: 82 passed (57 + 25).
 
-## 6. Integração HTML / PPTX / PDF
-"Aplicar ao slide" grava o texto aprovado no campo editorial como NOVA revisão da apresentação (mesma transação do
-evento APPLIED); texto existente diferente só é substituído com confirmação explícita; edição manual posterior
-preservada. Teste com o motor REAL (`test_interpretation_export.py`, no job de exportação obrigatório do CI): o mesmo
-texto aparece na visualização (HTML), no PPTX (texto nativo) e no PDF (texto extraído pelas CMaps), a revisão anterior
-exporta sem ele, e qualquer chamada a provedor durante a exportação derruba o teste.
+## 6. Resultado de segurança (`docs/F09_SECURITY_REVIEW.md`)
+17/17 PASS no uso local: nenhuma credencial em respostas, logs (fluxo inteiro em DEBUG), banco, arquivos exportados
+ou Git (gitleaks 51 commits 0; `.env` em 0 commits); 0 identificador real em 508 arquivos; 58/58 pedidos reais = GET;
+isolamento cliente/subcliente; escopos com versão otimista; snapshots íntegros e imutáveis (API 409 + gatilho SQL);
+revisões auditadas; exportação sem macros/links externos/usuário do SO/caminhos; `Host` forjado ⇒ 403; CSRF mitigado
+(corpos não-JSON ⇒ 422, CORS restrito); IA externa desligada por padrão.
+**O backend NÃO possui autenticação real de usuários (aprovador declarado) e não deve ser exposto.**
+Observação O-1 (higiene): o PPTX mantém `printerSettings1.bin` e a miniatura genérica herdadas do template do
+python-pptx (inertes; a etapa 23 fixa que a única `.bin` é a da biblioteca). Sem correção — decisão do PO.
 
-## 7. Evidências de segurança
-Padrão sem envio externo (config + teste); conftest bloqueia DNS/conexões não-loopback; contexto sem nomes de
-aplicações (teste com ranking sintético), sem nome do cliente e sem hashes no payload externo; notas com
-e-mail/URL/UUID recusadas sem eco; logs (`caplog`) e `audit_events` sem texto/valores; isolamento entre clientes e
-subclientes (404 cruzado, textos sem valores alheios); gitleaks staged **0**; nenhum PPTX/PDF/dado real versionado.
+## 7. Limitações operacionais (`docs/F09_RELEASE_READINESS.md`)
+Uma estação/um operador; coletas e jobs de exportação em memória (reinício ⇒ nova coleta/exportação, com mensagem
+explícita); estado atual ≠ fechamento (histórico só por snapshot aprovado); lacunas preenchidas manualmente com
+justificativa; SQLite local sem criptografia e backup manual; tema `afrika@2` provisório e sem ativos oficiais.
 
-## 8. Testes (validação final, sequencial)
+## 8. Testes executados (sequenciais, Windows local)
 | Verificação | Resultado |
 |---|---|
-| pytest completo (local, Py 3.14.7) | **PASS — 654 passed** (579 anteriores + 72 F08 + 2 exportação F08 + 1 PDF) |
-| Exportação obrigatória (`AFRIKA_EXPORT_TESTS=required`) | **PASS — 57 passed** (54 + 3) |
-| E2E Chromium completo (local, 3 rodadas) | 1ª: 39 passed + 1 **failed** + 3 skipped (`f06c.spec.ts` "ativo local autorizado…", intermitente — passou isolado 4/4 e nas rodadas seguintes; causa NOT_PROVEN); 2ª e 3ª: **40 passed + 3 skipped**. Spec F08 (`interpretation.spec.ts`) 2/2 em todas + reexecução final |
-| Regressão visual | **PASS** win32 62/62 (dentro do E2E); Linux no CI (§9) |
+| pytest completo (Py 3.14.7) | **PASS — `679` passed** (654 anteriores + 25 F09) |
+| Exportação obrigatória (`AFRIKA_EXPORT_TESTS=required`) | **PASS — 82 passed** |
+| F09 isolado ×3 (exportação obrigatória) | **PASS — 25/25 ×3** |
+| E2E Chromium completo ×3 | **PASS — 40 passed + 3 skipped** em cada rodada (`retries: 0`, `workers: 1`) |
+| `f06c.spec.ts` ×10 sem retry | **PASS — 40/40** (intermitência da F08 não reproduzida) |
+| Regressão visual | **PASS** win32 (3 rodadas); Linux no CI |
+| Fidelidade HTML×PPTX×PDF (PowerPoint local) | **PASS — 1 passed** |
 | Build frontend + motor visual | **PASS** (12/12) |
-| `npm audit` | **PASS — 0 vulnerabilidades** |
-| `pip check` | **PASS** (nenhuma dependência nova) |
-| gitleaks (staged) | **PASS — 0 achados** |
-| `check_repo` / `check_env_example` | **PASS** |
-| Migrations (banco novo: migrate, db-status, seed-demo, migrate) | **PASS** — `0007_interpretations` |
-Cobertura dos 23 itens obrigatórios: `backend/tests/test_interpretation.py` (1–17, 19–22), `test_interpretation_export.py`
-(18), `frontend/e2e/interpretation.spec.ts` (17 pela interface), suíte completa (23).
+| `npm audit` / `pip check` | **PASS** (0 vulnerabilidades / OK) |
+| Gitleaks | **PASS** — histórico 51 commits 0; arquivos novos 0; staged 0 (commit `9173f1e`) |
+| `check_repo` / `check_env_example` | **PASS** (estrutura F09 / SEGURO) |
+| Migrations (banco novo: migrate, db-status, seed-demo, migrate) | **PASS** (`0007`) |
+| Real opt-in: `test_f09_live_flow.py` | **PASS** (1 passed; 58 GET) |
+| Real opt-in: `test_veracode_live.py` + `test_scopes_live.py` + `test_reporting_live.py` | **PASS** 18 passed, 1 skipped (Reporting POST não autorizado) |
+| Real opt-in: `test_metrics_live.py` | **PASS** (1 passed; 40 GET; Findings × Summary 3/3) |
 
-## 9. CI
-Run `39263203988` (SHA `c1766a5`) — **success**: Backend 3.11 e 3.14 (631 passed + 23 skipped cada — os 23 usam o
-motor real e rodam no job próprio), **Exportação PPTX/PDF** obrigatória (57 passed, inclui a F08), Frontend typecheck
-+ build + motor visual, E2E Chromium **40 passed + 3 skipped** com regressão visual Linux (sem referência nova).
+## 9. Correções / alterações
+Nenhum defeito de produto comprovado ⇒ nenhuma correção de produto. Alterações:
+- `backend/tests/test_f09_acceptance.py` (novo, 25 testes), `backend/tests_live/test_f09_live_flow.py` (novo, opt-in).
+- `.github/workflows/ci.yml`: F09 no job de exportação obrigatória. `scripts/check_repo.py`: entregáveis F09.
+- Docs: `F09_ACCEPTANCE_MATRIX.md`, `F09_METRIC_RECONCILIATION.md`, `F09_SECURITY_REVIEW.md`,
+  `F09_RELEASE_READINESS.md`, `STATUS.md`, este handoff; `prompts/F09_HOMOLOGATION.md`.
+- Achados na construção dos testes (instrumento, não produto): cache de descoberta (TTL) mascarava a falha injetada
+  — o teste invalida o cache como o operador faria; duas interpretações no mesmo slide formam uma cadeia (por
+  desenho); edição humana nasce `IN_REVIEW` (por desenho).
 
-## 10. Commits e push
-`c1766a5` (F08) e checkpoint docs — em `origin/main`. Arquivos principais: `backend/app/interpretation/*`,
-`backend/app/api_interpretations.py`, `orm.py`, `main.py`, migration `0007`, `export/pdf.py` (correção), testes
-`test_interpretation*.py`, `test_export_units.py`, frontend `InterpretationPanel.tsx`, `interpretationsApi.ts`,
-`PresentationEditorPage.tsx`, `styles.css`, `e2e/interpretation.spec.ts`, `.github/workflows/ci.yml`,
-`scripts/check_repo.py`, docs `INTERPRETATION.md`, `PRESENTATION_CONTRACTS.md`, `SECURITY.md`, `STATUS.md`,
-`prompts/F08_INTERPRETATION.md`.
+## 10. Commits e CI
+`9173f1e` (F09) e checkpoint docs — em `origin/main`. CI run `39290372716` (SHA `9173f1e`, estrito) — **success**: Backend 3.11 e 3.14 652 passed + 27 skipped cada (os 27 usam o motor real: 23 anteriores + 4 etapas de exportação da F09, que rodam no job próprio); **Exportação PPTX/PDF** obrigatória 82 passed (inclui as 25 da F09); Frontend typecheck + build + motor visual 12/12; E2E Chromium 40 passed + 3 skipped com regressão visual Linux (sem referência nova). Um run duplicado do mesmo push (`39290372470`) foi cancelado pelo grupo de concorrência.
 
-## 11. Decisões técnicas (reversíveis)
-- Afirmações com fatos citados (em vez de texto livre) — permite validar cada número contra a sua origem; edição
-  humana valida o texto inteiro contra todos os fatos da versão.
-- Rótulos de ranking por aplicação/BU/Team/componente/vulnerabilidade fora do contexto por padrão (posição e valor).
-- Aplicar sempre cria revisão nova; sobrescrita só confirmada; painel sem zona de texto e matriz: não suportados (422).
-- Correção F07: validador de PDF olhava bytes de fluxo comprimido (falso positivo `/AA` reproduzido numa legenda).
+## 11. Recomendação fundamentada de aceite
+**Aceitar a F09** como: homologação **funcional** aprovada (sintética), homologação de **integração parcial**
+(descoberta, escopos, SAST e Summary em real; SCA e Reporting bloqueados externamente) e homologação **visual**
+aprovada localmente com ressalvas. **Indicadores NÃO homologados** (0/35 contra o dashboard). Prontidão operacional:
+no máximo **piloto local assistido** (uma estação, números conferidos manualmente antes do uso, lacunas declaradas).
+**Prontidão para produção: NÃO** — sem autenticação, indicadores não homologados, SCA/Reporting bloqueados.
 
-## 12. Riscos e limitações
-- Validador lexical/conservador em pt-BR (pode bloquear frase correta; números por extenso não verificados).
-- Limites medidos nos temas atuais com texto sintético; a exportação continua bloqueando corte.
-- `.env.example` **não** atualizado com `AFRIKA_AI_*`: a leitura do arquivo foi negada pela política de permissões
-  desta sessão; variáveis documentadas em `docs/INTERPRETATION.md` §8 (todas opcionais; padrão seguro sem elas).
-- Intermitência E2E pré-existente em `f06c.spec.ts` (1 em 3 rodadas completas), não relacionada ao código F08.
+## 12. Pendências para o PO
+1. Aceite da F09 e decisão sobre o piloto local assistido. 2. Conferência humana dos indicadores no dashboard
+(roteiro §5 da conciliação). 3. Pedido de papel/habilitação da Reporting API à Veracode; decisão sobre a fonte de SCA.
+4. Decisões herdadas: provedor externo de IA, `AFRIKA_AI_*` no `.env.example`, Be Vietnam Pro no PPTX, ativos de
+marca, template visual oficial. 5. Observação O-1 (remover partes herdadas do template python-pptx?).
 
-## 13. Pendências para o PO / F09
-1. Aceite da F08. 2. Decisão sobre provedor externo de IA (fornecedor, custos, termos, dados permitidos) ou manter só
-o local. 3. Autorizar a inclusão de `AFRIKA_AI_*` no `.env.example`. 4. Tom/vocabulário dos textos e regras de
-recomendação (homologação com usuários). 5. Decisões pendentes da F07 (Be Vietnam Pro no PPTX; ativos de marca).
-
-## 14. Prompt sugerido para a próxima fase (NÃO executado)
-> **F09 — Homologação ponta a ponta.** Ler `CLAUDE.md`, `docs/STATUS.md`, `docs/AGENT_HANDOFF.md`,
-> `docs/INTERPRETATION.md`, `docs/EXPORT.md`. Roteiro de homologação com o PO: competência sintética e (se autorizado)
-> competência real em ambiente local — coleta → snapshot → aprovação → apresentação → análise (provedor local) →
-> revisão humana → exportação PPTX/PDF; checklist de aceite por slide (valores, textos, fidelidade, fontes); registrar
-> divergências como NOT_VERIFIED/BLOCKED sem corrigir dados manualmente; nenhum provedor externo de IA sem decisão do
-> PO; nenhum dado real no repositório. Entregar relatório de homologação e pendências; não iniciar fases novas.
+## 13. Prompt sugerido para a próxima fase (NÃO executado)
+> **F10 — Conferência dos indicadores e fundação de produção (somente com ordem do PO).** Ler `CLAUDE.md`,
+> `docs/STATUS.md`, `docs/F09_RELEASE_READINESS.md`, `docs/F09_METRIC_RECONCILIATION.md`. (a) Registrar, a partir da
+> conferência humana feita pelo PO/usuário, o status MATCH/MISMATCH de cada indicador (sem versionar valores reais) e
+> investigar divergências na nossa consulta; (b) se aprovado, desenhar autenticação local com segregação de funções
+> (operador × aprovador × revisor) sem quebrar o fluxo homologado; (c) reavaliar SCA/Reporting só após mudança de
+> permissão confirmada. Sem deploy, sem novas integrações externas e sem provedor de IA externo sem decisão do PO.

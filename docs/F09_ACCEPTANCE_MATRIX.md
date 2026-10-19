@@ -113,7 +113,7 @@ Nenhum defeito de produto comprovado. Ajustes feitos só nos instrumentos de hom
 ## 8. Estabilidade (execução sequencial, Windows local; CI no handoff)
 | Verificação | Resultado | Detalhe |
 |---|---|---|
-| pytest completo | PASS | 679 passed (654 anteriores + 25 F09) — ver handoff para a contagem final |
+| pytest completo | PASS | 679 passed (654 anteriores + 25 F09), execução final após as últimas alterações |
 | Exportação real obrigatória (`AFRIKA_EXPORT_TESTS=required`) | PASS | 82 passed (57 + 25 F09); arquivo F09 repetido 3× (25/25 cada) |
 | E2E Chromium completo | PASS | 3 rodadas: 40 passed + 3 skipped em cada (skips = comparações locais com a referência real e fidelidade com PowerPoint, por desenho); `retries: 0`, `workers: 1` |
 | Regressão visual | PASS | win32 dentro do E2E (3/3 rodadas); Linux no CI |
