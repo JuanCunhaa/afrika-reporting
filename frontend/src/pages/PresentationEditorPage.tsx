@@ -20,6 +20,7 @@ import { VALUE_STATE_LABEL, ValueState, loadOperator, saveOperator } from '../sn
 import { ErrorBox, Loading, fmtDate } from '../ui';
 import { OperatorField, shortValue } from './OwnerPicker';
 import { ExportPanel } from './ExportPanel';
+import { InterpretationPanel } from './InterpretationPanel';
 
 // F06A: editor de apresentação. Edita SÓ conteúdo editorial (textos, ordem, slides, indicadores compatíveis, opções).
 // Valores vêm das revisões aprovadas fixadas e não são editáveis aqui: correção = nova revisão em Competências (F05).
@@ -436,6 +437,18 @@ export function PresentationEditorPage({ pid }: { pid: string }) {
             </p>
           )}
         </div>
+      )}
+
+      {!readOnly && docSlide && (
+        <InterpretationPanel
+          pid={pid}
+          slideId={docSlide.slide_id}
+          slideType={docSlide.type}
+          revision={meta.current_revision}
+          dirty={dirty}
+          operator={operator}
+          onApplied={reload}
+        />
       )}
 
       <ExportPanel pid={pid} revision={readOnly ? (viewing as number) : meta.current_revision} dirty={!readOnly && dirty} ready={view.ready} blockers={view.blockers} operator={operator} />

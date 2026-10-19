@@ -100,7 +100,10 @@ jobs:
       - name: Testes estruturais da exportação + validação de PPTX e PDF sintéticos
         env:
           AFRIKA_EXPORT_TESTS: required
-        run: python -m pytest -q -rs backend/tests/test_export_units.py backend/tests/test_export_engine.py
+        # F08: texto de interpretação aprovado e aplicado sai igual no HTML, PPTX e PDF, sem chamar provedor.
+        run: >-
+          python -m pytest -q -rs backend/tests/test_export_units.py backend/tests/test_export_engine.py
+          backend/tests/test_interpretation_export.py
 
   e2e:
     name: E2E (Playwright Chromium)

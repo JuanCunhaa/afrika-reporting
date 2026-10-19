@@ -289,3 +289,14 @@ main:has(.editor){max-width:1500px}
 
 .slot-picker .slot-list{list-style:none;margin:6px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px}
 .slot-picker label{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+/* F08 — painel de análise (interpretação assistida) */
+.interp-controls{display:grid;grid-template-columns:minmax(220px,1fr) auto minmax(260px,2fr);gap:12px;align-items:start}
+.interp-controls fieldset{border:0;padding:0;margin:0;display:flex;gap:12px;align-items:center}
+.interp-controls legend{font-size:13px;margin-bottom:4px}
+span.inline{display:inline-flex;align-items:center;gap:8px}
+.interp-detail{border-top:1px solid #e3e8ee;margin-top:12px;padding-top:12px}
+.interp-text{background:#f7f9fb;border:1px solid #e3e8ee;border-radius:8px;padding:8px 12px;white-space:pre-wrap}
+.interp-text p{margin:4px 0}
+.interp-diff del{background:#fdecea;color:#8c2a1c}
+.interp-diff ins{background:#e8f6ee;color:#146c3a;text-decoration:none}
+tr.active td{background:#eef3f7}

@@ -725,6 +725,16 @@ def test_pdf_validation_checks_pages_size_fonts_and_active_content():
         assert exc.value.code == 'pdf_invalid'
 
 
+def test_pdf_active_content_check_ignores_binary_stream_bytes():
+    """F08: bytes de fluxo comprimido que formam "/AA" por acaso não são conteúdo ativo; dicionário com /AA é."""
+    canvas = {'width': 1920, 'height': 1080}
+    noisy = _pdf(extra=b'\nstream\n' + bytes([0, 156]) + b'/AA' + bytes([1]) + b'/JS' + bytes([2]) + b'\nendstream')
+    assert pdfmod.validate(noisy, slides=2, canvas=canvas, expected_families=None)['active_content'] is False
+    with pytest.raises(ExportError) as exc:
+        pdfmod.validate(_pdf(extra=b' /AA << /O 9 0 R >>'), slides=2, canvas=canvas, expected_families=None)
+    assert exc.value.code == 'pdf_invalid'
+
+
 def test_pdf_dates_are_normalized_without_moving_offsets():
     from datetime import datetime
     raw = _pdf()

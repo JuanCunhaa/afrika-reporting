@@ -542,3 +542,98 @@ class PresentationTheme(Base):
     definition_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     created_by: Mapped[str] = mapped_column(String(120), nullable=False)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+# ---------------------------------------------------------------- F08: interpretações (texto assistido + revisão)
+
+class InterpretationVersion(Base):
+    """Versão IMUTÁVEL de uma interpretação (append-only por gatilho). Uma "linha" de interpretação é
+    (apresentação, slide, tipo); edição humana e regeneração criam a versão seguinte, ligada ao pai. Guarda o texto, as
+    afirmações com os fatos citados, os fatos (valores aprovados usados + proveniência), o resultado da validação
+    determinística e os hashes. Nunca altera snapshots nem apresentações."""
+    __tablename__ = 'interpretation_versions'
+    __table_args__ = (CheckConstraint('version >= 1', name='version_positive'),
+                      CheckConstraint("origin IN ('GENERATED', 'EDITED')", name='origin'),
+                      CheckConstraint("level IN ('EXECUTIVE', 'TECHNICAL')", name='level'),
+                      UniqueConstraint('presentation_id', 'slide_id', 'kind', 'version',
+                                       name='uq_interpretation_versions_presentation_id'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    presentation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('presentations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    owner_key: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    client_id: Mapped[uuid.UUID] = mapped_column(Uuid(), ForeignKey('clients.id', ondelete='RESTRICT'), nullable=False)
+    subclient_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey('subclients.id', ondelete='RESTRICT'), nullable=True)
+    competence_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('competences.id', ondelete='RESTRICT'), nullable=False)
+    competence: Mapped[str] = mapped_column(String(7), nullable=False)
+    presentation_revision: Mapped[int] = mapped_column(Integer(), nullable=False)
+    presentation_sources_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    slide_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    target_field: Mapped[str] = mapped_column(String(20), nullable=False)
+    kind: Mapped[str] = mapped_column(String(40), nullable=False)
+    level: Mapped[str] = mapped_column(String(20), nullable=False)
+    version: Mapped[int] = mapped_column(Integer(), nullable=False)
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(), ForeignKey('interpretation_versions.id', ondelete='RESTRICT'), nullable=True)
+    origin: Mapped[str] = mapped_column(String(20), nullable=False)
+    text: Mapped[str] = mapped_column(Text(), nullable=False)
+    statements_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    facts_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    editorial_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    provider: Mapped[str] = mapped_column(String(60), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    prompt_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    context_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    validation_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    valid: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    justification: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    events: Mapped[list[InterpretationEvent]] = relationship(
+        back_populates='interpretation', order_by='InterpretationEvent.sequence', passive_deletes='all')
+
+
+class InterpretationEvent(Base):
+    """Evento APPEND-ONLY de revisão: GENERATED → IN_REVIEW → APPROVED | REJECTED; APPLIED registra a revisão da
+    apresentação que recebeu o texto aprovado. O estado vigente é o último evento de estado."""
+    __tablename__ = 'interpretation_events'
+    __table_args__ = (CheckConstraint('sequence >= 1', name='sequence_positive'),
+                      CheckConstraint("event IN ('GENERATED', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'APPLIED')",
+                                      name='event'),
+                      UniqueConstraint('interpretation_id', 'sequence',
+                                       name='uq_interpretation_events_interpretation_id'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    interpretation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('interpretation_versions.id', ondelete='RESTRICT'), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer(), nullable=False)
+    event: Mapped[str] = mapped_column(String(20), nullable=False)
+    actor: Mapped[str] = mapped_column(String(120), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    presentation_revision: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+    interpretation: Mapped[InterpretationVersion] = relationship(back_populates='events')
+
+
+class InterpretationSlideSetting(Base):
+    """Desativação da interpretação por slide (append-only; vale o último registro)."""
+    __tablename__ = 'interpretation_slide_settings'
+    __table_args__ = (CheckConstraint('sequence >= 1', name='sequence_positive'),
+                      UniqueConstraint('presentation_id', 'slide_id', 'sequence',
+                                       name='uq_interpretation_slide_settings_presentation_id'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    presentation_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('presentations.id', ondelete='RESTRICT'), nullable=False)
+    slide_id: Mapped[str] = mapped_column(String(40), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer(), nullable=False)
+    disabled: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    actor: Mapped[str] = mapped_column(String(120), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)

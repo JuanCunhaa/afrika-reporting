@@ -182,3 +182,17 @@ Explícitos por indicador (`charts._CATEGORY_ADAPTERS`, `_FIXED_KEYS`): `apps.by
 `sast.policy.open.by_cwe` (+ "Outros"), `sast.policy.open.top_applications`, `sca.policy.open.top_components`,
 `sca.policy.open.top_vulnerabilities`, `scans.covered_apps`. Indicador sem adaptador ou valor sem a forma esperada ⇒
 `unrecognized_structure`.
+
+## Interpretação (F08) — integração com o documento (`docs/INTERPRETATION.md`)
+- Fonte: a revisão **persistida** da apresentação e as aprovações fixadas nela (nunca rascunho do editor, nunca
+  Veracode). O contexto usa `view.resolve` e a regra de variação de `charts.comparison` — os mesmos números da IR.
+- Destino: um campo editorial do slide (`body`, `items`, `caption` ou `notes`) conforme tipo/layout
+  (`contracts.default_target`). Nenhum campo novo no documento nem no template: hashes antigos inalterados.
+- Entrada no slide só por `POST /api/presentations/{pid}/interpretations/{iid}/apply` (versão `APPROVED`, mais recente,
+  não desatualizada) ⇒ nova revisão da apresentação (`change_summary` "Interpretação aprovada aplicada: …"), auditoria
+  `presentation.saved` com `interpretation_id`. Texto diferente no campo exige `overwrite_confirmed: true` (409
+  `interpretation_overwrite_requires_confirmation` com o texto atual). `expected_revision` = concorrência otimista
+  (409 `presentation_conflict`). `items` recebe uma afirmação por tópico.
+- Desatualização sinalizada quando `sources_hash` da revisão atual ≠ o da geração (`sources_changed`) ou o contexto
+  recalculado diverge (`facts_changed`); edição manual posterior do texto aplicado é preservada (`applied_text_edited`).
+- Exportação (F07) e visualização (F06A) não conhecem o módulo de interpretação: exibem o texto persistido.

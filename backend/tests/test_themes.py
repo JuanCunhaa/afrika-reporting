@@ -255,6 +255,6 @@ def test_downgrade_refuses_to_drop_custom_themes(api, db_url, monkeypatch):
         db.downgrade(db_url, '0005_presentations')
     engine = db.make_engine(db_url)
     try:
-        assert db.current_revision(engine) == '0006_themes'
+        assert db.current_revision(engine) == '0006_themes'  # a 0007 (vazia) desceu; a 0006 recusou
     finally:
         engine.dispose()

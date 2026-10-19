@@ -14,9 +14,32 @@
 - **F06B.1 — preparação do motor visual oficial: DONE — aguardando PO** (commits `4cc9c61`, `e21ebce`, `8169e82` + docs; CI estrito verde run `38814645692`)
 - **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
 - **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
-- **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aguardando PO** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
-- F08 — interpretação por IA: NOT_STARTED
+- **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aprovada pelo PO (ordem F08)** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
+- **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE_LOCAL — aguardando PO** (commit e CI no handoff)
 - F09 — homologação: NOT_STARTED
+
+## Checkpoint F08 (2026-10-19)
+- `backend/app/interpretation/` (contratos, contexto fundamentado, provedor determinístico `deterministic-demo` + base
+  `ExternalProvider` com travas — nenhum fornecedor acoplado —, validador determinístico, serviço) +
+  `api_interpretations.py` + migration `0007_interpretations` (versões/eventos/desativação append-only) + painel
+  "Análise do slide" no editor. Docs: `docs/INTERPRETATION.md`; contratos em `docs/PRESENTATION_CONTRACTS.md`;
+  `docs/SECURITY.md` (F08).
+- 11 tipos × 2 níveis; contexto só com aprovados fixados, variações do backend, estados e notas declaradas (sem nomes
+  de aplicações/BUs/Teams/componentes/vulnerabilidades nem do cliente). Validação: números, percentuais/unidades,
+  período, fatos, ausências, direção/tendência, causas/remediação/remoção/maturidade/risco/absolutos, tamanho, dados
+  sensíveis. Fluxo GENERATED → IN_REVIEW → APPROVED | REJECTED; editar/regenerar = nova versão; comparar; desabilitar
+  por slide; desatualização (fontes/fatos/slide) bloqueia aprovar/aplicar; aplicar = nova revisão da apresentação
+  (sobrescrita só com confirmação).
+- Limites de texto por layout MEDIDOS com o motor real de exportação (afrika@2 e neutral-demo).
+- Correção F07: falso positivo de conteúdo ativo no PDF (`/AA` em bytes de fluxo comprimido) — só a estrutura é
+  verificada agora.
+- pytest **654 passed** (579 + 75); exportação obrigatória **57 passed** (54 + 3); E2E Chromium completo 3 rodadas
+  (ver handoff; 1 falha intermitente em `f06c.spec.ts` na 1ª rodada, não reproduzida); visual win32 62/62; motor visual
+  12/12; build OK; `npm audit` 0; `pip check` OK; `check_repo`/`check_env_example` OK; migrations CLI OK (`0007`).
+- Nenhuma chamada à Veracode; nenhuma chamada a provedor externo de IA; nenhuma dependência nova.
+
+Próxima autorização esperada: aceite da F08 pelo PO (decisões: fornecedor externo de IA ou manter só o local;
+`.env.example` com `AFRIKA_AI_*`); F09 só com ordem expressa.
 
 ## Checkpoint F07 / F07.1 (2026-10-17)
 - `backend/app/export/` + `api_exports.py` + CLI `export` + painel Exportar: PPTX com objetos NATIVOS (texto, formas

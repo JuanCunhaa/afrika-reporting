@@ -136,3 +136,20 @@
 - Validação antes do sucesso: PPTX sem macros/ActiveX/OLE/relações externas, XML sem entidades; PDF sem
   JavaScript/Launch/arquivos incorporados/ações automáticas e com fontes incorporadas.
 - Repositório: `check_repo` recusa PPTX/PDF e arquivos de fonte rastreados; medições locais só em `output/`.
+
+## Controles implementados na F08 (interpretação dos indicadores) — detalhes em `docs/INTERPRETATION.md` §8
+- Padrão local: provedor determinístico `deterministic-demo`, sem rede; envio externo DESLIGADO e nenhum fornecedor
+  acoplado (`EXTERNAL_PROVIDERS` vazio). Teste: nenhuma conexão fora do loopback (conftest) e configuração padrão.
+- Base para provedor externo futuro com travas: habilitação no ambiente, credencial só em `.env` (`AFRIKA_AI_API_KEY`,
+  nunca exposta pela API — `credential_configured` booleano), consentimento explícito por execução, limite diário e de
+  tamanho, payload minimizado e recusado com padrão sensível, pré-visualização exata do que seria transmitido, falhas
+  com mensagem fixa (sem eco de conteúdo) e nada persistido.
+- Contexto só com valores aprovados fixados, variações do backend, estados e notas declaradas; sem findings brutos, sem
+  nome do cliente/subcliente e sem rótulos identificáveis de rankings/distribuições (aplicações, BUs, Teams,
+  componentes, vulnerabilidades). Notas com e-mail/URL/UUID/segredo recusadas.
+- Logs e auditoria só com ids/hashes/tipo/nível/provedor — nunca texto, valores ou notas (teste com `caplog` e
+  `audit_events`). Tabelas append-only por gatilho; aprovação humana declarada; texto só entra no slide por nova revisão.
+- Exportação nunca chama provedor (teste com motor real que derruba qualquer chamada).
+- F07 corrigido na F08: a checagem de conteúdo ativo do PDF procurava `/AA`, `/JS`… também DENTRO de fluxos binários
+  comprimidos — falso positivo dependente do texto do slide (reproduzido numa legenda de 240 caracteres). Agora só a
+  estrutura (fora de `stream…endstream`) é verificada; dicionário com `/AA` continua recusado (teste unitário).

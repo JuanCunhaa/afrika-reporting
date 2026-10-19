@@ -7,12 +7,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import (
-    api, api_exports, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots, api_veracode, errors,
+    api, api_exports, api_interpretations, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots,
+    api_veracode, errors,
 )
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
 from app.env_loader import load_project_env
 from app.export.jobs import ExportJobs
+from app.interpretation.settings import InterpretationSettings
 from app.metrics.runs import RunManager
 from app.veracode.cache import DiscoveryCache
 from app.veracode.discovery import DiscoveryService
@@ -27,7 +29,9 @@ DESCRIPTION = ('F06B.1: cadastro de clientes/subclientes/conexões + descoberta 
                '+ snapshots por competência, revisões, aprovação auditável e séries históricas '
                '+ Reporting API (única escrita autorizada: POST de geração de relatório, desligado por padrão) '
                '+ apresentações com templates e temas visuais versionados (ativos locais, fora do Git) '
-               '+ exportação PPTX editável e PDF a partir da revisão persistida (F07; renderização local, sem rede). '
+               '+ exportação PPTX editável e PDF a partir da revisão persistida (F07; renderização local, sem rede) '
+               '+ interpretação dos indicadores com validação determinística e revisão humana (F08; provedor local '
+               'por padrão, nada enviado a terceiros). '
                'SEM AUTENTICAÇÃO — API apenas para uso local (127.0.0.1); não expor publicamente.')
 
 
@@ -64,6 +68,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app = FastAPI(title='Afrika Reporting API', version='0.6.1', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
     app.state.session_factory = session_factory(engine)
+    app.state.interpretation = InterpretationSettings.from_env(environ)  # F08: padrão local, externo desligado
 
     origins = [s.strip() for s in os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',') if s.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
@@ -78,6 +83,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app.include_router(api_reporting.router)
     app.include_router(api_presentations.router)
     app.include_router(api_exports.router)
+    app.include_router(api_interpretations.router)
 
     @app.get('/api/health')
     def health():

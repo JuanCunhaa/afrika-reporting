@@ -106,8 +106,11 @@ def validate(data: bytes, *, slides: int, canvas: dict, expected_families: set[s
                                     for e in expected_families))
     if expected_families is not None and unexpected:
         problems.append(f'fontes fora do tema (reserva): {unexpected[:10]}')
+    # F08: só a estrutura (dicionários) conta — bytes de fluxos comprimidos (fontes, imagens, conteúdo) podem formar
+    # "/AA" por acaso e geravam falso positivo dependente do texto do slide.
+    structure = re.sub(rb'stream\r?\n.*?endstream', b'', data, flags=re.S)
     active = [k.decode() for k in (b'/JavaScript', b'/JS', b'/Launch', b'/EmbeddedFile', b'/OpenAction', b'/AA')
-              if re.search(re.escape(k) + rb'(?![A-Za-z])', data)]
+              if re.search(re.escape(k) + rb'(?![A-Za-z])', structure)]
     if active:
         problems.append(f'conteúdo ativo não permitido: {active}')
     if problems:

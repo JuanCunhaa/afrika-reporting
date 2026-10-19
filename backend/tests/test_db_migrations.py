@@ -18,7 +18,8 @@ F05_TABLES = {'collection_runs', 'competences', 'competence_revisions', 'metric_
               'approvals', 'audit_events'}
 F06_TABLES = {'presentation_templates', 'owner_template_selections', 'presentations', 'presentation_revisions'}
 F06B_TABLES = {'presentation_themes'}
-TABLES = F04_TABLES | F05_TABLES | F06_TABLES | F06B_TABLES
+F08_TABLES = {'interpretation_versions', 'interpretation_events', 'interpretation_slide_settings'}
+TABLES = F04_TABLES | F05_TABLES | F06_TABLES | F06B_TABLES | F08_TABLES
 F01_TABLES = {'connections', 'clients', 'subclients', 'alembic_version'}
 
 
@@ -28,7 +29,7 @@ def test_upgrade_on_new_database_creates_schema_at_head(tmp_path):
     engine = db.make_engine(url)
     try:
         assert set(inspect(engine).get_table_names()) == TABLES
-        assert db.current_revision(engine) == db.head_revision() == '0006_themes'
+        assert db.current_revision(engine) == db.head_revision() == '0007_interpretations'
     finally:
         engine.dispose()
 
@@ -206,7 +207,7 @@ def test_f05_upgrade_on_existing_f04_database_preserves_data(tmp_path):
                               "'America/Sao_Paulo', :n, :n)"), {'id': client_id.hex, 'n': '2026-01-01 00:00:00'})
             _insert_scope(conn, client_id.hex)
         db.upgrade(url)
-        assert db.current_revision(engine) == '0006_themes'
+        assert db.current_revision(engine) == '0007_interpretations'
         assert set(inspect(engine).get_table_names()) == TABLES
         with engine.connect() as conn:
             views = conn.execute(text("SELECT name FROM sqlite_master WHERE type='view'")).scalars().all()
