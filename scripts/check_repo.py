@@ -18,7 +18,9 @@ REQUIRED=['CLAUDE.md','docs/PRODUCT.md','docs/STATUS.md','prompts/F00_START.md',
           'backend/app/export/pptx_builder.py','backend/app/export/render.py','frontend/src/presentation/exportLayout.ts',
           'frontend/render-stamp.mjs',
           'prompts/F08_INTERPRETATION.md','docs/INTERPRETATION.md','backend/app/interpretation/service.py',
-          'backend/app/interpretation/validate.py','backend/app/interpretation/providers.py']
+          'backend/app/interpretation/validate.py','backend/app/interpretation/providers.py',
+          'prompts/F09_HOMOLOGATION.md','docs/F09_ACCEPTANCE_MATRIX.md','docs/F09_METRIC_RECONCILIATION.md',
+          'docs/F09_SECURITY_REVIEW.md','docs/F09_RELEASE_READINESS.md','backend/tests/test_f09_acceptance.py']
 for name in REQUIRED:
     if not (root/name).exists():
         sys.exit(f'ERRO: arquivo ausente: {name}')
@@ -61,4 +63,4 @@ for t in tracked:
 hits = [h for h in hits if h != 'backend/tests/test_afrika_template.py']  # usa um termo genérico para testar o filtro
 if hits:
     sys.exit(f'ERRO: nome do cliente/unidade da referência em arquivo versionado: {hits[:5]}')
-print('Estrutura F08: OK')
+print('Estrutura F09: OK')
