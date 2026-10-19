@@ -106,8 +106,12 @@ class Pilot(World):
         base = f'/api/competences/{cid}/revisions/{n}'
         self.call('PUT', f'{base}/required', metric_ids=required, operator=OP, expected_lock_version=self.lock(cid, n))
         self.call('POST', f'{base}/submit', operator=OP, expected_lock_version=self.lock(cid, n))
-        self.call('POST', f'{base}/approve', approver=APPROVER, note='piloto F10 (sintético)',
-                  expected_lock_version=self.lock(cid, n))
+        out = self.call('POST', f'{base}/approve', approver=APPROVER, note='piloto F10 (sintético)',
+                        expected_lock_version=self.lock(cid, n))
+        # F11: toda aprovação passa antes por um backup automático verificado (falha bloquearia a aprovação)
+        made = out['approval_backup']
+        assert made['integrity'] == 'ok' and made['alembic_revision'] == db.head_revision()
+        self.approval_backups.append(made)
         return self.detail(cid, n)
 
 
@@ -122,6 +126,7 @@ def p(tmp_path_factory):
     mp = pytest.MonkeyPatch()
     mp.setenv('AFRIKA_EXPORT_DIR', str(tmp / 'exports'))
     pilot = Pilot(url, tmp, tenant, fake, {}, mp)
+    pilot.approval_backups = []  # F11: backups automáticos feitos antes de cada aprovação
     pilot.s['logs'] = logs = []
     handler = logging.Handler(logging.DEBUG)
     handler.emit = lambda record: logs.append(record.getMessage())
@@ -228,6 +233,9 @@ def test_05_approval_and_history(p):
     required = ['apps.total', 'sast.policy.open.by_severity', 'sca.policy.open.by_severity']
     d = p.approve(cid, n, required)
     assert d['status'] == 'APPROVED' and p.call('GET', f'/api/competences/{cid}/integrity')['ok'] is True
+    made = p.approval_backups[-1]  # F11: cópia do estado imediatamente ANTERIOR à aprovação, fora do repositório
+    file = p.tmp / 'backups' / made['file']
+    assert backup.inspect(file).sha256 == made['sha256']
     # a conferência continua válida sobre a revisão aprovada (snapshot imutável ⇒ não fica desatualizada)
     rows = {m['metric_id']: m for m in p.call('GET', f'/api/competences/{cid}/revisions/{n}/conference')['metrics']}
     assert all(rows[m]['comparison'] == 'MATCH' for m in p.s['oracle'])

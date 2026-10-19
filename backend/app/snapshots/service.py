@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select, update
@@ -514,7 +515,9 @@ def chain_hash(previous: str | None, content: str, sequence: int, approver: str,
 
 
 def approve(session: Session, comp: Competence, rev: CompetenceRevision, approver: str, note: str | None,
-            expected: int) -> Approval:
+            expected: int, *, backup: Callable[[], dict] | None = None) -> Approval:
+    """`backup` (F11): cópia de segurança do banco feita DEPOIS das validações e ANTES de gravar a aprovação; se
+    levantar `BackupError`, a aprovação é bloqueada (409 `approval_backup_failed`) e nada muda na revisão."""
     if rev.status != RevisionStatus.READY_FOR_REVIEW.value:
         raise conflict('revision_not_in_review', 'Envie a revisão para revisão (READY_FOR_REVIEW) antes de aprovar')
     if rev.lock_version != expected:
@@ -529,6 +532,19 @@ def approve(session: Session, comp: Competence, rev: CompetenceRevision, approve
         raise ApiError(409, 'approval_blocked', 'Aprovação bloqueada: corrija as pendências',
                        [{'field': b['metric_id'] or 'required_metrics', 'message': b['message'], 'type': b['code']}
                         for b in blockers[:100]])
+    backup_info = None
+    if backup is not None:
+        from app.backup import BackupError  # import tardio: backup depende de db, não de snapshots
+        try:
+            backup_info = backup()
+        except BackupError as exc:
+            audit.append(session, 'approval.blocked', owner_key=comp.owner_key, competence_id=comp.id,
+                         revision_id=rev.id, actor=approver, details={'codes': ['backup_failed'], 'count': 1})
+            _commit(session)
+            raise ApiError(409, 'approval_backup_failed', f'Aprovação bloqueada: o backup automático do banco falhou '
+                                                          f'({exc}). Nada foi aprovado. Corrija o diretório de backup '
+                                                          '(AFRIKA_BACKUP_DIR) e tente de novo; o backup manual '
+                                                          '(python -m app.cli backup-db) continua disponível') from None
     _touch(session, rev, expected, require_draft=False)
     rev.status = RevisionStatus.APPROVED.value
     session.flush()
@@ -545,7 +561,8 @@ def approve(session: Session, comp: Competence, rev: CompetenceRevision, approve
     session.flush()
     audit.append(session, 'revision.approved', owner_key=comp.owner_key, competence_id=comp.id, revision_id=rev.id,
                  actor=approver, details={'number': rev.number, 'sequence': sequence, 'content_hash': content,
-                                          'identity_mode': IDENTITY_MODE})
+                                          'identity_mode': IDENTITY_MODE,
+                                          **({'backup': backup_info} if backup_info else {})})
     _commit(session)
     logger.info('competência aprovada dono=%s competência=%s revisão=%s', comp.owner_key, comp.label, rev.number)
     return approval

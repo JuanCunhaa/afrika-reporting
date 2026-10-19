@@ -2,11 +2,64 @@
 // digitar é prévia — o status oficial (MATCH/MISMATCH/NOT_COMPARABLE) é calculado e registrado pelo servidor.
 import React, { useState } from 'react';
 import { errorMessage } from '../api';
-import { COMPARISON_LABEL, Comparison, ConferenceRow, REASON_LABEL, conference } from '../conferenceApi';
+import { CHECK_LABEL, COMPARISON_LABEL, Comparison, ConferenceRow, REASON_LABEL, conference } from '../conferenceApi';
 import { ErrorBox, Loading, useLoad } from '../ui';
 import { Badge, OperatorField } from './OwnerPicker';
 
 const CLS: Partial<Record<Comparison, string>> = { MATCH: 'ok', MISMATCH: 'bad', NOT_COMPARABLE: 'warn', NOT_VERIFIED: 'off' };
+const CHECK_CLS = { OK: 'ok', ATTENTION: 'bad', INFO: 'off', NOT_APPLICABLE: 'off' } as const;
+// F11: ordem de conferência = prioridades do PO (1–8), depois os demais aplicáveis na ordem do catálogo
+const byPriority = (a: ConferenceRow, b: ConferenceRow) => (a.official?.priority ?? 99) - (b.official?.priority ?? 99);
+
+function OfficialAndDiagnosis({ row }: { row: ConferenceRow }) {
+  const o = row.official;
+  return (
+    <>
+      {o && (
+        <details className="muted" data-testid="official">
+          <summary>Definição oficial e diferenças conhecidas</summary>
+          <p>{o.definition ?? 'A documentação consultada não define este número (NOT_VERIFIED): conferir a tela com cuidado.'}</p>
+          {o.analytics_location && <p>Alternativa no Veracode Analytics (indicativo): {o.analytics_location}</p>}
+          {o.known_differences.length > 0 && (
+            <ul className="warnings" aria-label="Diferenças conhecidas de definição">
+              {o.known_differences.map((h) => (
+                <li key={h}>{h}</li>
+              ))}
+            </ul>
+          )}
+          {o.docs.map((d) => (
+            <div key={d}>
+              <a href={d} target="_blank" rel="noreferrer noopener">
+                {d}
+              </a>
+            </div>
+          ))}
+        </details>
+      )}
+      {row.diagnostics.length > 0 && (
+        <details open={row.needs_investigation} data-testid="diagnosis">
+          <summary>
+            Diagnóstico automático{row.diagnosis.attention.length > 0 ? ` — ${row.diagnosis.attention.length} ponto(s) a investigar` : ''}
+            {row.needs_investigation ? ' (divergência: verificar antes de qualquer correção)' : ''}
+          </summary>
+          <table className="preview-table" aria-label={`Diagnóstico de ${row.metric_id}`}>
+            <tbody>
+              {row.diagnostics.map((c) => (
+                <tr key={c.code} data-testid={`check-${c.code}`}>
+                  <td>{c.label}</td>
+                  <td>
+                    <Badge cls={CHECK_CLS[c.status]}>{CHECK_LABEL[c.status]}</Badge>
+                  </td>
+                  <td>{c.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+    </>
+  );
+}
 
 function localToday(): string {
   const d = new Date();
@@ -65,6 +118,7 @@ function MetricCard(props: { cid: string; n: number; row: ConferenceRow; operato
         <Badge cls={CLS[row.comparison] ?? 'off'} testId="comparison">
           {COMPARISON_LABEL[row.comparison]}
         </Badge>
+        {row.official?.priority && <Badge cls="off">Prioridade {row.official.priority}</Badge>}
         {row.homologated && <Badge cls="ok">Homologado</Badge>}
         {row.snapshot?.origin === 'MANUAL' && <Badge cls="warn">Valor manual (não homologa o cálculo)</Badge>}
       </div>
@@ -77,6 +131,7 @@ function MetricCard(props: { cid: string; n: number; row: ConferenceRow; operato
           <li key={f}>{f}</li>
         ))}
       </ul>
+      <OfficialAndDiagnosis row={row} />
       {dateWarning && <p className="notice">A data da conferência difere da data da coleta: o resultado será “não comparável”.</p>}
       {row.lines.length === 0 ? (
         <p className="empty">Sem valor calculado nesta revisão: nada a conferir.</p>
@@ -160,7 +215,7 @@ export function ConferencePage({ cid, n }: { cid: string; n: number }) {
   const sheet = loaded.data;
   const all = sheet.metrics.map((m) => rows[m.metric_id] ?? m);
   const count = (c: Comparison) => all.filter((m) => m.comparison === c).length;
-  const applicable = all.filter((m) => m.guide.category === 'APPLICABLE');
+  const applicable = all.filter((m) => m.guide.category === 'APPLICABLE').sort(byPriority);
   const others = all.filter((m) => m.guide.category !== 'APPLICABLE');
 
   return (
@@ -199,6 +254,28 @@ export function ConferencePage({ cid, n }: { cid: string; n: number }) {
           <input id="conference-date" type="date" value={checkedOn} max={localToday()} onChange={(e) => setCheckedOn(e.target.value)} />
         </div>
       </div>
+      <table className="preview-table" aria-label="Prioridades da conferência" data-testid="conference-priorities">
+        <thead>
+          <tr>
+            <th>Prioridade</th>
+            <th>Grupo</th>
+            <th>Indicadores</th>
+            <th>Homologados</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sheet.priorities.map((p) => (
+            <tr key={p.priority}>
+              <td>{p.priority}</td>
+              <td>{p.label}</td>
+              <td>{p.metric_ids.length > 0 ? p.metric_ids.map((m) => <code key={m}>{m} </code>) : p.gap}</td>
+              <td>
+                {p.metric_ids.filter((m) => all.find((r) => r.metric_id === m)?.homologated).length}/{p.metric_ids.length}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <h3>Aplicáveis ({applicable.length})</h3>
       {applicable.map((row) => (
         <MetricCard

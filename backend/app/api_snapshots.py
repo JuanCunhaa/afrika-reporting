@@ -29,6 +29,7 @@ from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from starlette.concurrency import run_in_threadpool
 
+from app import backup
 from app.api import SessionDep
 from app.errors import ApiError, conflict
 from app.snapshots import history, service
@@ -237,11 +238,20 @@ def return_to_draft(cid: uuid.UUID, number: int, data: ReturnIn, session: Sessio
 
 
 @router.post('/api/competences/{cid}/revisions/{number}/approve', responses=_ERRORS)
-def approve(cid: uuid.UUID, number: int, data: ApproveIn, session: SessionDep):
+def approve(cid: uuid.UUID, number: int, data: ApproveIn, request: Request, session: SessionDep):
     comp = service.get_competence(session, cid)
     rev = service.get_revision(session, comp, number)
-    service.approve(session, comp, rev, data.approver, data.note or None, data.expected_lock_version)
-    return service.revision_out(session, comp, rev)
+    made: dict = {}
+
+    def safety_copy() -> dict:  # F11: backup verificado antes de aprovar; falha => aprovação bloqueada
+        info = backup.before_approval(request.app.state.db_url, request.app.state.backup_dir)
+        made.update(file=info.path.name, sha256=info.sha256, alembic_revision=info.alembic_revision,
+                    integrity=info.integrity)
+        return dict(made)  # só nome do arquivo (sem caminho local) na auditoria
+
+    service.approve(session, comp, rev, data.approver, data.note or None, data.expected_lock_version,
+                    backup=safety_copy)
+    return {**service.revision_out(session, comp, rev), 'approval_backup': made}
 
 
 @router.get('/api/competences/{cid}/compare', responses=_ERRORS)

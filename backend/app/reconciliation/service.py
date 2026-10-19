@@ -26,7 +26,9 @@ from app.errors import ApiError, conflict
 from app.metrics.contracts import TemporalMode
 from app.metrics.registry import CONTRACTS, REGISTRY
 from app.orm import Competence, CompetenceRevision, MetricConference, MetricSnapshot, SnapshotOrigin
+from app.reconciliation import diagnostics
 from app.reconciliation import guide as guide_mod
+from app.reconciliation import official
 from app.reconciliation.guide import GUIDES, Category
 from app.snapshots import audit
 from app.snapshots.service import IDENTITY_MODE, _commit
@@ -81,10 +83,15 @@ def _row(comp: Competence, metric_id: str, snap: MetricSnapshot | None, conf: Me
     else:
         comparison = current['status']
     homologated = (comparison == 'MATCH' and snap is not None and snap.origin == SnapshotOrigin.VERACODE.value)
+    # F11: diagnóstico automático (ordem do PO §4) — só para indicadores com valor oficial equivalente
+    checks = (diagnostics.diagnose(comp, contract, snap, collected_on(comp, snap), current)
+              if g.category is Category.APPLICABLE else [])
     return {'metric_id': metric_id, 'name': contract.name, 'domain': contract.domain.value,
             'context': contract.context.value, 'temporal_mode': contract.temporal_mode.value,
             'same_day_required': contract.temporal_mode == TemporalMode.CURRENT_STATE,
-            'guide': guide_mod.public(metric_id),
+            'guide': guide_mod.public(metric_id), 'official': official.public(metric_id),
+            'diagnostics': checks, 'diagnosis': diagnostics.summary(checks),
+            'needs_investigation': comparison in ('MISMATCH', 'NOT_COMPARABLE'),
             'snapshot': None if snap is None else {
                 'origin': snap.origin, 'value_state': value_state(snap.origin, value, snap.source_status).value,
                 'source_status': snap.source_status, 'collected_on': collected_on(comp, snap),
@@ -103,7 +110,26 @@ def sheet(session: Session, comp: Competence, rev: CompetenceRevision) -> dict:
     return {'competence': {'id': str(comp.id), 'competence': comp.label, 'timezone': comp.timezone,
                            'owner_key': comp.owner_key},
             'revision': {'number': rev.number, 'status': rev.status},
-            'identity_mode': IDENTITY_MODE, 'summary': summary, 'metrics': rows}
+            'identity_mode': IDENTITY_MODE, 'summary': summary, 'priorities': priorities(rows), 'metrics': rows}
+
+
+def priorities(rows: list[dict]) -> list[dict]:
+    """F11: estado da conferência por grupo de prioridade da ordem do PO (1 = primeiro a conferir)."""
+    out = []
+    for n, label in official.PRIORITIES.items():
+        group = [r for r in rows if (r['official'] or {}).get('priority') == n]
+        out.append({'priority': n, 'label': label, 'metric_ids': [r['metric_id'] for r in group],
+                    'homologated': sum(r['homologated'] for r in group),
+                    'comparisons': sorted({r['comparison'] for r in group}),
+                    'gap': official.PRIORITY_GAPS.get(n)})
+    return out
+
+
+def sort_key(row: dict) -> tuple:
+    """Ordem de conferência: prioridades do PO, demais aplicáveis, depois NOT_APPLICABLE e BLOCKED_EXTERNAL."""
+    p = (row.get('official') or {}).get('priority')
+    rank = {Category.APPLICABLE.value: 0, Category.NOT_APPLICABLE.value: 1, Category.BLOCKED_EXTERNAL.value: 2}
+    return (rank[row['guide']['category']], p if p is not None else 99)
 
 
 def _validate_official(lines: list[dict], official: dict) -> None:
@@ -200,17 +226,22 @@ def to_csv(data: dict) -> str:
     w = csv.writer(buf, delimiter=';', lineterminator='\n')
     w.writerow(['competencia', 'revisao', 'metric_id', 'indicador', 'categoria', 'comparacao', 'homologado', 'linha',
                 'calculado', 'oficial', 'diferenca', 'diferenca_pct', 'data_coleta', 'data_conferencia',
-                'filtros_confirmados', 'operador', 'evidencia', 'caminho_indicativo', 'filtros', 'motivo'])
+                'filtros_confirmados', 'operador', 'evidencia', 'caminho_indicativo', 'filtros', 'motivo',
+                'prioridade', 'definicao_oficial', 'local_analytics', 'diferencas_conhecidas', 'diagnostico_atencao'])
     comp, rev = data['competence']['competence'], data['revision']['number']
-    for m in data['metrics']:
+    for m in sorted(data['metrics'], key=sort_key):  # sort estável: dentro do grupo, ordem do catálogo
         conf = m['conference'] or {}
+        off = m.get('official') or {}
+        attention = [f"{c['label']}: {c['detail']}" for c in m.get('diagnostics', []) if c['status'] == 'ATTENTION']
         entries = {e['key']: e for e in conf.get('entries', [])} if conf and not conf.get('stale') else {}
         base = [comp, rev, m['metric_id'], m['name'], m['guide']['category'], m['comparison'],
                 'sim' if m['homologated'] else 'não']
         tail = [(m['snapshot'] or {}).get('collected_on'), conf.get('checked_on'),
                 None if not conf else ('sim' if conf.get('filters_confirmed') else 'não'), conf.get('operator'),
                 conf.get('evidence'), m['guide']['path'], ' | '.join(m['guide']['filters']),
-                m['guide']['reason'] or ' | '.join(REASONS.get(r, r) for r in conf.get('reasons', []))]
+                m['guide']['reason'] or ' | '.join(REASONS.get(r, r) for r in conf.get('reasons', [])),
+                off.get('priority'), off.get('definition'), off.get('analytics_location'),
+                ' | '.join(off.get('known_differences') or []), ' | '.join(attention)]
         for line in m['lines'] or [{'key': '', 'label': '', 'computed': None}]:
             e = entries.get(line['key'], {})
             w.writerow([_cell(x) for x in base + [line['label'], line['computed'], e.get('official'),

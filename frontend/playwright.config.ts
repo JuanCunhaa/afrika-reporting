@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { veracodeFixtureEnv } from './e2e/fixture-creds';
@@ -41,6 +42,8 @@ export default defineConfig({
         ...process.env,
         ...veracodeFixtureEnv,
         AFRIKA_DATABASE_URL: dbUrl,
+        // F11: backup automático antes de aprovar; fora do repositório (frontend/.e2e-data não é destino permitido)
+        AFRIKA_BACKUP_DIR: path.join(os.tmpdir(), 'afrika-e2e-backups', path.basename(process.env.AFRIKA_E2E_DB, '.sqlite3')),
         // F06B.1: ativos de tema (logos/fontes sintéticos) num diretório descartável do E2E, nunca em data/.
         AFRIKA_ASSET_DIR: process.env.AFRIKA_E2E_DB.replace(/\.sqlite3$/, '-assets'),
         AFRIKA_BRAND_ASSET_DIR: process.env.AFRIKA_E2E_BRAND_DIR,

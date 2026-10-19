@@ -23,7 +23,10 @@ REQUIRED=['CLAUDE.md','docs/PRODUCT.md','docs/STATUS.md','prompts/F00_START.md',
           'docs/F09_SECURITY_REVIEW.md','docs/F09_RELEASE_READINESS.md','backend/tests/test_f09_acceptance.py',
           'prompts/F10_RECONCILIATION_PILOT.md','docs/F10_METRIC_RECONCILIATION.md','docs/F10_PILOT_VALIDATION.md',
           'docs/F10_OPEN_ISSUES.md','backend/app/reconciliation/service.py','backend/app/backup.py',
-          'backend/tests/test_f10_pilot.py','backend/tests/test_f10_conference.py']
+          'backend/tests/test_f10_pilot.py','backend/tests/test_f10_conference.py',
+          'prompts/F11_METRIC_HOMOLOGATION_PILOT.md','docs/F11_METRIC_HOMOLOGATION.md','docs/F11_PILOT.md',
+          'backend/app/reconciliation/official.py','backend/app/reconciliation/diagnostics.py',
+          'backend/tests/test_f11_homologation.py']
 for name in REQUIRED:
     if not (root/name).exists():
         sys.exit(f'ERRO: arquivo ausente: {name}')
@@ -66,4 +69,4 @@ for t in tracked:
 hits = [h for h in hits if h != 'backend/tests/test_afrika_template.py']  # usa um termo genérico para testar o filtro
 if hits:
     sys.exit(f'ERRO: nome do cliente/unidade da referência em arquivo versionado: {hits[:5]}')
-print('Estrutura F10: OK')
+print('Estrutura F11: OK')

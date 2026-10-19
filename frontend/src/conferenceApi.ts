@@ -33,12 +33,30 @@ export type ConferenceRow = {
   comparison: Comparison;
   homologated: boolean;
   conference: Conference | null;
+  // F11: definição oficial documentada, prioridade da ordem do PO e diagnóstico automático de divergência
+  official: Official | null;
+  diagnostics: Check[];
+  diagnosis: { attention: string[]; counts: Record<CheckStatus, number> };
+  needs_investigation: boolean;
 };
+export type CheckStatus = 'OK' | 'ATTENTION' | 'INFO' | 'NOT_APPLICABLE';
+export type Check = { code: string; label: string; status: CheckStatus; detail: string };
+export type Official = {
+  priority: number | null;
+  priority_label: string | null;
+  definition: string | null;
+  definition_documented: boolean;
+  docs: string[];
+  analytics_location: string | null;
+  known_differences: string[];
+};
+export type Priority = { priority: number; label: string; metric_ids: string[]; homologated: number; comparisons: string[]; gap: string | null };
 export type ConferenceSheet = {
   competence: { id: string; competence: string; timezone: string; owner_key: string };
   revision: { number: number; status: string };
   identity_mode: string;
   summary: Record<string, number>;
+  priorities: Priority[];
   metrics: ConferenceRow[];
 };
 export type ConferenceInput = {
@@ -76,4 +94,11 @@ export const COMPARISON_LABEL: Record<Comparison, string> = {
   APPLICABLE: 'Aplicável',
   NOT_APPLICABLE: 'Não aplicável',
   BLOCKED_EXTERNAL: 'Bloqueado (externo)',
+};
+
+export const CHECK_LABEL: Record<CheckStatus, string> = {
+  OK: 'OK',
+  ATTENTION: 'Investigar',
+  INFO: 'Reproduzir na tela',
+  NOT_APPLICABLE: 'Não se aplica',
 };

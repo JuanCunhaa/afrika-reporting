@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import (
     api, api_exports, api_interpretations, api_metrics, api_presentations, api_reconciliation, api_reporting, api_scopes,
-    api_snapshots, api_veracode, errors,
+    api_snapshots, api_veracode, backup, errors,
 )
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
@@ -39,7 +39,8 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
                veracode_transport: httpx.AsyncBaseTransport | None = None,
                environ: Mapping[str, str] | None = None, sleep=None) -> FastAPI:
     """`veracode_transport`, `environ` e `sleep` existem para testes (transporte simulado, ambiente e relógio)."""
-    engine = make_engine(db_url or database_url())
+    url = db_url or database_url()
+    engine = make_engine(url)
     settings = veracode_settings or VeracodeSettings.from_env()
     if veracode_transport is None and settings.mode == 'fixture':
         veracode_transport = FixtureVeracode().transport()  # tenant SINTÉTICO em processo; nunca a API real
@@ -67,6 +68,8 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
 
     app = FastAPI(title='Afrika Reporting API', version='0.6.1', description=DESCRIPTION, lifespan=lifespan)
     app.state.engine = engine
+    app.state.db_url = url
+    app.state.backup_dir = backup.default_dir(url, environ)  # F11: backup automático antes de aprovar
     app.state.session_factory = session_factory(engine)
     app.state.interpretation = InterpretationSettings.from_env(environ)  # F08: padrão local, externo desligado
 

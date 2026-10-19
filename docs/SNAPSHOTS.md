@@ -58,6 +58,8 @@ administrativo com backup). Não há exclusão física de histórico na aplicaç
    conjunto obrigatório vazio; obrigatório sem valor; valor inválido para o tipo; `row_hash` divergente; revisão fora de
    READY_FOR_REVIEW; `lock_version` divergente. Aprovador é obrigatório (422). Permite valores manuais justificados.
    Cria `approvals` com `content_hash` (competência, revisão, obrigatórios, hashes dos snapshots) e `chain_hash`.
+   **F11:** passadas as validações, faz antes um backup automático verificado do SQLite (`AFRIKA_BACKUP_DIR` ou
+   `backups/` ao lado do banco); falha ⇒ 409 `approval_backup_failed` e nada é aprovado (`docs/F11_PILOT.md` §2).
 5. **Revisão posterior**: `POST /api/competences/{cid}/revisions` copia exatamente a última aprovada (mesmos hashes);
    aprovada de novo, passa a ser a oficial; anteriores seguem consultáveis (`GET …/revisions/{n}`, `…/compare?a&b`).
 

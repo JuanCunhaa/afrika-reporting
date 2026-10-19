@@ -62,7 +62,14 @@ test('conferência: valor oficial → diferença e status do servidor, categoria
   const collectedOn = sheet.metrics.find((m: { metric_id: string }) => m.metric_id === 'apps.total').snapshot.collected_on;
   await page.getByLabel('Data da conferência').fill(collectedOn);
   await page.getByLabel('Conferente (declarado)').fill(OP);
+  // F11: prioridades da ordem do PO; a 9 (aplicações com scans) não tem indicador aplicável e mostra a lacuna
+  const priorities = page.getByTestId('conference-priorities');
+  await expect(priorities.locator('tbody tr')).toHaveCount(9);
+  await expect(priorities.locator('tbody tr').nth(8)).toContainText('NOT_APPLICABLE');
+  const cards = page.locator('article[data-testid^="conference-"]');
+  await expect(cards.first()).toHaveAttribute('data-testid', 'conference-apps.total');
   const total = page.getByTestId('conference-apps.total');
+  await expect(total.getByTestId('official')).toContainText('Definição oficial');
   await expect(total.getByTestId('comparison')).toHaveText('Não conferido');
   await total.getByLabel('Oficial Valor').fill('60');
   await expect(total.getByTestId('diff-value')).toHaveText('0'); // prévia
@@ -76,6 +83,10 @@ test('conferência: valor oficial → diferença e status do servidor, categoria
   await without.getByLabel(/mesmos do indicador/).check();
   await without.getByRole('button', { name: 'Registrar conferência' }).click();
   await expect(without.getByTestId('comparison')).toHaveText('Diverge (MISMATCH)');
+  // F11: divergência abre o diagnóstico automático (verificações da ordem do PO §4), sem alterar o snapshot
+  await expect(without.getByTestId('diagnosis')).toHaveAttribute('open', '');
+  await expect(without.getByTestId('check-universe')).toContainText('60 aplicação(ões) no escopo do dono');
+  await expect(without.getByTestId('check-completeness')).toContainText('OK');
 
   const multi = page.getByTestId('conference-apps.multiple_teams');
   await multi.getByLabel('Oficial Valor').fill('0');

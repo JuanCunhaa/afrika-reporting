@@ -5,6 +5,9 @@
   diretório fora do repositório; nunca para área versionada. Junto, um manifesto `.json` (sem dados de clientes).
 - Restauração: só de arquivo íntegro, na MESMA revisão de esquema do código, com o backend PARADO e confirmação
   explícita. Antes de substituir, o banco atual é salvo como backup de segurança (nada se perde por engano).
+- F11: toda aprovação de competência pela API faz antes um backup automático verificado (`before_approval`); se ele
+  falhar, a aprovação é BLOQUEADA com o erro. O backup manual (`python -m app.cli backup-db`) continua disponível.
+  Diretório: `AFRIKA_BACKUP_DIR` ou, por padrão, a pasta `backups/` ao lado do banco (`data/backups/` no banco padrão).
 - Sem criptografia: o arquivo tem o mesmo conteúdo do banco (nomes de clientes, escopos, valores agregados; nunca
   credenciais nem findings). Proteja a pasta como o próprio banco.
 """
@@ -12,7 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +25,7 @@ from pathlib import Path
 from app import db
 
 BACKUP_DIR = db.REPO_ROOT / 'data' / 'backups'
+BACKUP_DIR_ENV = 'AFRIKA_BACKUP_DIR'
 ALLOWED_REPO_ROOTS = ('data', 'private')  # ignorados pelo .gitignore
 
 
@@ -59,6 +65,15 @@ def safe_dir(out: str | Path | None) -> Path:
         raise BackupError(f'Diretório de backup dentro do repositório e versionável: {rel}. Use um diretório fora do '
                           f'repositório ou sob data/ ou private/ (ignorados pelo Git).')
     return target
+
+
+def default_dir(url: str, environ: Mapping[str, str] | None = None) -> Path:
+    """`AFRIKA_BACKUP_DIR` ou `backups/` ao lado do arquivo do banco (no banco padrão: `data/backups/`)."""
+    configured = (os.environ if environ is None else environ).get(BACKUP_DIR_ENV)
+    if configured:
+        return Path(configured)
+    source = db.sqlite_file(url)
+    return BACKUP_DIR if source is None else source.parent / 'backups'
 
 
 def inspect(path: Path) -> BackupInfo:
@@ -103,7 +118,7 @@ def backup(url: str | None = None, out: str | Path | None = None, *, now: dateti
     source = db.sqlite_file(url)
     if source is None or not source.exists():
         raise BackupError('Backup suportado só para banco SQLite em arquivo existente')
-    directory = safe_dir(out)
+    directory = safe_dir(out or default_dir(url))
     directory.mkdir(parents=True, exist_ok=True)
     stamp = (now or datetime.now(timezone.utc)).strftime('%Y%m%dT%H%M%S%fZ')
     target = directory / f'afrika-reporting-{label}-{stamp}.sqlite3'
@@ -118,6 +133,16 @@ def backup(url: str | None = None, out: str | Path | None = None, *, now: dateti
                 'created_at': (now or datetime.now(timezone.utc)).isoformat(), 'encrypted': False}
     target.with_suffix('.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
     return info
+
+
+def before_approval(url: str, out: str | Path) -> BackupInfo:
+    """Backup automático e verificado ANTES de aprovar (F11). Qualquer falha vira `BackupError` (bloqueia)."""
+    try:
+        return backup(url, out, label='antes-da-aprovacao')
+    except BackupError:
+        raise
+    except (OSError, sqlite3.Error) as exc:
+        raise BackupError(f'falha de E/S ou do SQLite ao copiar o banco ({type(exc).__name__})') from None
 
 
 def restore(backup_file: str | Path, url: str | None = None, *, confirm: bool = False,
