@@ -17,7 +17,27 @@
 - **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aprovada pelo PO (ordem F08)** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
 - **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aprovada pelo PO (ordem F09)** (commit `c1766a5` + docs; CI verde run `39263203988`)
 - **F09 — homologação ponta a ponta: DONE — aprovada pelo PO como homologação funcional (ordem F10)** (commit `9173f1e` + docs)
-- **F10 — conciliação Veracode e piloto operacional: DONE — aguardando aprovação do PO** (ver checkpoint F10; produção NÃO autorizada nem pronta)
+- **F10 — conciliação Veracode e piloto operacional: DONE — aprovada pelo PO (ordem F11)**
+- **F11 — homologação de métricas e piloto assistido: DONE — aguardando PO** (commit `18f8bb7`; produção NÃO autorizada nem pronta)
+
+## Checkpoint F11 (2026-10-19)
+- **Homologados contra o dashboard: 0/21** (agente sem acesso autorizado ao portal; nenhum valor oficial observado ⇒
+  nenhuma divergência real medida; nenhum número/snapshot alterado).
+- Conferência (motor F10 reutilizado): prioridades 1–8 da ordem, definição oficial com links da documentação Veracode,
+  local alternativo no Analytics, diferenças conhecidas e **diagnóstico automático** (universo, BU/Teams, Policy/Sandbox,
+  período/fuso, aberto/mitigado, severidade, completude, identidade, origem); CSV com 5 colunas novas. Prioridade 9
+  sem indicador aplicável ⇒ contrato `apps.scanned` PROPOSTO. Docs: `docs/F11_METRIC_HOMOLOGATION.md`.
+- **Backup automático verificado antes de cada aprovação**; falha ⇒ 409 `approval_backup_failed` (auditado); backup
+  manual mantido (`AFRIKA_BACKUP_DIR`). Docs: `docs/F11_PILOT.md`.
+- SCA: v1 mantida (semântica idêntica provada por teste); real só GET (26, 0 POST): 6/6 contextos completos, multipágina
+  real, `count` = 1 em todos os findings. Reporting API: diagnóstico documental (papel + habilitação pelo suporte);
+  POST não repetido.
+- Piloto sintético 12/12 PASS (com backup automático); piloto real **NOT_RUN** (0 conferidos, sem autorização do cliente).
+- Testes locais: pytest **736 passed**; exportação obrigatória **130 passed**; E2E Chromium completo + visual win32
+  **41 passed + 3 skipped** (opt-in de referência/fidelidade); migrations e backup/restauração CLI OK; `npm audit` 0;
+  `pip check` OK; gitleaks 0; `check_repo` OK. CI run `39315992801`: em andamento no momento do checkpoint (NOT_VERIFIED).
+
+Próxima autorização esperada: aprovação da F11 pelo PO; nenhuma fase nova sem ordem expressa.
 
 ## Checkpoint F10 (2026-10-19)
 - **Defeito SCA comprovado e corrigido:** findings SCA reais não têm `issue_id`; o paginador rejeitava a página 200
