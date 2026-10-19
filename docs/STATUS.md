@@ -33,8 +33,11 @@
 - **Template:** `afrika-modelo@2`/`afrika@2` revisados, genéricos ⇒ nenhuma versão nova; PPTX de `references/` intacto.
 - **Piloto sintético integral 12/12** (`test_f10_pilot.py`), backup/restauração do SQLite (`app.cli backup-db|restore-db`).
   Docs: `docs/F10_PILOT_VALIDATION.md`, `docs/F10_OPEN_ISSUES.md`.
-- Testes: pytest **711 passed**; exportação obrigatória **105 passed**; E2E/visual, auditorias e CI: ver
-  `docs/AGENT_HANDOFF.md` §7–8.
+- Testes: pytest **711 passed**; exportação obrigatória **105 passed**; E2E conferência 1 passed; E2E completo local
+  NOT_RUN (interrompido pelo sistema por falta de memória); `npm audit` 0; `pip check` OK; gitleaks 0; `check_repo` OK;
+  migrations CLI OK (`0008`).
+- Commit `5f52ff8`; CI run `39301551936` (estrito): **success** — Backend 3.11/3.14 682 passed + 29 skipped,
+  Exportação 94 passed, E2E 41 passed + 3 skipped (visual Linux), build.
 
 Próxima autorização esperada: aprovação da F10 pelo PO (piloto local assistido); nenhuma fase nova sem ordem expressa.
 

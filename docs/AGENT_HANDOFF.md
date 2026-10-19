@@ -1,8 +1,8 @@
 # Devolutiva Claude → ChatGPT PO — F10: Conciliação Veracode e Piloto Operacional (2026-10-19)
 
-- **Fase / commits:** F10 / `main` / `__COMMIT__` (código + testes + docs) → commit de checkpoint (STATUS/handoff).
+- **Fase / commits:** F10 / `main` / **`5f52ff8`** (código + testes + docs) → commit de checkpoint (STATUS/handoff).
   **Nenhuma fase nova iniciada. Produção NÃO autorizada nem declarada.**
-- **CI:** __CI__
+- **CI:** run `39301551936` (SHA `5f52ff8`, estrito) — **success** (§8).
 - Modelo: Opus 5.5 (ambiente). Nenhum subagente. Nenhuma dependência nova.
 - Veracode real: tenant de testes, **somente GET (68)**: diagnóstico SCA 31 + recoleta de métricas 37. **0 POST**
   (Reporting API não repetida: sem mudança de permissão). Nenhuma chamada a provedor externo de IA.
@@ -57,10 +57,30 @@ corrompido; salva o banco atual antes), exportados com `nosniff`/`no-store`/SHA-
 arquivos, IA externa desligada. **Backend sem autenticação: não expor.** Backups não criptografados.
 
 ## 7. Testes executados
-__TESTS__
+| Verificação | Resultado |
+|---|---|
+| pytest completo (Py 3.14.7, local) | **PASS — 711 passed** (679 anteriores + 32 novos: SCA 7, conferência 11, piloto 12, template 2) |
+| Exportação obrigatória (`AFRIKA_EXPORT_TESTS=required`, local) | **PASS — 105 passed** (82 + piloto 12 + conferência 11) |
+| Piloto F10 isolado (exportação obrigatória) | **PASS — 12/12** |
+| E2E da conferência (`conference.spec.ts`, local) | **PASS — 1 passed** |
+| E2E Chromium completo + regressão visual (local) | **NOT_RUN** — a execução foi **interrompida pelo sistema por falta de memória** na máquina (não é falha do teste); não reiniciada sem ordem. No CI: **41 passed + 3 skipped**, regressão visual Linux sem diferença |
+| Build frontend + typecheck | **PASS** (local e CI) |
+| Real opt-in: `test_f10_sca_diagnostics.py` | **PASS** (31 GET, 0 retry; saída só em `private/f10/`) |
+| Real opt-in: `test_metrics_live.py` pós-correção | **PASS** (37 GET; 18/18 contextos completos; Findings × Summary 3/3) |
+| `npm audit` / `pip check` | **PASS** (0 vulnerabilidades / OK) |
+| Gitleaks | **PASS** — 15 arquivos novos 0; staged do commit 0 |
+| Identificadores reais no repo | **PASS** — 8 da amostra × 403 arquivos rastreados/novos = 0 |
+| `check_repo` / `check_env_example` | **PASS** (Estrutura F10 / SEGURO) |
+| Migrations CLI (banco novo: migrate, db-status, seed-demo, migrate, seed-demo) | **PASS** (`0008`, idempotente) |
+| Backup/restauração CLI (smoke em banco temporário) | **PASS** (integrity ok; sem `--confirm` recusado; destino `docs/` recusado) |
+| PPTX de `references/` | **PASS** — SHA-256 igual antes/depois, não rastreado |
+| Fidelidade HTML×PPTX×PDF com PowerPoint (`export-fidelity.spec.ts`) | **NOT_RUN** nesta fase (motor de exportação inalterado; parte do E2E local interrompido) |
 
 ## 8. Commits e CI
-__COMMITS__
+`5f52ff8` (F10) e commit de checkpoint (STATUS/handoff) — em `origin/main`. CI run `39301551936` (SHA `5f52ff8`,
+estrito) — **success**: Backend 3.11 e 3.14 **682 passed + 29 skipped** cada (motor real fica no job próprio);
+**Exportação PPTX/PDF** obrigatória **94 passed** (82 + piloto 12); Frontend typecheck + build + motor visual; **E2E
+Chromium 41 passed + 3 skipped** com regressão visual Linux (sem referência nova).
 
 ## 9. Ações que dependem exclusivamente do operador
 1. Conferir os 21 indicadores aplicáveis no portal (página *Conferir com a Veracode*, no mesmo dia da coleta) e devolver

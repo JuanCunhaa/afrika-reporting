@@ -53,4 +53,6 @@ Ambiente: Windows 11 Pro, Python 3.14.7, Node 24.20.0, Chromium headless do Play
 5. Revisão humana de todo texto (interpretação) antes de exportar.
 
 ## 5. Testes e verificações
-Ver `docs/AGENT_HANDOFF.md` §7 (tabela consolidada com comandos e resultados).
+Local: pytest 711 passed; exportação obrigatória 105 passed; E2E da conferência 1 passed; E2E completo local NOT_RUN
+(interrompido pelo sistema por falta de memória). CI run `39301551936`: success (E2E 41 passed + 3 skipped, visual
+Linux sem diferença). Tabela completa: `docs/AGENT_HANDOFF.md` §7.
