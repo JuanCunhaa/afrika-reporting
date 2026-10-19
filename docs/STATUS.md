@@ -15,7 +15,7 @@
 - **F06B — template de referência Afrika: DONE — aguardando PO** (commits `30446df`, `edcce8b`, `aaa54e9`, `54d1ba4` + docs; CI estrito verde run `38831748989`; tema `afrika@1` PROVISÓRIO)
 - **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
 - **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aprovada pelo PO (ordem F08)** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
-- **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE_LOCAL — aguardando PO** (commit e CI no handoff)
+- **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aguardando PO** (commit `c1766a5` + docs; CI verde run `39263203988`)
 - F09 — homologação: NOT_STARTED
 
 ## Checkpoint F08 (2026-10-19)
@@ -36,6 +36,8 @@
 - pytest **654 passed** (579 + 75); exportação obrigatória **57 passed** (54 + 3); E2E Chromium completo 3 rodadas
   (ver handoff; 1 falha intermitente em `f06c.spec.ts` na 1ª rodada, não reproduzida); visual win32 62/62; motor visual
   12/12; build OK; `npm audit` 0; `pip check` OK; `check_repo`/`check_env_example` OK; migrations CLI OK (`0007`).
+- CI run `39263203988` (`c1766a5`): **success** — Backend 3.11/3.14 631 passed + 23 skipped, Exportação 57 passed,
+  E2E 40 passed + 3 skipped (visual Linux incluído), build + motor visual.
 - Nenhuma chamada à Veracode; nenhuma chamada a provedor externo de IA; nenhuma dependência nova.
 
 Próxima autorização esperada: aceite da F08 pelo PO (decisões: fornecedor externo de IA ou manter só o local;
