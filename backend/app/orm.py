@@ -637,3 +637,38 @@ class InterpretationSlideSetting(Base):
     actor: Mapped[str] = mapped_column(String(120), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+
+
+# ---------------------------------------------------------------- F10: conferência com a plataforma Veracode
+
+class MetricConference(Base):
+    """Conferência humana APPEND-ONLY de um indicador de uma revisão contra o valor oficial da Veracode.
+    O valor calculado é copiado do snapshot pelo servidor; corrigir = novo registro (`sequence` + 1)."""
+    __tablename__ = 'metric_conferences'
+    __table_args__ = (CheckConstraint('sequence >= 1', name='sequence_positive'),
+                      CheckConstraint("status IN ('MATCH', 'MISMATCH', 'NOT_COMPARABLE')", name='status'),
+                      CheckConstraint("identity_mode IN ('DECLARED_UNAUTHENTICATED')", name='identity_mode'),
+                      UniqueConstraint('revision_id', 'metric_id', 'sequence', name='uq_metric_conferences_revision_id'))
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(), primary_key=True, default=uuid.uuid4)
+    competence_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('competences.id', ondelete='RESTRICT'), nullable=False)
+    revision_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid(), ForeignKey('competence_revisions.id', ondelete='RESTRICT'), nullable=False, index=True)
+    owner_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    metric_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer(), nullable=False)
+    snapshot_row_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    computed_origin: Mapped[str] = mapped_column(String(10), nullable=False)
+    entries_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    reasons_json: Mapped[str] = mapped_column(Text(), nullable=False)
+    filters_confirmed: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    checked_on: Mapped[str] = mapped_column(String(10), nullable=False)
+    collected_on: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    evidence: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    operator: Mapped[str] = mapped_column(String(120), nullable=False)
+    identity_mode: Mapped[str] = mapped_column(String(40), nullable=False, default='DECLARED_UNAUTHENTICATED')
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), nullable=False, default=utcnow)
+    record_hash: Mapped[str] = mapped_column(String(64), nullable=False)

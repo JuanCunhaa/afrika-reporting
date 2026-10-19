@@ -16,7 +16,27 @@
 - **F06C — homologação visual e preparação para exportação: DONE — aguardando PO** (commits `42a64e4`, `80c6f17` + docs; CI estrito verde run `38923537613`; tema `afrika@2` PROVISÓRIO)
 - **F07 — exportação PPTX/PDF (+ F07.1 retomada e finalização): DONE — aprovada pelo PO (ordem F08)** (commits `23151ae`, `5d73c67` + docs; CI estrito verde run `38996755783`)
 - **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aprovada pelo PO (ordem F09)** (commit `c1766a5` + docs; CI verde run `39263203988`)
-- **F09 — homologação ponta a ponta: DONE — aguardando aceite do PO** (commit `9173f1e` + docs; ver checkpoint F09; produção NÃO pronta)
+- **F09 — homologação ponta a ponta: DONE — aprovada pelo PO como homologação funcional (ordem F10)** (commit `9173f1e` + docs)
+- **F10 — conciliação Veracode e piloto operacional: DONE — aguardando aprovação do PO** (ver checkpoint F10; produção NÃO autorizada nem pronta)
+
+## Checkpoint F10 (2026-10-19)
+- **Defeito SCA comprovado e corrigido:** findings SCA reais não têm `issue_id`; o paginador rejeitava a página 200
+  (`invalid_response`). Não era transporte (as falhas `-1` da F09 foram recuperadas por retry). SCA agora pagina com
+  completude por `total_elements`. Real (só GET): diagnóstico 31 + recoleta 37 pedidos, 0 POST; 18/18 contextos
+  completos; SCA Policy/Sandbox/top/dependência VALIDATED. Metadado de dedup SCA → `NONE` (fórmula/valor inalterados,
+  `version` mantida — decisão do PO).
+- **Conferência humana no produto:** migration `0008_metric_conferences` (append-only), `backend/app/reconciliation/`,
+  API `…/revisions/{n}/conference[.csv]`, página *Conferir com a Veracode*. Valor calculado lido do snapshot; Δ e status
+  (MATCH/MISMATCH/NOT_COMPARABLE) no servidor; regra de mesma data para estado atual; NOT_APPLICABLE/BLOCKED separados.
+- **Indicadores:** 0/35 homologados contra o dashboard — 21 aplicáveis NOT_VERIFIED, 12 NOT_APPLICABLE, 2
+  BLOCKED_EXTERNAL (Reporting 403; POST não repetido). Docs: `docs/F10_METRIC_RECONCILIATION.md`.
+- **Template:** `afrika-modelo@2`/`afrika@2` revisados, genéricos ⇒ nenhuma versão nova; PPTX de `references/` intacto.
+- **Piloto sintético integral 12/12** (`test_f10_pilot.py`), backup/restauração do SQLite (`app.cli backup-db|restore-db`).
+  Docs: `docs/F10_PILOT_VALIDATION.md`, `docs/F10_OPEN_ISSUES.md`.
+- Testes: pytest **711 passed**; exportação obrigatória **105 passed**; E2E/visual, auditorias e CI: ver
+  `docs/AGENT_HANDOFF.md` §7–8.
+
+Próxima autorização esperada: aprovação da F10 pelo PO (piloto local assistido); nenhuma fase nova sem ordem expressa.
 
 ## Checkpoint F09 (2026-10-19)
 - Homologação funcional sintética: `backend/tests/test_f09_acceptance.py` — 22/22 etapas da ordem do PO + isolamento

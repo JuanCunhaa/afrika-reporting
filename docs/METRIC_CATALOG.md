@@ -38,8 +38,8 @@ Sandbox = desenvolvimento; SAST e SCA nunca somados nem com a mesma identidade.
 | sast.policy.open.top_applications | SAST | Policy | estado atual | — | top 10; desempate nome/GUID (não oficial) |
 | sast.policy.new_in_period.by_severity | SAST | Policy | evento na competência | — | `first_found_date` ∈ [início, fim); qualquer status |
 | sast.policy.open.by_first_found_month | SAST | Policy | estado atual | — | envelhecimento por mês de identificação |
-| sca.policy.open.by_severity | SCA | Policy | estado atual | issue_id no contexto | upload + agente juntos |
-| sca.sandbox.open.by_severity | SCA | Sandbox | estado atual | issue_id no contexto | suporte **SUPPORT_NOT_VERIFIED**; 400 ⇒ UNSUPPORTED |
+| sca.policy.open.by_severity | SCA | Policy | estado atual | sem dedup (F10: SCA real sem issue_id) | upload + agente juntos |
+| sca.sandbox.open.by_severity | SCA | Sandbox | estado atual | sem dedup (ocorrências) | suporte **SUPPORT_NOT_VERIFIED**; 400 ⇒ UNSUPPORTED |
 | sca.open.distinct | SCA | Policy+Sandbox | estado atual | (app, component_id, cve.name) — **NOT_PROVEN** | identidade própria do SCA |
 | sca.policy.open.top_components | SCA | Policy | estado atual | component_id | biblioteca + versão |
 | sca.policy.open.top_vulnerabilities | SCA | Policy | estado atual | cve.name | pode não ser CVE |

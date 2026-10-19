@@ -656,8 +656,10 @@ def test_confidentiality_no_names_no_secrets_no_content_in_logs_or_audit(api, de
     blob = json.dumps(detail, ensure_ascii=False)
     assert not any(n in blob for n in names)  # ranking por aplicação entra SEM rótulos
     assert detail['indicators'][0]['labels_redacted'] is True and 'não são usados' in iv['text']
-    assert iv['text'] not in caplog.text and '30' not in ''.join(r.getMessage() for r in caplog.records
-                                                                if 'interpreta' in r.getMessage())
+    # F10: ids aleatórios (UUID) na mensagem podem conter "30" por acaso — trocados antes de procurar o valor.
+    uuid_re = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+    messages = ''.join(uuid_re.sub('<id>', r.getMessage()) for r in caplog.records if 'interpreta' in r.getMessage())
+    assert iv['text'] not in caplog.text and '30' not in messages
     for bad in ('contato: pessoa@exemplo.com', 'ver https://exemplo.invalid/x', str(uuid.uuid4())):
         r = api.post(f'/api/presentations/{pid}/interpretations',
                      json={'slide_id': 'sumario', 'operator': OP, 'notes': [bad]})

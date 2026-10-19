@@ -102,9 +102,11 @@ jobs:
           AFRIKA_EXPORT_TESTS: required
         # F08: texto de interpretação aprovado e aplicado sai igual no HTML, PPTX e PDF, sem chamar provedor.
         # F09: fluxo ponta a ponta (cadastro → ... → PPTX/PDF → reinício) com as etapas de exportação obrigatórias.
+        # F10: piloto mensal sintético integral (coleta → conferência → aprovação → PPTX/PDF → backup/restauração).
         run: >-
           python -m pytest -q -rs backend/tests/test_export_units.py backend/tests/test_export_engine.py
           backend/tests/test_interpretation_export.py backend/tests/test_f09_acceptance.py
+          backend/tests/test_f10_pilot.py
 
   e2e:
     name: E2E (Playwright Chromium)

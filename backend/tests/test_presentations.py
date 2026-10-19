@@ -655,7 +655,7 @@ def test_upgrade_from_f05_database_with_approved_history(db_url):
         with engine.connect() as conn:
             assert conn.execute(text('SELECT COUNT(*) FROM approvals')).scalar() == 1
         db.upgrade(db_url)
-        assert db.current_revision(engine) == db.head_revision() == '0007_interpretations'
+        assert db.current_revision(engine) == db.head_revision() == '0008_metric_conferences'
     finally:
         engine.dispose()
     with TestClient(create_app(db_url)) as api:

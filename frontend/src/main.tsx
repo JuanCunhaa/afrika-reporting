@@ -16,6 +16,7 @@ import '@fontsource/be-vietnam-pro/700.css';
 import './styles.css';
 import { ClientDetailPage } from './pages/ClientDetailPage';
 import { ClientsPage } from './pages/ClientsPage';
+import { ConferencePage } from './pages/ConferencePage';
 import { ConnectionsPage } from './pages/ConnectionsPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { MetricsPage } from './pages/MetricsPage';
@@ -47,6 +48,7 @@ function App() {
   const metricsMatch = path.match(/^\/metrics(?:\/clients\/([0-9a-f-]{36}))?$/i);
   const snapshotsMatch = path.match(/^\/snapshots(?:\/([0-9a-f-]{36})(?:\/(\d+))?)?$/i);
   const presentationMatch = path.match(/^\/presentations\/([0-9a-f-]{36})$/i);
+  const conferenceMatch = path.match(/^\/conference\/([0-9a-f-]{36})\/(\d+)$/i);
   const renderMatch = path.match(/^\/render\/([0-9a-f-]{36})(?:\/(\d+))?$/i);
   // F06B.1: captura determinística dos slides (sem a interface da aplicação).
   if (renderMatch) return <RenderPage key={path} pid={renderMatch[1]} revision={renderMatch[2] ? Number(renderMatch[2]) : undefined} />;
@@ -63,6 +65,7 @@ function App() {
         navigate={navigate}
       />
     );
+  else if (conferenceMatch) page = <ConferencePage key={path} cid={conferenceMatch[1]} n={Number(conferenceMatch[2])} />;
   else if (path === '/history') page = <HistoryPage />;
   else if (path === '/presentations') page = <PresentationsPage navigate={navigate} />;
   else if (presentationMatch) page = <PresentationEditorPage key={presentationMatch[1]} pid={presentationMatch[1]} />;

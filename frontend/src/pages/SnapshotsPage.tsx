@@ -258,6 +258,9 @@ function RevisionPanel(props: { cid: string; n: number; operator: string; setOpe
           {REVISION_LABEL[rev.status]}
         </Badge>
         {rev.is_official && <Badge cls="ok">Oficial</Badge>}
+        <a className="btn" href={`#/conference/${cid}/${rev.number}`} data-testid="open-conference">
+          Conferir com a Veracode
+        </a>
       </div>
       <small className="muted">
         versão de bloqueio {rev.lock_version} · criada por {rev.created_by} (declarado) {fmtDate(rev.created_at)}

@@ -18,6 +18,8 @@ cd backend
 python -m app.cli migrate                 # cria/atualiza o esquema (Alembic). Nunca apaga dados.
 python -m app.cli seed-demo               # OPCIONAL: dados sintéticos da demo F00 (idempotente)
 python -m app.cli db-status               # revisão atual x esperada
+python -m app.cli backup-db               # F10: backup verificado do SQLite em data/backups/ (ignorado)
+python -m app.cli restore-db ARQ --confirm  # F10: restaura (backend PARADO; salva o banco atual antes)
 uvicorn app.main:app --reload --port 8000
 ```
 

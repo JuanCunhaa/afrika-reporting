@@ -314,7 +314,9 @@ async def fetch_findings(run: CollectionRun, application_guid: str, scan_type: s
         raise ValueError('scan_type não suportado')
     params = {'scan_type': scan_type, **({'context': sandbox_guid} if sandbox_guid else {})}
     col = await run.paginate(FINDINGS.format(guid=quote(application_guid, safe='')), 'findings',
-                             label=f'findings:{scan_type.lower()}', id_field='issue_id', params=params,
+                             label=f'findings:{scan_type.lower()}', params=params,
+                             # SCA real (F10): itens SEM issue_id => completude só pelo total anunciado
+                             id_field='issue_id' if scan_type == 'STATIC' else None,
                              page_size=run.settings.findings_page_size, no_retry_status=FINDINGS_NO_RETRY)
     return _normalized(col, normalize_finding)
 

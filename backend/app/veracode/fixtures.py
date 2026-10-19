@@ -8,8 +8,9 @@
   (camelCase, aceito por precaução porque a especificação Identity 1.5 o declara, é coberto em test_veracode_http.)
 Findings (F04, Findings API v2): `/appsec/v2/applications/{guid}/findings` com `scan_type` (SCA nunca combinado
 com outros tipos => 400) e `context`=GUID do sandbox (sem `context` => Policy). Findings sintéticos repetem o mesmo
-`issue_id` entre Policy e sandboxes e o mesmo componente/vulnerabilidade SCA com `issue_id` diferentes — para testar
-deduplicação sem supor identidade. Datas de identificação ficam na virada de agosto/setembro/outubro de 2026.
+`issue_id` entre Policy e sandboxes e o mesmo componente/vulnerabilidade SCA em contextos diferentes — para testar
+deduplicação sem supor identidade. F10: findings SCA NÃO têm `issue_id` (formato real). Datas de identificação
+ficam na virada de agosto/setembro/outubro de 2026.
 F04.1: perfil com `scans[]` (só STATIC, como no real), Summary Report derivado dos findings da Policy (chave
 `flaw-status` com hífen e campos pessoais que a normalização descarta, como no real) e SCA Agent por aplicação.
 `sca_500_without_components` imita o real (só Policy observada): Findings SCA => 500 sem componentes.
@@ -90,11 +91,15 @@ def make_finding(issue_id: int, scan_type: str, *, severity: int | None, status:
     finding_status = {'first_found_date': first_found, 'status': status, 'resolution': resolution,
                       'resolution_status': resolution_status, 'last_seen_date': last_seen, 'new': False,
                       'mitigation_review_status': 'NONE'}
-    return {'issue_id': issue_id, 'scan_type': scan_type, 'description': 'Descrição sintética (descartada)',
-            'count': 1, 'context_type': 'SANDBOX' if sandbox_guid else 'APPLICATION',
-            'context_guid': sandbox_guid, 'violates_policy': (severity or 0) >= 3, 'build_id': 1,
-            'finding_status': finding_status, 'finding_details': details,
-            'annotations': [{'comment': 'anotação sintética (descartada)'}]}
+    finding = {'issue_id': issue_id, 'scan_type': scan_type, 'description': 'Descrição sintética (descartada)',
+               'count': 1, 'context_type': 'SANDBOX' if sandbox_guid else 'APPLICATION',
+               'context_guid': sandbox_guid, 'violates_policy': (severity or 0) >= 3, 'build_id': 1,
+               'finding_status': finding_status, 'finding_details': details,
+               'annotations': [{'comment': 'anotação sintética (descartada)'}]}
+    if scan_type == 'SCA':
+        # Formato real (F10): findings SCA NÃO trazem issue_id; `issue_id` aqui só ordena o fixture.
+        finding['_order'] = finding.pop('issue_id')
+    return finding
 
 
 _CWES = [(79, 'Cross-site Scripting'), (89, 'SQL Injection'), (117, 'Improper Output Neutralization for Logs'),
@@ -329,7 +334,9 @@ class FixtureVeracode:
         if 'SCA' in types and not context and tenant.sca_500_without_components                 and not tenant.findings.get((app_guid, None, 'SCA')):
             return httpx.Response(500, headers={'Content-Type': 'application/json'})  # corpo vazio, como no real
         items = [f for t in types for f in tenant.findings.get((app_guid, context, t), [])]
-        return FixtureVeracode._page(sorted(items, key=lambda f: f['issue_id']), 'findings', page, size)
+        ordered = sorted(items, key=lambda f: f.get('issue_id', f.get('_order', 0)))
+        return FixtureVeracode._page([{k: v for k, v in f.items() if k != '_order'} for f in ordered], 'findings',
+                                     page, size)
 
     @staticmethod
     def _summary(tenant: Tenant, app_guid: str, context: str | None) -> httpx.Response:
@@ -404,7 +411,7 @@ class FixtureVeracode:
             for f in findings:
                 st = f['finding_status']
                 out.append({'app_id': str(app['id']), 'app_name': app['profile']['name'],
-                            'finding_id': str(f['issue_id']),
+                            'finding_id': str(f.get('issue_id', f.get('_order'))),
                             'scan_type': 'SCA' if stype == 'SCA' else 'Static Analysis',
                             'policy_sandbox': 'Sandbox' if sandbox else 'Policy',
                             'status': 'Open' if st['status'] == 'OPEN' else 'Closed',

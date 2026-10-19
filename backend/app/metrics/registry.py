@@ -34,6 +34,10 @@ _OPEN_NOTE = ('"Aberto" = status OPEN e mitigação não aprovada (resolution_st
 _ZERO_NOTE = '0 findings pode significar aplicação sem scan no contexto (cobertura de scans não homologada)'
 _ISSUE_ID_NOTE = ('issue_id é único "dentro do contexto da aplicação" (especificação): a mesma vulnerabilidade em '
                   'sandboxes/Policy diferentes NÃO tem identidade comprovada')
+# F10 (diagnóstico real, só GET): findings SCA da Findings API NÃO trazem issue_id. Dentro de um contexto cada finding
+# devolvido conta uma vez (o cálculo nunca deduplicou SCA por issue_id); fórmula e valor inalterados.
+_SCA_NO_ID_NOTE = ('Findings SCA não têm issue_id na API real: cada finding devolvido no contexto conta uma vez (sem '
+                   'deduplicação); completude = total anunciado pela paginação')
 
 
 def _apps(metric_id: str, name: str, description: str, shape: Shape, formula: str, **kw) -> MetricContract:
@@ -208,14 +212,15 @@ CONTRACTS: tuple[MetricContract, ...] = (
     # ------------------------------------------------------------------ SCA
     _findings('sca.policy.open.by_severity', 'SCA abertos — Policy (produção)',
               'Findings SCA abertos no contexto Policy, por severidade', Domain.SCA, ScanContext.POLICY,
-              Shape.BY_SEVERITY, 'count(findings) group by severity; scan_type=SCA; sem context',
+              Shape.BY_SEVERITY, 'count(findings) group by severity; scan_type=SCA; sem context', dedup=Dedup.NONE,
               limitations=('SCA por upload e por agente vinculado à aplicação vêm juntos (sca_scan_mode); '
-                           'separação não homologada',)),
+                           'separação não homologada', _SCA_NO_ID_NOTE)),
     _findings('sca.sandbox.open.by_severity', 'SCA abertos — Sandboxes (ocorrências)',
               'Findings SCA abertos por sandbox, somados como ocorrências', Domain.SCA, ScanContext.SANDBOX,
               Shape.BY_SEVERITY, 'Σ por (aplicação, sandbox) de count(findings) group by severity',
-              support=Support.SUPPORT_NOT_VERIFIED,
-              limitations=('Suporte de SCA por sandbox na Findings API não homologado: resposta 400 => UNSUPPORTED',)),
+              support=Support.SUPPORT_NOT_VERIFIED, dedup=Dedup.NONE,
+              limitations=('Suporte de SCA por sandbox na Findings API não homologado: resposta 400 => UNSUPPORTED',
+                           _SCA_NO_ID_NOTE)),
     _findings('sca.open.distinct', 'SCA abertos — total distinto (Policy + Sandboxes)',
               'Vulnerabilidades SCA abertas distintas por aplicação, componente e identificador da vulnerabilidade',
               Domain.SCA, ScanContext.POLICY_AND_SANDBOX, Shape.BY_SEVERITY,
@@ -226,16 +231,17 @@ CONTRACTS: tuple[MetricContract, ...] = (
     _findings('sca.policy.open.top_components', 'Top bibliotecas vulneráveis — Policy',
               f'Top {TOP_N} componentes (component_id) com mais findings SCA abertos em Policy', Domain.SCA,
               ScanContext.POLICY, Shape.RANKING, 'count(findings) group by component_id order by count desc',
-              top_n=TOP_N, limitations=('Desempate por nome do arquivo e component_id (não oficial)',)),
+              top_n=TOP_N, dedup=Dedup.NONE,
+              limitations=('Desempate por nome do arquivo e component_id (não oficial)', _SCA_NO_ID_NOTE)),
     _findings('sca.policy.open.top_vulnerabilities', 'Top vulnerabilidades (CVE) — Policy',
               f'Top {TOP_N} identificadores de vulnerabilidade (cve.name) em findings SCA abertos em Policy',
               Domain.SCA, ScanContext.POLICY, Shape.RANKING,
-              'count(distinct application) group by cve.name order by count desc', top_n=TOP_N,
-              limitations=('cve.name pode conter identificadores que não são CVE (especificação)',)),
+              'count(distinct application) group by cve.name order by count desc', top_n=TOP_N, dedup=Dedup.NONE,
+              limitations=('cve.name pode conter identificadores que não são CVE (especificação)', _SCA_NO_ID_NOTE)),
     _findings('sca.policy.open.by_dependency_mode', 'SCA abertos por tipo de dependência — Policy',
               'Findings SCA abertos em Policy por sca_dep_mode (DIRECT/TRANSITIVE/BOTH/UNKNOWN)', Domain.SCA,
-              ScanContext.POLICY, Shape.BREAKDOWN, 'count(findings) group by metadata.sca_dep_mode',
-              limitations=('Formato de `metadata` (string na especificação) não homologado',)),
+              ScanContext.POLICY, Shape.BREAKDOWN, 'count(findings) group by metadata.sca_dep_mode', dedup=Dedup.NONE,
+              limitations=('Formato de `metadata` (string na especificação) não homologado', _SCA_NO_ID_NOTE)),
     _alt('sca.policy.summary.components', 'Componentes de terceiros — Policy (Summary Report)',
          'Componentes de terceiros e componentes que violam a política SCA, por aplicação, segundo o Summary Report',
          Domain.SCA, Source.SUMMARY_REPORT_API, _SUMMARY_EP, Shape.BREAKDOWN, Unit.COMPONENTS,

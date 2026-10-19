@@ -20,7 +20,10 @@ REQUIRED=['CLAUDE.md','docs/PRODUCT.md','docs/STATUS.md','prompts/F00_START.md',
           'prompts/F08_INTERPRETATION.md','docs/INTERPRETATION.md','backend/app/interpretation/service.py',
           'backend/app/interpretation/validate.py','backend/app/interpretation/providers.py',
           'prompts/F09_HOMOLOGATION.md','docs/F09_ACCEPTANCE_MATRIX.md','docs/F09_METRIC_RECONCILIATION.md',
-          'docs/F09_SECURITY_REVIEW.md','docs/F09_RELEASE_READINESS.md','backend/tests/test_f09_acceptance.py']
+          'docs/F09_SECURITY_REVIEW.md','docs/F09_RELEASE_READINESS.md','backend/tests/test_f09_acceptance.py',
+          'prompts/F10_RECONCILIATION_PILOT.md','docs/F10_METRIC_RECONCILIATION.md','docs/F10_PILOT_VALIDATION.md',
+          'docs/F10_OPEN_ISSUES.md','backend/app/reconciliation/service.py','backend/app/backup.py',
+          'backend/tests/test_f10_pilot.py','backend/tests/test_f10_conference.py']
 for name in REQUIRED:
     if not (root/name).exists():
         sys.exit(f'ERRO: arquivo ausente: {name}')
@@ -63,4 +66,4 @@ for t in tracked:
 hits = [h for h in hits if h != 'backend/tests/test_afrika_template.py']  # usa um termo genérico para testar o filtro
 if hits:
     sys.exit(f'ERRO: nome do cliente/unidade da referência em arquivo versionado: {hits[:5]}')
-print('Estrutura F09: OK')
+print('Estrutura F10: OK')

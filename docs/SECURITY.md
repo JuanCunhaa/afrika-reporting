@@ -153,3 +153,16 @@
 - F07 corrigido na F08: a checagem de conteúdo ativo do PDF procurava `/AA`, `/JS`… também DENTRO de fluxos binários
   comprimidos — falso positivo dependente do texto do slide (reproduzido numa legenda de 240 caracteres). Agora só a
   estrutura (fora de `stream…endstream`) é verificada; dicionário com `/AA` continua recusado (teste unitário).
+
+## Controles implementados na F10 (conferência e piloto local) — detalhes em `docs/F10_PILOT_VALIDATION.md`
+- Conferência humana: o servidor lê o valor calculado do snapshot (o cliente nunca o envia; campo extra ⇒ 422);
+  registros append-only por gatilho (`metric_conferences_append_only`); auditoria só com indicador/sequência/status
+  (sem valores); conferente DECLARADO (sem autenticação). CSV de evidência com `no-store`, `nosniff`, `attachment` e
+  neutralização de fórmulas (`=`, `+`, `-`, `@` em textos). Nenhum dado real versionado: valores e capturas ficam em
+  `private/`.
+- Backup/restauração do SQLite (`python -m app.cli backup-db | restore-db`): cópia consistente pela API de backup do
+  SQLite, `integrity_check`, revisão Alembic e SHA-256; destino só fora do repositório ou sob `data/`/`private/`
+  (ignorados); restauração exige `--confirm`, backend parado, arquivo íntegro e mesma revisão de esquema, e salva antes o
+  banco atual. **Backups não são criptografados**: mesmo conteúdo do banco (nunca credenciais nem findings).
+- SCA: o paginador aceita recurso sem identificador por item SOMENTE com metadados de paginação (total anunciado =
+  itens recebidos); sem metadados ⇒ resposta recusada (nunca completude presumida).

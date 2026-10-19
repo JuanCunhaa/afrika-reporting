@@ -7,8 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import (
-    api, api_exports, api_interpretations, api_metrics, api_presentations, api_reporting, api_scopes, api_snapshots,
-    api_veracode, errors,
+    api, api_exports, api_interpretations, api_metrics, api_presentations, api_reconciliation, api_reporting, api_scopes,
+    api_snapshots, api_veracode, errors,
 )
 from app.local_only import LocalOnlyMiddleware
 from app.db import assert_schema_ready, database_url, make_engine, session_factory
@@ -84,6 +84,7 @@ def create_app(db_url: str | None = None, *, veracode_settings: VeracodeSettings
     app.include_router(api_presentations.router)
     app.include_router(api_exports.router)
     app.include_router(api_interpretations.router)
+    app.include_router(api_reconciliation.router)
 
     @app.get('/api/health')
     def health():

@@ -330,9 +330,12 @@ class CollectionRun:
     def remaining(self) -> float:
         return self.deadline - self._clock()
 
-    async def paginate(self, path: str, embedded_key: str, *, label: str, id_field: str,
+    async def paginate(self, path: str, embedded_key: str, *, label: str, id_field: str | None,
                        params: dict | None = None, page_size: int | None = None,
                        no_retry_status: frozenset[int] = frozenset()) -> Collection:
+        """`id_field`: identificador por item usado para detectar repetição entre páginas. `None` = o recurso não tem
+        identificador por item (F10: findings SCA reais não trazem `issue_id`); a completude fica provada só pelos
+        metadados de paginação (`total_elements` anunciado = itens recebidos), sem supor identidade."""
         size = page_size or self.settings.page_size
         col = Collection(resource=label)
         start_requests, start_retries = self.requests, self.retries
@@ -344,6 +347,8 @@ class CollectionRun:
                 data = await self.get_json(path, {**(params or {}), 'page': page, 'size': size}, label=label,
                                            no_retry_status=no_retry_status)
                 total_pages, total_elements = _page_meta(data)
+                if id_field is None and total_pages is None:
+                    raise VeracodeError('invalid_response')  # sem identificador E sem total: completude improvável
                 batch = _embedded(data, embedded_key, total_elements)
                 col.pages_fetched += 1
                 if total_pages is not None:
@@ -352,6 +357,9 @@ class CollectionRun:
                     elif (total_pages, total_elements) != (col.total_pages, col.total_elements):
                         raise VeracodeError('inconsistent_pagination')
                 for item in batch:
+                    if id_field is None:
+                        col.items.append(item)
+                        continue
                     key = item.get(id_field)
                     if key is None:
                         raise VeracodeError('invalid_response')

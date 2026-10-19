@@ -15,6 +15,11 @@ F07 (exportação local; mesmas regras da API — revisão persistida, fonte apr
 
     python -m app.cli export --presentation UUID --revision N --format pptx|pdf [--out DIR]
 
+F10 (piloto local; arquivos nunca em área versionada):
+
+    python -m app.cli backup-db [--out DIR]                 # cópia consistente + integrity_check + SHA-256
+    python -m app.cli restore-db ARQUIVO.sqlite3 --confirm  # backend PARADO; salva o banco atual antes
+
 Banco: AFRIKA_DATABASE_URL ou data/afrika-reporting.sqlite3 na raiz do repo.
 Relatórios de inspeção: output/pptx-inspection/<sha256[:12]>/ (ignorado pelo Git) ou --out fora do repositório.
 """
@@ -182,9 +187,24 @@ def main(argv: list[str] | None = None) -> int:
     ex.add_argument('--revision', type=int, required=True)
     ex.add_argument('--format', choices=('pptx', 'pdf'), required=True)
     ex.add_argument('--out', help='diretório de saída (padrão output/exports; fora do repo ou sob output/, private/)')
+    bk = sub.add_parser('backup-db', help='F10: backup local verificado do SQLite (padrão data/backups/)')
+    bk.add_argument('--out', help='diretório (fora do repositório ou sob data/ ou private/)')
+    rs = sub.add_parser('restore-db', help='F10: restaura um backup verificado (backend PARADO; salva o atual antes)')
+    rs.add_argument('file')
+    rs.add_argument('--confirm', action='store_true', help='confirma a substituição do banco atual')
     args = parser.parse_args(argv)
 
     load_project_env()
+    if args.command in ('backup-db', 'restore-db'):
+        from app import backup
+        try:
+            out = backup.backup(out=args.out).public() if args.command == 'backup-db' else \
+                backup.restore(args.file, confirm=args.confirm)
+        except backup.BackupError as exc:
+            print(f'Recusado: {exc}', file=sys.stderr)
+            return 1
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+        return 0
     if args.command == 'inspect-pptx':
         return _inspect(args)
     if args.command == 'synthetic-pptx':
