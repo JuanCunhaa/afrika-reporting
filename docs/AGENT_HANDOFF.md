@@ -1,6 +1,6 @@
 # Devolutiva Claude → ChatGPT PO — F12: Fechamento de Lacunas Veracode (2026-10-19)
 
-- **Fase / commit:** F12 / `main` / ver §7. **F13 não iniciada. Produção NÃO autorizada.** Modelo: Opus 5.5; nenhum
+- **Fase / commit:** F12 / `main` / **`1692be7`** + checkpoint. **F13 não iniciada. Produção NÃO autorizada.** Modelo: Opus 5.5; nenhum
   subagente; nenhuma dependência nova; nenhuma migration nova.
 - Veracode real: tenant de testes, **somente GET (2, ambos `/api/authn/v2/users/self`)**, 0 POST. IA externa: nenhuma.
 - Detalhes: `docs/F12_VERACODE_GAPS.md`.
@@ -35,7 +35,9 @@
    (BLOCKED_EXTERNAL 2→3; a 1ª rodada falhou só nisso); motor visual 12/12; build OK; migrations CLI OK (`0008`);
    allowlist GET (testes novos) PASS; live `users/self` 1 passed (×2); `npm audit` 0; `pip check` OK; gitleaks staged 0;
    `check_repo` OK; `check_env_example` SEGURO. Fidelidade com PowerPoint: NOT_RUN (motor de exportação inalterado).
-7. **Commits e CI:** ver resposta final da sessão e `docs/STATUS.md`.
+7. **Commits e CI:** `1692be7` (F12) + commit de checkpoint (STATUS/handoff) em `origin/main`. CI run `39352590718`
+   (SHA `1692be7`) — **success**: Backend 3.11 e 3.14 **743 passed + 29 skipped** cada, Exportação PPTX/PDF **94
+   passed**, E2E Chromium **41 passed + 3 skipped** com regressão visual Linux, typecheck + build.
 8. **Limitações para produção:** sem autenticação/segregação de funções; 0 indicador homologado; Reporting API
    bloqueada (habilitação); credencial de testes sem privilégio mínimo; SQLite/backups sem criptografia; tema provisório;
    `apps.scanned` sem fonte coletada.

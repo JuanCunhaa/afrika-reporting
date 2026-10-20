@@ -34,7 +34,13 @@
   conferência BLOCKED_EXTERNAL. Último scan do perfil NÃO usado para o mês.
 - **Conferência:** bloco `review` com os 10 itens da ordem nos 21 aplicáveis. **Homologados: 0/21** (sem comparação
   real). Falha de backup continua bloqueando aprovação (testes F11 na suíte).
-- Testes: ver `docs/AGENT_HANDOFF.md` (F12).
+- Testes locais: pytest **772 passed**; exportação obrigatória **155 passed** (3 de 4 execuções; 1 falha não
+  identificada na 1ª, não reproduzida); E2E Chromium completo + visual win32 **41 passed + 3 skipped**; motor visual
+  12/12; migrations CLI OK (`0008`); `npm audit` 0; `pip check` OK; gitleaks staged 0; `check_repo` OK.
+- Commit `1692be7`; CI run `39352590718` (estrito): **success** — Backend 3.11/3.14 743 passed + 29 skipped,
+  Exportação 94 passed, E2E 41 passed + 3 skipped (visual Linux), typecheck + build.
+
+Próxima autorização esperada: aprovação da F12 pelo PO; nenhuma fase nova sem ordem expressa.
 
 ## Checkpoint F11 (2026-10-19)
 - **Homologados contra o dashboard: 0/21** (agente sem acesso autorizado ao portal; nenhum valor oficial observado ⇒
