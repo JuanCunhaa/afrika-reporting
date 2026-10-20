@@ -59,6 +59,7 @@ class DateField(StrEnum):
     NONE = 'NONE'
     FIRST_FOUND_DATE = 'finding_status.first_found_date'
     SCAN_PUBLISHED_DATE = 'applications[].scans[].modified_date (publicação do ÚLTIMO scan do tipo)'
+    REPORT_SCAN_PUBLISHED = 'Reporting SCANS scans[].published (cada scan; EDT segundo a especificação)'
     RESOLUTION_DATE = 'resolution_date (inexistente na Findings API)'
 
 

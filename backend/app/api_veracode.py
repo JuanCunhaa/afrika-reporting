@@ -99,6 +99,13 @@ async def test_connection(ctx: Scope, service: Service):
     return {'scope': ctx.info(), **(await service.test_connection(ctx))}
 
 
+@router.post('/{scope}/{scope_id}/self-diagnostic', responses=_ERRORS)
+async def self_diagnostic(ctx: Scope, service: Service):
+    """F12: papéis e permissões da PRÓPRIA conta da credencial (1 GET /api/authn/v2/users/self), minimizados —
+    sem identificadores, e-mail, nomes nem Teams. Ação sob demanda (POST local; na Veracode só GET)."""
+    return {'scope': ctx.info(), **(await service.self_diagnostic(ctx))}
+
+
 @router.delete('/{scope}/{scope_id}/cache', responses=_ERRORS)
 def invalidate_cache(ctx: Scope, service: Service):
     return {'scope': ctx.info(), 'removed_entries': service.invalidate(ctx)}

@@ -21,6 +21,7 @@ from app.metrics.contracts import (
     StatusCriterion, Support, TemporalMode,
 )
 from app.metrics.population import Population, PopulationStatus
+from app.metrics import scans_published
 from app.metrics.registry import CONTRACTS, TOP_N
 from app.scopes import rules
 from app.scopes.store import OwnerRule
@@ -523,6 +524,8 @@ def _alt_metric(c: MetricContract, ctx: Context) -> MetricResult:
     b = _population_blockers(pop)
     out = ctx.outcome
     mid = c.metric_id
+    if mid == 'apps.scanned':
+        return _apps_scanned(c, ctx, b)
     if mid in ('apps.by_policy_compliance', 'scans.covered_apps'):
         value = (_policy_compliance if mid == 'apps.by_policy_compliance' else _covered_apps)(ctx, b)
         return _finish(c, ctx, value, b, coverage={'applications': len(pop.applications)})
@@ -537,6 +540,24 @@ def _alt_metric(c: MetricContract, ctx: Context) -> MetricResult:
         return _finish(c, ctx, None, b, coverage=coverage, failed=True)
     value = _ALT_COMPUTE[mid](ctx, data, b, coverage)
     return _finish(c, ctx, value, b, coverage=coverage)
+
+
+_SCANS_NOT_COLLECTED = ('Fonte do indicador = relatório SCANS da Reporting API (um item por scan). Não coletado: a '
+                        'geração exige papel Reporting API + habilitação da organização pela Veracode — HTTP 403 na '
+                        'conta de testes desde a F05 (BLOCKED_EXTERNAL); o último scan do perfil NÃO substitui a fonte')
+
+
+def _apps_scanned(c: MetricContract, ctx: Context, b: Blockers) -> MetricResult:
+    """F12: ver `scans_published`. Sem relatório SCANS => UNAVAILABLE (nunca estimado pelo último scan)."""
+    evidence = getattr(ctx.outcome, 'scans_report', None)
+    coverage = {'applications': len(ctx.population.applications)}
+    if evidence is None:
+        return _result(c, ctx, MetricStatus.UNAVAILABLE, coverage=coverage,
+                       reasons=b.reasons + [Reason('scans_report_not_collected', _SCANS_NOT_COLLECTED)])
+    value, blockers, cov = scans_published.evaluate(ctx.population.applications, ctx.competence, evidence)
+    for code, message in blockers:
+        b.add(code, message)
+    return _finish(c, ctx, value, b, coverage={**coverage, **cov})
 
 
 def _policy_compliance(ctx: Context, b: Blockers) -> dict:
@@ -690,7 +711,7 @@ _ALT_COMPUTE = {
     'sca.policy.summary.components': _sca_components,
     'sca.agent.linked_projects': _agent_projects,
 }
-_ALT_IDS = set(_ALT_COMPUTE) | {'apps.by_policy_compliance', 'scans.covered_apps'}
+_ALT_IDS = set(_ALT_COMPUTE) | {'apps.by_policy_compliance', 'scans.covered_apps', 'apps.scanned'}
 
 
 # ---------------------------------------------------------------- orquestração

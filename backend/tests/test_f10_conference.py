@@ -64,8 +64,9 @@ def test_guide_covers_catalog_with_separate_categories():
         else:
             assert g.reason, mid
     assert set(guide.GUIDES) == set(REGISTRY)
-    assert {k: len(v) for k, v in cats.items()} == {'APPLICABLE': 21, 'NOT_APPLICABLE': 12, 'BLOCKED_EXTERNAL': 2}
-    assert sorted(cats['BLOCKED_EXTERNAL']) == ['sast.policy.resolved_in_period', 'scans.count']
+    # F12: + apps.scanned (BLOCKED_EXTERNAL: relatório SCANS da Reporting API)
+    assert {k: len(v) for k, v in cats.items()} == {'APPLICABLE': 21, 'NOT_APPLICABLE': 12, 'BLOCKED_EXTERNAL': 3}
+    assert sorted(cats['BLOCKED_EXTERNAL']) == ['apps.scanned', 'sast.policy.resolved_in_period', 'scans.count']
 
 
 def test_sheet_starts_not_verified_and_nothing_is_homologated(flow):
@@ -74,7 +75,7 @@ def test_sheet_starts_not_verified_and_nothing_is_homologated(flow):
     assert len(data['metrics']) == len(REGISTRY) and data['identity_mode'] == 'DECLARED_UNAUTHENTICATED'
     s = data['summary']
     assert s['HOMOLOGATED'] == 0 and s['APPLICABLE'] == 21
-    assert s['NOT_APPLICABLE'] == 12 and s['BLOCKED_EXTERNAL'] == 2
+    assert s['NOT_APPLICABLE'] == 12 and s['BLOCKED_EXTERNAL'] == 3  # F12: + apps.scanned
     assert s.get('NOT_VERIFIED', 0) + s.get('NO_COMPUTED_VALUE', 0) == 21
     total = row(data, 'apps.total')
     assert total['comparison'] == 'NOT_VERIFIED' and total['lines'] == [{'key': 'value', 'label': 'Valor',

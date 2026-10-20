@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from app.metrics.scans_published import ScansEvidence
 from app.veracode import adapters
 from app.veracode.discovery import DiscoveryService, ScopeContext
 from app.veracode.http import Collection
@@ -80,6 +81,9 @@ class CollectionOutcome:
     skipped_reason: str | None = None
     circuits_opened: list[str] = field(default_factory=list)
     retry_pass: dict = field(default_factory=lambda: {'attempted': 0, 'recovered': 0})
+    # F12: relatório SCANS da Reporting API (fonte de `apps.scanned`). Esta coleta é SÓ GET e nunca o gera: só é
+    # preenchido por quem executou um relatório autorizado (`scans_published.collect_evidence`); None = não coletado.
+    scans_report: ScansEvidence | None = None
 
     def summary(self) -> dict:
         by_state = {s.value: 0 for s in CollectState}

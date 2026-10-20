@@ -69,6 +69,31 @@ class Tenant:
     reporting_fail: bool = False                                          # processamento termina FAILED
     reporting_page_size: int = 3
     reports: dict[str, dict] = field(default_factory=dict)                # id -> pedido recebido e consultas
+    # F12 — GET /api/authn/v2/users/self (formato EntityModelUser da Identity 1.5); None = conta de API sintética
+    # padrão (sem papel Reporting). Campos pessoais/identificadores SINTÉTICOS que o diagnóstico deve descartar.
+    self_account: dict | None = None
+
+
+def synthetic_self_account(*, roles: tuple[tuple[str, str], ...] = (('resultsapi', 'Results API'),
+                                                                   ('noteamrestrictionapi', 'No Team Restriction API')),
+                           account_type: str = 'API', teams: int = 0) -> dict:
+    """Conta SINTÉTICA no formato de /users/self (inclui campos sensíveis fictícios que a minimização descarta)."""
+    return {
+        'user_id': _uid('self', 'user'), 'user_legacy_id': 424242, 'user_name': 'conta.sintetica',
+        'email_address': 'conta.sintetica@exemplo.invalid', 'first_name': 'Conta', 'last_name': 'Sintética',
+        'account_type': account_type, 'api_user': account_type == 'API', 'active': True, 'login_enabled': True,
+        'saml_user': False, 'ip_restricted': False, 'allowed_ip_addresses': ['203.0.113.7'],
+        'last_login': '2026-10-01T10:00:00.000Z',
+        'api_credentials': {'api_id': 'f' * 32, 'org_id': 'org-sintetica', 'expiration_ts': '2027-01-01T00:00:00Z'},
+        'roles': [{'role_id': _uid('role', n), 'role_legacy_id': i, 'role_name': n, 'role_description': d,
+                   'is_api': account_type == 'API', 'role_disabled': False,
+                   'ignore_team_restrictions': n == 'noteamrestrictionapi',
+                   'permissions': [{'permission_id': _uid('perm', n), 'permission_name': f'{n}Permission'}]}
+                  for i, (n, d) in enumerate(roles)],
+        'permissions': [{'permission_id': _uid('perm', 'base'), 'permission_name': 'apiUser'}],
+        'teams': [{'team_id': _uid('self-team', t), 'team_name': f'Team Sintético {t}'} for t in range(teams)],
+        '_links': {'self': {'href': 'https://api.veracode.com/api/authn/v2/users/self'}},
+    }
 
 
 def make_finding(issue_id: int, scan_type: str, *, severity: int | None, status: str | None = 'OPEN',
@@ -301,6 +326,8 @@ class FixtureVeracode:
                 return _error(404, 'Not Found')
             return _json(200, {'application': {'guid': m.group(1), 'name': 'sintético'},
                                'linked_projects': tenant.sca_projects.get(m.group(1), [])})
+        if path == '/api/authn/v2/users/self':  # acessível sem papel de administrador (documentação Identity)
+            return _json(200, tenant.self_account or synthetic_self_account())
         if path.startswith('/api/authn/') and tenant.identity_forbidden:
             return _error(403, 'Forbidden')
         if path == '/api/authn/v2/business_units':

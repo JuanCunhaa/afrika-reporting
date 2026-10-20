@@ -40,8 +40,9 @@ _ITEMS_KEY = {'FINDINGS': 'findings', 'SCANS': 'scans'}
 KEEP_FIELDS = {
     'FINDINGS': ('app_id', 'scan_type', 'policy_sandbox', 'status', 'severity', 'found_date', 'resolved_date',
                  'fixed_date', 'reopened_date', 'last_updated_date'),
-    'SCANS': ('app_id', 'scan_type', 'policy_sandbox', 'scan_state', 'submitted', 'published', 'last_updated_date',
-              'most_recent_scan', 'first_scan'),
+    # F12: + scan_id (deduplicação entre páginas) e promoted_scan (sandbox promovido) para `apps.scanned`.
+    'SCANS': ('app_id', 'scan_id', 'scan_type', 'policy_sandbox', 'scan_state', 'submitted', 'published',
+              'last_updated_date', 'most_recent_scan', 'first_scan', 'promoted_scan'),
 }
 _META_DATES = ('date_report_requested', 'date_report_completed', 'report_expiration_date', 'data_refresh_date')
 
@@ -156,6 +157,16 @@ class ReportingClient:
         return st
 
     async def execute(self, request: ReportRequest, progress: Callable[[dict], None]) -> dict:
+        items, out = await self.fetch_items(request, progress)
+        out.update(aggregates=aggregate(request.report_type, items),
+                   aggregates_status='EXPLORATORY_NOT_HOMOLOGATED' if out['complete'] else 'INCOMPLETE',
+                   caveats=['Agregados exploratórios: não são indicadores do catálogo nem números de dashboard',
+                            'Datas dos itens em EDT segundo a especificação; não usadas para competência',
+                            'Itens individuais descartados após a contagem (nada persistido)'])
+        return out
+
+    async def fetch_items(self, request: ReportRequest, progress: Callable[[dict], None]) -> tuple[list[dict], dict]:
+        """Gera (1 POST), acompanha e lê todas as páginas. Itens JÁ minimizados; ficam só em memória."""
         s = self.settings
         st = await self.submit(request)
         progress({'stage': 'processing', 'report_id': st.id, 'veracode_status': st.status, 'envelope': st.envelope,
@@ -198,13 +209,10 @@ class ReportingClient:
         elif not complete:
             reasons.append({'code': 'inconsistent_pagination',
                             'message': 'Itens lidos diferem de page_metadata.total_elements'})
-        return {'complete': complete, 'truncated': truncated, 'reasons': reasons, 'items_processed': len(items),
-                'total_elements_reported': expected, 'pages_fetched': min(total_pages, s.reporting_max_pages),
-                'total_pages': total_pages, 'aggregates': aggregate(request.report_type, items),
-                'aggregates_status': 'EXPLORATORY_NOT_HOMOLOGATED' if complete else 'INCOMPLETE',
-                'caveats': ['Agregados exploratórios: não são indicadores do catálogo nem números de dashboard',
-                            'Datas dos itens em EDT segundo a especificação; não usadas para competência',
-                            'Itens individuais descartados após a contagem (nada persistido)']}
+        return items, {'complete': complete, 'truncated': truncated, 'reasons': reasons,
+                       'items_processed': len(items), 'total_elements_reported': expected,
+                       'pages_fetched': min(total_pages, s.reporting_max_pages), 'total_pages': total_pages,
+                       'data_refresh_date': st.dates.get('data_refresh_date')}
 
 
 # ---------------------------------------------------------------- execuções (memória do processo)

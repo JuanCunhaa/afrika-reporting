@@ -156,6 +156,11 @@ GUIDES: dict[str, Guide] = {
     'scans.count': Guide(Category.BLOCKED_EXTERNAL, reason=_BLOCKED_REPORTING),
     'scans.covered_apps': Guide(Category.NOT_APPLICABLE, reason='O perfil só mostra o ÚLTIMO scan: um scan posterior '
                                 'à competência oculta o do período (indeterminado por definição)'),
+    # F12: fonte comprovada (relatório SCANS, um item por scan) bloqueada fora do projeto; quando a Reporting API for
+    # habilitada e o valor coletado, passa a APPLICABLE (tela indicativa: Analytics → Scans, publicados no período).
+    'apps.scanned': Guide(Category.BLOCKED_EXTERNAL, reason='Fonte = relatório SCANS da Reporting API (um item por '
+                          'scan, data de publicação), HTTP 403 na conta de testes desde a F05; POST não repetido sem '
+                          'mudança de permissão comprovada. O último scan do perfil não substitui a fonte'),
     'licenses.usage': Guide(Category.NOT_APPLICABLE, reason='Sem API de licenças; entrada manual justificada (F05)'),
 }
 assert set(GUIDES) == set(REGISTRY), 'guia de conferência deve cobrir exatamente o catálogo'

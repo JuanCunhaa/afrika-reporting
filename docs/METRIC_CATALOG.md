@@ -1,4 +1,4 @@
-# Catálogo de indicadores — F04
+# Catálogo de indicadores — F04 (atualizado na F12: 36 indicadores)
 
 Fonte de verdade do código: `backend/app/metrics/registry.py` (contratos) e `GET /api/metrics/catalog`.
 Contrato tipado (`backend/app/metrics/contracts.py`, enums): `metric_id`, versão, nome, descrição, domínio, fonte,
@@ -51,6 +51,7 @@ Sandbox = desenvolvimento; SAST e SCA nunca somados nem com a mesma identidade.
 | **F04.1** sca.policy.summary.components | SCA | Policy | estado atual (último build) | — | componentes de terceiros e que violam política |
 | **F04.1** sca.agent.linked_projects | SCA | — | estado atual | GUID | SCA Agent, projetos vinculados por GUID |
 | **F04.1** scans.covered_apps | scans | (não documentado) | evento na competência | GUID | último scan STATIC publicado; scan posterior ao período ⇒ indeterminado |
+| **F12** apps.scanned (v1) | scans | Policy+Sandbox | evento na competência | GUID (`app_id` → `legacy_id`); scans por `scan_id` | relatório SCANS da Reporting API (um item por scan); `scanned`, `scanned_policy`, `scanned_sandbox`, `not_scanned`, `indeterminate`; **SCA = null (UNAVAILABLE)**; datas "EDT" como intervalo; **hoje UNAVAILABLE** (`scans_report_not_collected`, Reporting 403) — ver `docs/F12_VERACODE_GAPS.md` §3 |
 
 ## Não suportados / indisponíveis (lacunas explícitas)
 | ID | Status | Motivo |
@@ -81,5 +82,7 @@ com regras históricas (`zoneinfo` + `tzdata`, ex.: horário de verão até 2019
 fuso, intervalo local, **intervalo UTC** efetivamente comparado, `as_of` (data da coleta), campo de data aplicado e
 `historical_state=false`. Estado atual **não** representa o fechamento de competências anteriores.
 Fontes e definições por indicador: `docs/API_SOURCE_MATRIX.md`.
+
+> **F12:** `apps.scanned` é o primeiro contrato com fonte na Reporting API (relatório SCANS); continua UNAVAILABLE até a habilitação e a autorização de um POST de teste. Os demais dependentes (scans.count, resolved_in_period) seguem sem contrato novo.
 
 > **F05:** existe adaptador da Reporting API (POST de geração autorizado pelo PO, desligado por padrão), mas a conta de testes recebeu HTTP 403 e nenhum contrato novo foi criado: os indicadores acima que dependem dela continuam **UNSUPPORTED** até contrato, testes e homologação. Ver `docs/VERACODE_INTEGRATION.md`.

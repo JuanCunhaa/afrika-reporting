@@ -1,4 +1,4 @@
-# Matriz de fontes Veracode — F04.1
+# Matriz de fontes Veracode — F04.1 (atualizada na F12)
 
 Fontes consultadas em 2026-10-15: especificações oficiais publicadas pela Veracode no SwaggerHub (organização
 `Veracode`: Applications 1.0, Findings 2.1, Summary Report v2, Reporting 1.12.0, SCA Agent 3.0, Policy 1.0,
@@ -22,7 +22,7 @@ Homologação: `VERIFIED_REAL` (formato/comportamento conferido no tenant de tes
 | Reporting 1.12 (OFICIAL) | `POST /appsec/v1/analytics/report` + `GET /appsec/v1/analytics/report/{id}`; tipos FINDINGS, SCANS, DELETEDSCANS, AUDIT; filtros `last_updated_start/end_date` (máx. 6 meses), `policy_sandbox`, `status` Open/Closed, `scan_type` | HMAC; papel *Reporting API*; habilitação pela Veracode | **F05: adaptador implementado e testado em mock (FINDINGS/SCANS); POST de geração autorizado pelo PO, desligado por padrão; real ⇒ HTTP 403 (BLOCKED_EXTERNAL)** — fonte potencial de `resolved_date`, `fixed_date`, `reopened_date`, `found_date` e scans; nenhum indicador do catálogo depende dele |
 | Policy 1.0 (OFICIAL) | `GET /appsec/v1/policies`, `/{guid}`, `/{guid}/versions[/{v}]`, `policy_settings*`, `policy_licenselist` | HMAC | não usado (conformidade vem do perfil); candidato para regras/prazos |
 | Development Sandbox 2.0 (OFICIAL) | `GET …/sandboxes[/{guid}]`; POST `promote` | HMAC | lista de sandboxes (já usada) |
-| Identity 1.5 (OFICIAL) | BUs, Teams, usuários (GET); muitas operações POST/PUT/DELETE | HMAC | descoberta F02 — VERIFIED_REAL |
+| Identity 1.5 (OFICIAL) | BUs, Teams, usuários (GET); **F12: `GET /api/authn/v2/users/self`** (própria conta; caminho exato); muitas operações POST/PUT/DELETE | HMAC; `/users/self` acessível sem papel de administrador | descoberta F02 — VERIFIED_REAL; **F12: diagnóstico de papéis VERIFIED_REAL** (resposta real sem `account_type`/`api_user`) |
 | Healthcheck 1.0 (OFICIAL) | `GET /healthcheck/status` | — | não usado |
 | `ui.analysiscenter…/container-scan-query` (INTERNO_UI) | usado pelo script de referência para IaC, com sessão da interface | cookies/sessão | **proibido** nesta fase (não documentado) |
 
@@ -50,6 +50,7 @@ dashboard? · homologação. Todas as chamadas GET; autenticação HMAC (credenc
 | sca.policy.new_in_period | — | Reporting `library_first_found`/`found_date` (POST) | — | — | — | — | — | UNSUPPORTED (data ambígua na Findings) |
 | scans.covered_apps (novo) | Applications `scans[]` (último scan STATIC, `modified_date` = publicação) | Reporting SCANS (POST) | contexto não documentado | data só do ÚLTIMO scan | não (scan anterior fica oculto) | sim | NOT_RUN | VERIFIED_REAL (`scans[]` real só lista STATIC) |
 | scans.count | — | Reporting SCANS `published`, `scan_type`, `policy_sandbox` | P/S | `last_updated_*` | 6 meses | sim | — | **BLOCKED_POST** |
+| apps.scanned (F12) | Reporting SCANS (um item por scan: `app_id`, `scan_id`, `scan_type`, `policy_sandbox`, `published`) | XML `getbuildlist.do`+`getbuildinfo.do` (NOT_VERIFIED, fora da allowlist); perfil `scans[]` só para checar visibilidade | P/S (SCA sem tipo no relatório) | `published` "EDT" ⇒ intervalo; janela `last_updated_*` do início da competência à geração | 6 meses | sim | NOT_RUN | contrato v1 + mock PASS; real **BLOCKED_EXTERNAL** (403) |
 | licenses.usage | — | nenhuma API identificada | — | — | — | — | — | UNSUPPORTED (entrada manual F05) |
 | users.* (F03) | Identity | — | — | — | não | sim | — | VERIFIED_REAL |
 

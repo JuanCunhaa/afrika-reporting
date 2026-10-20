@@ -84,6 +84,9 @@ diferenças conhecidas; só corrigir defeito comprovado na nossa consulta; se a 
 documentar e propor contrato novo ao PO **antes** de alterar qualquer número.
 
 ## 5. Prioridade 9 — "Aplicações com scans" (proposta, NÃO implementada)
+> **Superado na F12:** a ordem do PO definiu `apps.scanned` como scan publicado NA competência (não estado atual) e
+> proibiu inferir pelo último scan; implementado sobre o relatório SCANS — ver `docs/F12_VERACODE_GAPS.md` §3.
+
 `scans.covered_apps` continua NOT_APPLICABLE (scan publicado *dentro* da competência; o perfil só mostra o último).
 O dashboard tem "Application Scanned (Yes/No): Determines if the application was scanned" (Applications explore), que
 é estado ATUAL. Proposta de contrato novo para decisão do PO: `apps.scanned` v1 — aplicações do escopo com ao menos um

@@ -29,6 +29,7 @@ Especificações oficiais: [Applications API 1.0](https://app.swaggerhub.com/api
 | Detalhe do Team | `/api/authn/v2/teams/{team_id}` | — | `users[]` (UserTeam) → relação usuário↔Team; `relationship` real = objeto `{name, display_name}` (spec: string; ambos aceitos); `user_count` ausente na API real ⇒ conferência só quando presente |
 | Usuários | `/api/authn/v2/users?page&size` | `users` | parâmetros padrão da API (`deleted`/`inactive` = false); **sem `account_type` na lista real** |
 | Teste de conexão | os 4 endpoints de lista com `size=1` | — | identifica permissão por domínio |
+| **Própria conta (F12)** | `/api/authn/v2/users/self` (caminho exato, sem query) | — | papéis/permissões da credencial; acessível sem papel de administrador; **resposta real sem `account_type`/`api_user`**; minimizado (sem ids, e-mail, nomes, IPs, Teams) — `self_diagnostic.py` |
 | **Summary Report (F04.1)** | `/appsec/v2/applications/{guid}/summary_report[?context={sandbox_guid}]` | — | build mais recente; chave real `flaw-status` (hífen) e `sca_service_available` não booleano ⇒ normalização tolerante; nomes de pessoas/aplicação/Teams descartados |
 | **SCA Agent (F04.1)** | `/srcclr/v3/applications/{guid}/projects` | — | `{application, linked_projects[]}`; só IDs de projeto/workspace e data do último scan |
 | **Findings (F04)** | `/appsec/v2/applications/{guid}/findings?scan_type=STATIC` ou `SCA` `[&context={sandbox_guid}]&page&size` | `findings` | [Findings API 2.1](https://app.swaggerhub.com/apis/Veracode/veracode-findings_api_specification/2.1); papel *Results API*; sem `context` = Policy; SCA nunca combinado com outros tipos; `size` próprio (`FINDINGS_PAGE_SIZE`=50) |
@@ -225,6 +226,16 @@ Minimização: itens reduzidos na leitura a `app_id`, `scan_type`, `policy_sandb
 | Métrica homologada contra dashboard | **não** (NOT_RUN) |
 
 Teste real: `tests_live/test_reporting_live.py`, exige portão comum **e** `VERACODE_REPORTING_LIVE_ENABLED=true`.
+
+### F12 — diagnóstico do 403 e primeiro contrato sobre a Reporting API
+- `GET /api/authn/v2/users/self` (2 GET reais, 0 POST): usuário com papéis de interface **Executive, Security Lead e
+  Security Insights** ativos ⇒ papel exigido presente ⇒ 403 = **habilitação da organização não confirmada**
+  (`ROLE_PRESENT_ENABLEMENT_NOT_CONFIRMED`), não papel ausente; licença não presumida. Texto para o suporte e risco de
+  privilégio mínimo da credencial: `docs/F12_VERACODE_GAPS.md` §1–2. API local:
+  `POST /api/veracode/{clients|subclients}/{id}/self-diagnostic`.
+- `apps.scanned` v1 usa o relatório SCANS (`scans_published.collect_evidence`, 1 POST quando habilitado); itens SCANS
+  agora guardam também `scan_id` e `promoted_scan`. `ReportingClient.fetch_items` separa a leitura dos agregados.
+  Estado real: UNAVAILABLE (403). POST **não** repetido.
 
 ## Fica para as próximas fases
 - F03: **entregue** — `docs/SCOPES.md`.

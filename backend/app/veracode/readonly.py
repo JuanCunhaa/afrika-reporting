@@ -30,6 +30,9 @@ ALLOWED_GET_PATHS = (
     re.compile(r'/api/authn/v2/teams'),
     re.compile(rf'/api/authn/v2/teams/{_SEG}'),
     re.compile(r'/api/authn/v2/users'),
+    # F12: papéis/permissões da PRÓPRIA conta autenticada (Identity API; acessível sem papel de administrador).
+    # Caminho exato: nenhum outro usuário (`/users/{id}`) nem `/principal`. Somente leitura.
+    re.compile(r'/api/authn/v2/users/self'),
     # F04: Findings API (lista por aplicação; `context`=sandbox e `scan_type` vão na query). Somente leitura.
     re.compile(rf'/appsec/v2/applications/{_SEG}/findings'),
     # F04.1: Summary Report API (agregado por build; `context`=sandbox na query) e SCA Agent — projetos vinculados

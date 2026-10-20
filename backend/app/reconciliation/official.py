@@ -29,9 +29,10 @@ PRIORITIES: dict[int, str] = {
     9: 'Aplicações com scans',
 }
 PRIORITY_GAPS: dict[int, str] = {
-    9: ('Nenhum indicador aplicável: `scans.covered_apps` é NOT_APPLICABLE (scan publicado DENTRO da competência; o '
-        'perfil só mostra o último scan). O equivalente do dashboard ("Application Scanned (Yes/No)", estado atual) '
-        'exige contrato novo — proposta em docs/F11_METRIC_HOMOLOGATION.md, não implementada sem decisão do PO'),
+    9: ('F12: `apps.scanned` v1 implementado (aplicações distintas com scan publicado na competência, Policy/Sandbox, '
+        'SCA indisponível) com fonte = relatório SCANS da Reporting API — BLOCKED_EXTERNAL (HTTP 403) até a '
+        'habilitação; `scans.covered_apps` segue NOT_APPLICABLE (perfil só mostra o último scan). Nada a conferir '
+        'sem valor coletado'),
 }
 
 _OPEN_DEF = ('Findings explore: Finding Status "Values are Open or Closed"; Resolution and Mitigation Status '

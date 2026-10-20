@@ -68,6 +68,42 @@ def conference_out(r: MetricConference, snap: MetricSnapshot | None) -> dict:
             'stale': snap is None or snap.row_hash != r.snapshot_row_hash}
 
 
+REVIEW_FIELDS = ('collected_value', 'definition', 'scope', 'competence', 'filters', 'origin', 'official_path',
+                 'dashboard_value_fields', 'difference', 'status')
+
+
+def _review(comp: Competence, contract, g, snap: MetricSnapshot | None, lines: list[dict], current: dict | None,
+            comparison: str) -> dict:
+    """F12: os 10 itens da revisão humana (ordem do PO §4), num só bloco. Nada é preenchido por suposição: o que
+    falta vem None/vazio e `missing` lista os itens ausentes."""
+    off = official.public(contract.metric_id) or {}
+    refs = [] if snap is None else [r for r in (loads(snap.scope_refs_json) or []) if isinstance(r, dict)]
+    entries = (current or {}).get('entries') if current and not current['stale'] else None
+    out = {
+        'collected_value': lines or None,
+        'definition': off.get('definition') or contract.description,
+        'definition_source': 'veracode_docs' if off.get('definition') else 'afrika_contract',
+        'scope': {'owner_key': comp.owner_key, 'application_scope': contract.application_scope,
+                  'scope_refs': refs},
+        'competence': {'competence': comp.label, 'timezone': comp.timezone,
+                       'temporal_mode': contract.temporal_mode.value},
+        'filters': list(g.filters) or None,
+        'origin': None if snap is None else {'origin': snap.origin, 'source': contract.source.value,
+                                             'endpoint': snap.endpoint, 'source_status': snap.source_status,
+                                             'collected_on': collected_on(comp, snap)},
+        'official_path': None if not (g.path or off.get('docs')) else {
+            'platform_path': g.path or None, 'analytics_location': off.get('analytics_location'),
+            'docs': off.get('docs') or [], 'path_is_indicative': True},
+        'dashboard_value_fields': [{'key': line['key'], 'label': line['label']} for line in lines] or None,
+        'difference': None if entries is None else [
+            {'key': e['key'], 'difference': e['difference'], 'difference_pct': e['difference_pct']} for e in entries],
+        'status': comparison,
+    }
+    # Diferença só existe depois de uma conferência; não conta como item faltante da preparação.
+    out['missing'] = [k for k in REVIEW_FIELDS if out[k] in (None, [], '') and k != 'difference']
+    return out
+
+
 def _row(comp: Competence, metric_id: str, snap: MetricSnapshot | None, conf: MetricConference | None) -> dict:
     contract = REGISTRY[metric_id]
     g = GUIDES[metric_id]
@@ -96,7 +132,8 @@ def _row(comp: Competence, metric_id: str, snap: MetricSnapshot | None, conf: Me
                 'origin': snap.origin, 'value_state': value_state(snap.origin, value, snap.source_status).value,
                 'source_status': snap.source_status, 'collected_on': collected_on(comp, snap),
                 'endpoint': snap.endpoint, 'row_hash': snap.row_hash},
-            'lines': lines, 'comparison': comparison, 'homologated': homologated, 'conference': current}
+            'lines': lines, 'comparison': comparison, 'homologated': homologated, 'conference': current,
+            'review': _review(comp, contract, g, snap, lines, current, comparison)}
 
 
 def sheet(session: Session, comp: Competence, rev: CompetenceRevision) -> dict:

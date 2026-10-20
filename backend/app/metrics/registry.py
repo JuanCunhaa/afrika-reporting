@@ -281,6 +281,27 @@ CONTRACTS: tuple[MetricContract, ...] = (
          limitations=('Só o último scan por tipo é visível: competências antigas tendem a INCOMPLETE '
                       '(limite inferior em partial)', 'Contexto (Policy/Sandbox) de scans[] não documentado',
                       'scans[] real não lista SCA (homologação F04.1)')),
+    # F12 — ordem do PO (prioridade 9). Fonte com UM item por scan (histórico), nunca o último scan do perfil.
+    _alt('apps.scanned', 'Aplicações com scan publicado na competência',
+         'Quantidade de aplicações DISTINTAS do escopo com ao menos um scan publicado no período (competência no '
+         'fuso do cliente), por GUID, separando Policy e Sandbox; SCA indisponível (sem fonte comprovada)',
+         Domain.SCANS, Source.REPORTING_API, _REPORTING_EP, Shape.BREAKDOWN, Unit.APPLICATIONS,
+         'count(distinct app GUID) where relatório SCANS: scan_type="Static Analysis" ∧ published ∈ competência; '
+         'scanned_policy / scanned_sandbox por policy_sandbox; app_id → GUID pelo ID numérico da Applications API',
+         temporal=TemporalMode.EVENT_IN_PERIOD, date_field=DateField.REPORT_SCAN_PUBLISHED,
+         status_criterion=StatusCriterion.PUBLISHED_SCAN, scan_type=ScanType.STATIC,
+         context=ScanContext.POLICY_AND_SANDBOX,
+         rules=('relatório SCANS completo (todas as páginas; total = page_metadata.total_elements)',
+                'janela last_updated_* do início da competência até o dia seguinte à geração; sem most_recent_scan, '
+                'sem filtro de aplicação/contexto',
+                'nenhuma publicação perto do limite com fuso indeterminado (EDT/EST)',
+                'toda aplicação com scan publicado no perfil dentro da janela aparece no relatório (visibilidade)'),
+         limitations=('Reporting API: HTTP 403 na conta de testes desde a F05 (papel/habilitação) ⇒ UNAVAILABLE até '
+                      'a habilitação; POST não repetido sem autorização',
+                      'SCA indisponível: o relatório SCANS não tem tipo SCA (sca_scanned = null, nunca 0)',
+                      'Datas dos itens em "EDT" (especificação): intervalo UTC−4/UTC−5; perto do limite ⇒ indeterminado',
+                      'Scans excluídos não aparecem no relatório SCANS (DELETEDSCANS não habilitado)',
+                      'Janela de dados da Reporting API: no máximo 6 meses (competências antigas ⇒ snapshot aprovado)')),
     _gap('licenses.usage', 'Licenças consumidas', Domain.LICENSES,
          'Nenhuma API de licenças homologada; pode exigir entrada manual (F05)'),
 )

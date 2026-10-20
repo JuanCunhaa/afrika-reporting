@@ -18,7 +18,23 @@
 - **F08 — interpretação dos indicadores (assistida, com revisão humana): DONE — aprovada pelo PO (ordem F09)** (commit `c1766a5` + docs; CI verde run `39263203988`)
 - **F09 — homologação ponta a ponta: DONE — aprovada pelo PO como homologação funcional (ordem F10)** (commit `9173f1e` + docs)
 - **F10 — conciliação Veracode e piloto operacional: DONE — aprovada pelo PO (ordem F11)**
-- **F11 — homologação de métricas e piloto assistido: DONE — aguardando PO** (commit `18f8bb7`; produção NÃO autorizada nem pronta)
+- **F11 — homologação de métricas e piloto assistido: DONE — aprovada pelo PO (ordem F12)** (commit `18f8bb7`)
+- **F12 — fechamento de lacunas Veracode: DONE — aguardando PO** (produção NÃO autorizada nem pronta)
+
+## Checkpoint F12 (2026-10-19)
+- **Diagnóstico da própria conta** (`GET /api/authn/v2/users/self`, allowlist com caminho exato; `/principal` não
+  usado): real **2 GET, 0 POST**. Resposta real sem `account_type`/`api_user`; papéis de interface Executive, Security
+  Lead e Security Insights ativos ⇒ `ROLE_PRESENT_ENABLEMENT_NOT_CONFIRMED`: o 403 da Reporting API não é papel ausente;
+  habilitação da organização pelo suporte não confirmada (não observável por API); licença não presumida. Risco novo:
+  credencial de testes com papéis de escrita/administração (o Afrika só lê). API local
+  `POST /api/veracode/{clients|subclients}/{id}/self-diagnostic`. Texto ao suporte: `docs/F12_VERACODE_GAPS.md` §2.
+- **`apps.scanned` v1** (36º indicador): relatório SCANS (um item por scan), GUID via ID numérico, Policy/Sandbox, SCA
+  `null` (UNAVAILABLE), datas "EDT" como intervalo contra a competência no fuso do cliente, dedup por `scan_id`/GUID,
+  completude (janela, `most_recent_scan`, filtros, visibilidade). Estado real **UNAVAILABLE** (Reporting 403);
+  conferência BLOCKED_EXTERNAL. Último scan do perfil NÃO usado para o mês.
+- **Conferência:** bloco `review` com os 10 itens da ordem nos 21 aplicáveis. **Homologados: 0/21** (sem comparação
+  real). Falha de backup continua bloqueando aprovação (testes F11 na suíte).
+- Testes: ver `docs/AGENT_HANDOFF.md` (F12).
 
 ## Checkpoint F11 (2026-10-19)
 - **Homologados contra o dashboard: 0/21** (agente sem acesso autorizado ao portal; nenhum valor oficial observado ⇒

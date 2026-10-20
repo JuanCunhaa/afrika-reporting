@@ -53,7 +53,8 @@ test('conferência: valor oficial → diferença e status do servidor, categoria
   await page.getByTestId('open-conference').click();
   await expect(page.getByRole('heading', { level: 2 })).toContainText('Conferência com a Veracode — 2026-08');
   await expect(page.getByTestId('summary-NOT_APPLICABLE')).toHaveText('12');
-  await expect(page.getByTestId('summary-BLOCKED_EXTERNAL')).toHaveText('2');
+  await expect(page.getByTestId('summary-BLOCKED_EXTERNAL')).toHaveText('3'); // F12: + apps.scanned
+  await expect(page.getByTestId('other-apps.scanned')).toContainText('HTTP 403');
   await expect(page.getByTestId('other-sast.open.distinct')).toContainText('identidade NÃO comprovada');
   await expect(page.getByTestId('other-scans.count')).toContainText('HTTP 403');
 

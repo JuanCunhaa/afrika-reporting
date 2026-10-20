@@ -222,7 +222,7 @@ def test_04_conference_against_independent_oracle(p):
         assert out['comparison'] == 'MATCH', (mid, out['conference']['entries'])
         assert out['homologated'] is True
     s = p.call('GET', f'/api/competences/{cid}/revisions/{n}/conference')['summary']
-    assert s['HOMOLOGATED'] == len(oracle) and s['NOT_APPLICABLE'] == 12 and s['BLOCKED_EXTERNAL'] == 2
+    assert s['HOMOLOGATED'] == len(oracle) and s['NOT_APPLICABLE'] == 12 and s['BLOCKED_EXTERNAL'] == 3
     p.s['oracle'] = oracle
 
 

@@ -155,7 +155,7 @@ def test_csv_follows_priority_order_with_official_columns(flow):
     assert order[:9] == ['apps.total', 'apps.by_business_unit', 'apps.by_team', 'apps.by_policy_compliance',
                          'sast.policy.open.by_severity', 'sast.sandbox.open.by_severity',
                          'sca.policy.open.by_severity', 'sca.sandbox.open.by_severity', 'apps.loc.total']
-    assert set(order[-2:]) == {'sast.policy.resolved_in_period', 'scans.count'} and len(order) == 35
+    assert set(order[-3:]) == {'apps.scanned', 'sast.policy.resolved_in_period', 'scans.count'} and len(order) == 36
 
 
 # ---------------------------------------------------------------- backup automático antes da aprovação

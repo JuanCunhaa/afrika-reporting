@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import not_found
 from app.orm import Client, Connection, Subclient
-from app.veracode import adapters, credentials
+from app.veracode import adapters, credentials, self_diagnostic
 from app.veracode.cache import DiscoveryCache
 from app.veracode.errors import VeracodeError
 from app.veracode.http import Collection, CollectionRun, VeracodeHttpPool
@@ -176,6 +176,17 @@ class DiscoveryService:
         logger.info('teste de conexão escopo=%s:%s conexão=%s status=%s', ctx.kind, ctx.id, ctx.connection_id,
                     status)
         return {'status': status, 'checks': checks, 'requests': run.requests, 'retries': run.retries}
+
+    async def self_diagnostic(self, ctx: ScopeContext) -> dict:
+        """F12: papéis/permissões da PRÓPRIA credencial (1 GET em /users/self). Nunca cacheado; resposta minimizada."""
+        try:
+            creds = self._credentials(ctx)
+        except VeracodeError as exc:
+            return {'status': 'error', 'error': exc.as_dict()}
+        out = await self_diagnostic.run_self_diagnostic(self._run(ctx, creds))
+        logger.info('diagnóstico da conta escopo=%s:%s conexão=%s status=%s', ctx.kind, ctx.id, ctx.connection_id,
+                    out['status'])
+        return out
 
     # ------------------------------------------------------------ coleções simples
 
